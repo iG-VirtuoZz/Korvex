@@ -38,9 +38,11 @@ export class StratumServer {
 
   private extraNonce2Size: number = 6;
 
-  // Cache de la derniere diff par worker (address.worker -> vardiff)
+  // Cache de la derniere diff par worker (address.worker -> {vardiff, lastSeen})
   // Permet de restaurer la diff a la reconnexion au lieu de repartir a 10000
-  private workerLastDiff: Map<string, number> = new Map();
+  private workerLastDiff: Map<string, { diff: number; lastSeen: number }> = new Map();
+  private workerLastDiffPurgeTimer: NodeJS.Timeout | null = null;
+  private workerLastDiffTTL: number = 24 * 3600_000; // 24 heures
 
   constructor() {
     this.server = net.createServer((socket) => this.handleConnection(socket));
@@ -72,6 +74,9 @@ export class StratumServer {
 
     // Purge periodique des compteurs de shares invalides (TTL 1h)
     this.invalidSharePurgeTimer = setInterval(() => this.purgeInvalidShareCounts(), this.invalidShareTTL);
+
+    // Purge periodique du cache workerLastDiff (TTL 24h)
+    this.workerLastDiffPurgeTimer = setInterval(() => this.purgeWorkerLastDiff(), this.workerLastDiffTTL);
   }
 
   private purgeInvalidShareCounts() {
@@ -85,6 +90,20 @@ export class StratumServer {
     }
     if (purged > 0) {
       console.log("[Stratum] Purge invalidShareCounts: " + purged + " entree(s) expirees");
+    }
+  }
+
+  private purgeWorkerLastDiff() {
+    const now = Date.now();
+    let purged = 0;
+    for (const [key, entry] of this.workerLastDiff) {
+      if (now - entry.lastSeen > this.workerLastDiffTTL) {
+        this.workerLastDiff.delete(key);
+        purged++;
+      }
+    }
+    if (purged > 0) {
+      console.log("[Stratum] Purge workerLastDiff: " + purged + " entree(s) expirees");
     }
   }
 
@@ -135,7 +154,7 @@ export class StratumServer {
       // Sauvegarder la diff du worker pour la restaurer a la reconnexion
       if (session.authorized && session.address && session.difficulty > 0) {
         const workerKey = session.address + "." + session.worker;
-        this.workerLastDiff.set(workerKey, session.difficulty);
+        this.workerLastDiff.set(workerKey, { diff: session.difficulty, lastSeen: Date.now() });
       }
       this.sessions.delete(sessionId);
       const c = (this.connectionCounts.get(ip) || 1) - 1;
@@ -192,10 +211,10 @@ export class StratumServer {
 
     // Restaurer la derniere diff connue pour ce worker (evite le burst post-restart)
     const workerKey = session.address + "." + session.worker;
-    const lastDiff = this.workerLastDiff.get(workerKey);
-    if (lastDiff && lastDiff >= 100) {
-      session.setDifficulty(lastDiff);
-      console.log("[Stratum] Mineur autorise: " + session.address.substring(0, 12) + "..." + session.worker + " (vardiff restaure: " + lastDiff + ")");
+    const lastDiffEntry = this.workerLastDiff.get(workerKey);
+    if (lastDiffEntry && lastDiffEntry.diff >= 100) {
+      session.setDifficulty(lastDiffEntry.diff);
+      console.log("[Stratum] Mineur autorise: " + session.address.substring(0, 12) + "..." + session.worker + " (vardiff restaure: " + lastDiffEntry.diff + ")");
     } else {
       console.log("[Stratum] Mineur autorise: " + session.address.substring(0, 12) + "..." + session.worker + " (vardiff initial: " + session.difficulty + ")");
     }
@@ -423,6 +442,7 @@ export class StratumServer {
   async stop() {
     if (this.pollTimer) clearInterval(this.pollTimer);
     if (this.invalidSharePurgeTimer) clearInterval(this.invalidSharePurgeTimer);
+    if (this.workerLastDiffPurgeTimer) clearInterval(this.workerLastDiffPurgeTimer);
     for (const session of this.sessions.values()) {
       session.disconnect();
     }

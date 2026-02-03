@@ -7,7 +7,7 @@ export const config = {
     port: parseInt(process.env.DB_PORT || "5432"),
     database: process.env.DB_NAME || "korvex_pool",
     user: process.env.DB_USER || "ergo",
-    password: process.env.DB_PASS || "korvex2026",
+    password: process.env.DB_PASS || (() => { throw new Error("DB_PASS environment variable is required"); })(),
   },
   ergoNode: {
     url: process.env.ERGO_NODE_URL || "http://127.0.0.1:9053",

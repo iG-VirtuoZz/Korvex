@@ -320,7 +320,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
         LEFT JOIN miner_pending p ON p.address = m.address
         LEFT JOIN miner_paid paid ON paid.address = m.address
         ORDER BY ${sortCol} ${sortOrder} NULLS LAST
-        LIMIT ${limit} OFFSET ${offset}
+        LIMIT ${search ? "$2" : "$1"} OFFSET ${search ? "$3" : "$2"}
       `;
 
       const countSql = `
@@ -329,8 +329,9 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
         ${searchClause}
       `;
 
+      const dataParams = search ? [search + "%", limit, offset] : [limit, offset];
       const [dataResult, countResult] = await Promise.all([
-        database.query(sql, searchParam),
+        database.query(sql, dataParams),
         database.query(countSql, searchParam),
       ]);
 

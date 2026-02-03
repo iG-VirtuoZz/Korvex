@@ -28,6 +28,7 @@ export interface MiningCandidate {
 class ErgoNode {
   private baseUrl: string;
   private apiKey: string;
+  private defaultTimeout: number = 10000; // 10 secondes
 
   constructor() {
     this.baseUrl = config.ergoNode.url;
@@ -42,7 +43,10 @@ class ErgoNode {
   }
 
   async getInfo(): Promise<NodeInfo> {
-    const res = await fetch(this.baseUrl + "/info", { headers: this.headers() });
+    const res = await fetch(this.baseUrl + "/info", {
+      headers: this.headers(),
+      signal: AbortSignal.timeout(this.defaultTimeout),
+    });
     if (!res.ok) throw new Error("Node API error: " + res.status);
     return (await res.json()) as NodeInfo;
   }
@@ -67,7 +71,10 @@ class ErgoNode {
   }
 
   async getMiningCandidate(): Promise<MiningCandidate | null> {
-    const res = await fetch(this.baseUrl + "/mining/candidate", { headers: this.headers() });
+    const res = await fetch(this.baseUrl + "/mining/candidate", {
+      headers: this.headers(),
+      signal: AbortSignal.timeout(this.defaultTimeout),
+    });
     if (!res.ok) return null;
     const text = await res.text();
     const bMatch = text.match(/"b"\s*:\s*(\d+)/);
@@ -87,6 +94,7 @@ class ErgoNode {
         method: "POST",
         headers: this.headers(true),
         body: JSON.stringify(solution),
+        signal: AbortSignal.timeout(this.defaultTimeout),
       });
       return res.ok;
     } catch {
@@ -95,14 +103,20 @@ class ErgoNode {
   }
 
   async getBlockHeaderById(id: string): Promise<BlockHeader> {
-    const res = await fetch(this.baseUrl + "/blocks/" + id + "/header", { headers: this.headers() });
+    const res = await fetch(this.baseUrl + "/blocks/" + id + "/header", {
+      headers: this.headers(),
+      signal: AbortSignal.timeout(this.defaultTimeout),
+    });
     if (!res.ok) throw new Error("Block header error: " + res.status);
     return (await res.json()) as BlockHeader;
   }
 
   async getEmissionReward(height: number): Promise<bigint> {
     try {
-      const res = await fetch(this.baseUrl + "/emission/at/" + height, { headers: this.headers() });
+      const res = await fetch(this.baseUrl + "/emission/at/" + height, {
+        headers: this.headers(),
+        signal: AbortSignal.timeout(this.defaultTimeout),
+      });
       if (!res.ok) throw new Error("Emission API error: " + res.status);
       const data = await res.json() as { minerReward: number };
       return BigInt(data.minerReward);
@@ -114,7 +128,10 @@ class ErgoNode {
 
   async getBlockIdsAtHeight(height: number): Promise<string[]> {
     try {
-      const res = await fetch(this.baseUrl + "/blocks/at/" + height, { headers: this.headers() });
+      const res = await fetch(this.baseUrl + "/blocks/at/" + height, {
+        headers: this.headers(),
+        signal: AbortSignal.timeout(this.defaultTimeout),
+      });
       if (!res.ok) return [];
       const blockIds = await res.json();
       if (Array.isArray(blockIds)) return blockIds;
