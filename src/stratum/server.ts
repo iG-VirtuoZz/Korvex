@@ -315,6 +315,26 @@ export class StratumServer {
           if (submitted) {
             console.log("[Stratum] Bloc soumis au noeud avec succes !");
 
+            // TODO: TEMPORAIRE - Alerte Discord bloc trouve (a enlever avant public)
+            try {
+              const discordWebhook = process.env.DISCORD_WEBHOOK_URL;
+              if (discordWebhook) {
+                fetch(discordWebhook, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    embeds: [{
+                      title: "🎉 BLOC TROUVÉ !",
+                      color: 65280,
+                      description: `Hauteur: **${height}**\nMineur: ${session.address.substring(0, 12)}...${session.worker}`,
+                      timestamp: new Date().toISOString()
+                    }]
+                  })
+                }).catch(() => {});
+              }
+            } catch {}
+
+
             // --- Calcul effort AVANT recordBlock ---
             let effortPercent: number | null = null;
             try {
