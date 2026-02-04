@@ -70,9 +70,10 @@ const getCSSVar = (varName: string, fallback: string): string => {
 interface MinerChartProps {
   address: string;
   worker?: string;
+  hideTitle?: boolean;
 }
 
-const MinerChart: React.FC<MinerChartProps> = ({ address, worker }) => {
+const MinerChart: React.FC<MinerChartProps> = ({ address, worker, hideTitle = false }) => {
   const [period, setPeriod] = useState("1d");
   const [rawData, setRawData] = useState<ChartPoint[]>([]);
   const [colors, setColors] = useState({ accent: "#f97316", card: "#18181b", border: "#27272a", text: "#a1a1aa" });
@@ -127,12 +128,14 @@ const MinerChart: React.FC<MinerChartProps> = ({ address, worker }) => {
   return (
     <div className="chart-container">
       <div className="chart-header">
-        <div className="chart-tabs">
-          <button className="active">
-            {worker ? "Worker: " + worker : "Hashrate History"}
-          </button>
-        </div>
-        <div className="chart-periods">
+        {!hideTitle && (
+          <div className="chart-tabs">
+            <button className="active">
+              {worker ? "Worker: " + worker : "Hashrate History"}
+            </button>
+          </div>
+        )}
+        <div className="chart-periods" style={hideTitle ? { marginLeft: 'auto' } : undefined}>
           {PERIODS.map((p) => (
             <button
               key={p.key}
@@ -151,7 +154,7 @@ const MinerChart: React.FC<MinerChartProps> = ({ address, worker }) => {
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={280}>
-          <AreaChart data={data}>
+          <AreaChart data={data} margin={{ top: 15, right: 10, left: 10, bottom: 0 }}>
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor={colors.accent} stopOpacity={0.3} />

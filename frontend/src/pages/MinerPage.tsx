@@ -27,7 +27,7 @@ const calcTimeAgo = (dateStr: string | null | undefined) => {
   if (!dateStr) return "\u2014";
   const diff = Date.now() - new Date(dateStr).getTime();
   const sec = Math.floor(diff / 1000);
-  if (sec < 5) return "Now";
+  if (sec < 1) return "Now";
   if (sec < 60) return sec + "s ago";
   const min = Math.floor(sec / 60);
   if (min < 60) return min + " min ago";
@@ -81,11 +81,11 @@ const LiveTimeAgo: React.FC<{ dateStr: string | null | undefined }> = ({ dateStr
 
 const effortColor = (effort: number | null) => {
   if (effort === null) return "var(--text-dim)";
-  if (effort < 50) return "#22c55e";
-  if (effort < 100) return "#4ade80";
-  if (effort < 150) return "#facc15";
-  if (effort < 200) return "#f97316";
-  return "#ef4444";
+  if (effort < 50) return "#16a34a";   // Vert fonce (different du vert USD)
+  if (effort < 100) return "#84cc16";  // Lime / vert-jaune
+  if (effort < 150) return "#facc15";  // Jaune
+  if (effort < 200) return "#f97316";  // Orange
+  return "#ef4444";                     // Rouge
 };
 
 // Determine le statut d'un worker selon la date de sa derniere share
@@ -156,7 +156,7 @@ const MinerPage: React.FC = () => {
     const t = setInterval(() => {
       loadMiner(paramAddress);
       getStats().then(setPoolStats).catch(() => {});
-    }, 30000);
+    }, 5000); // Refresh toutes les 5 secondes pour voir les shares en temps reel
     return () => clearInterval(t);
   }, [paramAddress, loadMiner]);
 
@@ -421,12 +421,12 @@ const MinerPage: React.FC = () => {
                   </tbody>
                 </table>
 
-                {/* Panneau detail du worker selectionne */}
+                {/* Graphique du worker selectionne */}
                 {selectedWorker && selectedWorkerData && (
                   <div className="worker-detail-panel">
                     <div className="worker-detail-header">
                       <h4 className="worker-detail-title">
-                        Worker: {selectedWorker}
+                        {selectedWorker} — Hashrate History
                       </h4>
                       <button
                         className="worker-detail-close"
@@ -437,30 +437,7 @@ const MinerPage: React.FC = () => {
                       </button>
                     </div>
 
-                    <div className="worker-detail-stats">
-                      <div className="worker-stat">
-                        <span className="worker-stat-label">Hashrate 15m</span>
-                        <span className="worker-stat-value">{formatHash(selectedWorkerData.hashrate_15m)}</span>
-                      </div>
-                      <div className="worker-stat">
-                        <span className="worker-stat-label">Hashrate 1h</span>
-                        <span className="worker-stat-value">{formatHash(selectedWorkerData.hashrate_1h)}</span>
-                      </div>
-                      <div className="worker-stat">
-                        <span className="worker-stat-label">Effort</span>
-                        <span className="worker-stat-value" style={{ color: effortColor(selectedWorkerData.effort_percent) }}>
-                          {selectedWorkerData.effort_percent !== null && selectedWorkerData.effort_percent !== undefined
-                            ? selectedWorkerData.effort_percent.toFixed(2) + "%"
-                            : "\u2014"}
-                        </span>
-                      </div>
-                      <div className="worker-stat">
-                        <span className="worker-stat-label">Blocks Found</span>
-                        <span className="worker-stat-value">{selectedWorkerData.blocks_found || 0}</span>
-                      </div>
-                    </div>
-
-                    <MinerChart address={paramAddress} worker={selectedWorker} />
+                    <MinerChart address={paramAddress} worker={selectedWorker} hideTitle />
                   </div>
                 )}
               </>
