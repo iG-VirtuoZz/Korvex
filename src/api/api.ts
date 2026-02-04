@@ -240,7 +240,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
       // Colonnes triables (whitelist pour eviter injection SQL)
       const SORTABLE: Record<string, string> = {
         hashrate_1h: "hashrate_1h",
-        hashrate_5m: "hashrate_5m",
+        hashrate_15m: "hashrate_15m",
         shares_1h: "shares_1h",
         workers_count: "workers_count",
         balance_nano: "balance_nano",
@@ -265,7 +265,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
         miner_hr AS (
           SELECT
             address,
-            COALESCE(SUM(diff_sum) FILTER (WHERE ts_minute > NOW() - INTERVAL '5 minutes'), 0) / 300.0 as hashrate_5m,
+            COALESCE(SUM(diff_sum) FILTER (WHERE ts_minute > NOW() - INTERVAL '15 minutes'), 0) / 900.0 as hashrate_15m,
             COALESCE(SUM(diff_sum) FILTER (WHERE ts_minute > NOW() - INTERVAL '1 hour'), 0) / 3600.0 as hashrate_1h
           FROM miner_hashrate_1m
           WHERE address IN (SELECT address FROM active_miners)
@@ -303,7 +303,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
         )
         SELECT
           m.address,
-          ROUND(COALESCE(hr.hashrate_5m, 0))::bigint as hashrate_5m,
+          ROUND(COALESCE(hr.hashrate_15m, 0))::bigint as hashrate_15m,
           ROUND(COALESCE(hr.hashrate_1h, 0))::bigint as hashrate_1h,
           COALESCE(w.workers_count, 0)::int as workers_count,
           COALESCE(s.shares_1h, 0)::bigint as shares_1h,
@@ -338,7 +338,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
       res.json({
         miners: dataResult.rows.map((r: any) => ({
           address: r.address,
-          hashrate_5m: parseInt(r.hashrate_5m) || 0,
+          hashrate_15m: parseInt(r.hashrate_15m) || 0,
           hashrate_1h: parseInt(r.hashrate_1h) || 0,
           workers_count: r.workers_count,
           shares_1h: parseInt(r.shares_1h) || 0,
@@ -400,7 +400,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
           FROM all_buckets b CROSS JOIN cap c
         )
         SELECT
-          COALESCE(AVG(hr) FILTER (WHERE ts > NOW() - INTERVAL '5 minutes'), 0) as total_5m,
+          COALESCE(AVG(hr) FILTER (WHERE ts > NOW() - INTERVAL '15 minutes'), 0) as total_15m,
           COALESCE(AVG(hr) FILTER (WHERE ts > NOW() - INTERVAL '1 hour'), 0) as total_1h
         FROM capped`,
         [address]
@@ -479,16 +479,16 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
         )
         SELECT
           worker,
-          COALESCE(AVG(hr) FILTER (WHERE ts > NOW() - INTERVAL '5 minutes'), 0) as hashrate_5m,
+          COALESCE(AVG(hr) FILTER (WHERE ts > NOW() - INTERVAL '15 minutes'), 0) as hashrate_15m,
           COALESCE(AVG(hr) FILTER (WHERE ts > NOW() - INTERVAL '1 hour'), 0) as hashrate_1h
         FROM capped
         GROUP BY worker`,
         [address]
       );
-      const workerHrMap: Record<string, { hashrate_5m: number; hashrate_1h: number }> = {};
+      const workerHrMap: Record<string, { hashrate_15m: number; hashrate_1h: number }> = {};
       for (const row of workerHr.rows) {
         workerHrMap[row.worker] = {
-          hashrate_5m: Math.round(parseFloat(row.hashrate_5m) || 0),
+          hashrate_15m: Math.round(parseFloat(row.hashrate_15m) || 0),
           hashrate_1h: Math.round(parseFloat(row.hashrate_1h) || 0),
         };
       }
@@ -509,7 +509,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
 
       res.json({
         ...miner.rows[0],
-        hashrate_5m: Math.round(parseFloat(hrResult.rows[0].total_5m) || 0),
+        hashrate_15m: Math.round(parseFloat(hrResult.rows[0].total_15m) || 0),
         hashrate_1h: Math.round(parseFloat(hrResult.rows[0].total_1h) || 0),
         balance: balance.toString(),
         pending_balance: pendingBalance.toString(),
@@ -523,7 +523,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
           created_at: p.created_at,
         })),
         workers: workers.rows.map((w: any) => {
-          const hr = workerHrMap[w.worker] || { hashrate_5m: 0, hashrate_1h: 0 };
+          const hr = workerHrMap[w.worker] || { hashrate_15m: 0, hashrate_1h: 0 };
           return {
             worker: w.worker,
             shares: parseInt(w.shares) || 0,
@@ -532,7 +532,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
               ? Math.round((parseFloat(w.diff_since_block) / networkDifficulty) * 10000) / 100
               : null,
             blocks_found: blocksMap[w.worker] || 0,
-            hashrate_5m: hr.hashrate_5m,
+            hashrate_15m: hr.hashrate_15m,
             hashrate_1h: hr.hashrate_1h,
           };
         }),

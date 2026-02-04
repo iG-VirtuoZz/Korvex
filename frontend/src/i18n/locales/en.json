@@ -1,0 +1,32 @@
+{
+  "header": {
+    "search_placeholder": "Search wallet address...",
+    "start_mining": "Start Mining",
+    "dashboard": "Dashboard",
+    "miners": "Miners",
+    "how_to_start": "How to Start"
+  },
+  "dashboard": {
+    "network_hashrate": "Network Hashrate",
+    "pool_hashrate": "Pool Hashrate",
+    "miners_online": "Miners Online",
+    "workers": "Workers",
+    "last_block": "Last Block Found",
+    "current_effort": "Current Effort",
+    "recent_blocks": "Recent Blocks",
+    "height": "Height",
+    "time": "Time",
+    "miner": "Miner",
+    "reward": "Reward",
+    "effort": "Effort",
+    "status": "Status"
+  },
+  "common": {
+    "confirmed": "Confirmed",
+    "pending": "Pending",
+    "orphan": "Orphan",
+    "never": "Never",
+    "of_network": "of network",
+    "avg_luck": "avg luck"
+  }
+}

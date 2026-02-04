@@ -1,0 +1,32 @@
+{
+  "header": {
+    "search_placeholder": "Rechercher une adresse...",
+    "start_mining": "Commencer",
+    "dashboard": "Tableau de bord",
+    "miners": "Mineurs",
+    "how_to_start": "Comment miner"
+  },
+  "dashboard": {
+    "network_hashrate": "Hashrate Réseau",
+    "pool_hashrate": "Hashrate Pool",
+    "miners_online": "Mineurs en ligne",
+    "workers": "Workers",
+    "last_block": "Dernier bloc trouvé",
+    "current_effort": "Effort actuel",
+    "recent_blocks": "Blocs récents",
+    "height": "Hauteur",
+    "time": "Heure",
+    "miner": "Mineur",
+    "reward": "Récompense",
+    "effort": "Effort",
+    "status": "Statut"
+  },
+  "common": {
+    "confirmed": "Confirmé",
+    "pending": "En attente",
+    "orphan": "Orphelin",
+    "never": "Jamais",
+    "of_network": "du réseau",
+    "avg_luck": "luck moyen"
+  }
+}
