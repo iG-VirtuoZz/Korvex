@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { getLeaderboard, LeaderboardMiner } from "../api";
+import { getLeaderboard, getStats, LeaderboardMiner, PoolStats } from "../api";
 
 const formatHash = (h: number) => {
   if (!h || h <= 0) return "\u2014";
@@ -9,13 +9,6 @@ const formatHash = (h: number) => {
   if (h >= 1e6) return (h / 1e6).toFixed(2) + " MH/s";
   if (h >= 1e3) return (h / 1e3).toFixed(2) + " KH/s";
   return h + " H/s";
-};
-
-const formatErg = (nanoStr: string) => {
-  if (!nanoStr || nanoStr === "0") return "\u2014";
-  const val = Number(BigInt(nanoStr)) / 1e9;
-  if (val < 0.0001) return "< 0.0001 ERG";
-  return val.toFixed(4) + " ERG";
 };
 
 const timeAgo = (dateStr: string | null) => {
@@ -35,6 +28,7 @@ type SortField = "hashrate_15m" | "hashrate_1h" | "workers_count" | "blocks_foun
 const MinersPage: React.FC = () => {
   const navigate = useNavigate();
   const [miners, setMiners] = useState<LeaderboardMiner[]>([]);
+  const [stats, setStats] = useState<PoolStats | null>(null);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -63,11 +57,14 @@ const MinersPage: React.FC = () => {
 
   useEffect(() => {
     load();
-    const t = setInterval(load, 30000);
+    getStats().then(setStats).catch(() => {});
+    const t = setInterval(() => {
+      load();
+      getStats().then(setStats).catch(() => {});
+    }, 30000);
     return () => clearInterval(t);
   }, [load]);
 
-  // Reset page quand on cherche
   useEffect(() => {
     setPage(0);
   }, [search, pageSize]);
@@ -93,18 +90,39 @@ const MinersPage: React.FC = () => {
   };
 
   const totalPages = Math.ceil(total / pageSize);
+  const poolHr = stats?.hashrate || 0;
 
   return (
-    <div>
-      <div className="page-title">
+    <div className="layout-modern">
+      {/* Header */}
+      <div className="modern-header">
         <h1>MINERS</h1>
         <p>Active miners on KORVEX Pool</p>
       </div>
 
-      <div className="card leaderboard-card">
+      {/* Stats en grille */}
+      <div className="modern-stats-grid">
+        <div className="modern-stat-card">
+          <div className="msc-label">Total Miners</div>
+          <div className="msc-value">{stats?.minersTotal || 0}</div>
+        </div>
+        <div className="modern-stat-card">
+          <div className="msc-label">Total Workers</div>
+          <div className="msc-value">{stats?.workersTotal || 0}</div>
+        </div>
+        <div className="modern-stat-card">
+          <div className="msc-label">Pool Hashrate</div>
+          <div className="msc-value">{formatHash(poolHr)}</div>
+        </div>
+      </div>
+
+      {/* Table des mineurs */}
+      <div className="modern-info-card miners-table-card">
+        <div className="modern-info-title">Leaderboard</div>
+
         {/* Controls */}
-        <div className="leaderboard-controls" style={{ padding: "18px 24px" }}>
-          <div className="leaderboard-search">
+        <div className="miners-controls">
+          <div className="miners-search">
             <input
               type="text"
               placeholder="Filter by address..."
@@ -112,15 +130,15 @@ const MinersPage: React.FC = () => {
               onChange={(e) => setSearch(e.target.value)}
             />
             {search && (
-              <button className="lb-clear" onClick={() => setSearch("")}>
+              <button className="miners-clear" onClick={() => setSearch("")}>
                 &times;
               </button>
             )}
           </div>
-          <div className="leaderboard-meta">
-            <span className="lb-total">{total} miner{total !== 1 ? "s" : ""}</span>
+          <div className="miners-meta">
+            <span className="miners-total">{total} miner{total !== 1 ? "s" : ""}</span>
             <select
-              className="lb-pagesize"
+              className="miners-pagesize"
               value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value))}
             >
@@ -133,26 +151,26 @@ const MinersPage: React.FC = () => {
         </div>
 
         {/* Table */}
-        <div className="leaderboard-scroll">
-          <table className="leaderboard-table">
+        <div className="miners-table-scroll">
+          <table className="miners-table">
             <thead>
               <tr>
-                <th className="lb-rank">#</th>
+                <th className="miners-rank">#</th>
                 <th>Address</th>
-                <th className="lb-sortable" onClick={() => handleSort("hashrate_15m")}>
-                  Hashrate 15m<span className="lb-sort-arrow">{sortArrow("hashrate_15m")}</span>
+                <th className="miners-sortable" onClick={() => handleSort("hashrate_15m")}>
+                  Hashrate 15m<span className="miners-sort-arrow">{sortArrow("hashrate_15m")}</span>
                 </th>
-                <th className="lb-sortable" onClick={() => handleSort("hashrate_1h")}>
-                  Hashrate 1h<span className="lb-sort-arrow">{sortArrow("hashrate_1h")}</span>
+                <th className="miners-sortable" onClick={() => handleSort("hashrate_1h")}>
+                  Hashrate 1h<span className="miners-sort-arrow">{sortArrow("hashrate_1h")}</span>
                 </th>
-                <th className="lb-sortable lb-hide-mobile" onClick={() => handleSort("workers_count")}>
-                  Workers<span className="lb-sort-arrow">{sortArrow("workers_count")}</span>
+                <th className="miners-sortable miners-hide-mobile" onClick={() => handleSort("workers_count")}>
+                  Workers<span className="miners-sort-arrow">{sortArrow("workers_count")}</span>
                 </th>
-                <th className="lb-sortable lb-hide-mobile" onClick={() => handleSort("blocks_found")}>
-                  Blocks<span className="lb-sort-arrow">{sortArrow("blocks_found")}</span>
+                <th className="miners-sortable miners-hide-mobile" onClick={() => handleSort("blocks_found")}>
+                  Blocks<span className="miners-sort-arrow">{sortArrow("blocks_found")}</span>
                 </th>
-                <th className="lb-sortable" onClick={() => handleSort("last_share_at")}>
-                  Last Share<span className="lb-sort-arrow">{sortArrow("last_share_at")}</span>
+                <th className="miners-sortable" onClick={() => handleSort("last_share_at")}>
+                  Last Share<span className="miners-sort-arrow">{sortArrow("last_share_at")}</span>
                 </th>
               </tr>
             </thead>
@@ -160,20 +178,20 @@ const MinersPage: React.FC = () => {
               {miners.map((m, i) => {
                 const isActive = m.last_share_at && (Date.now() - new Date(m.last_share_at).getTime()) < 900000;
                 return (
-                  <tr key={m.address} className={loading ? "lb-row-loading" : ""}>
-                    <td className="lb-rank">{page * pageSize + i + 1}</td>
+                  <tr key={m.address} className={loading ? "miners-row-loading" : ""}>
+                    <td className="miners-rank">{page * pageSize + i + 1}</td>
                     <td>
-                      <div className="lb-address-cell">
-                        <span className={`lb-status-dot ${isActive ? "active" : "idle"}`} />
+                      <div className="miners-address-cell">
+                        <span className={`miners-status-dot ${isActive ? "active" : "idle"}`} />
                         <span
-                          className="lb-address"
+                          className="miners-address"
                           onClick={() => navigate("/miner/" + m.address)}
                           title={m.address}
                         >
                           {m.address}
                         </span>
                         <button
-                          className={"lb-copy" + (copied === m.address ? " copied" : "")}
+                          className={"miners-copy" + (copied === m.address ? " copied" : "")}
                           onClick={() => copyAddress(m.address)}
                           title="Copy address"
                         >
@@ -183,8 +201,8 @@ const MinersPage: React.FC = () => {
                     </td>
                     <td>{formatHash(m.hashrate_15m)}</td>
                     <td>{formatHash(m.hashrate_1h)}</td>
-                    <td className="lb-hide-mobile">{m.workers_count}</td>
-                    <td className="lb-hide-mobile">{m.blocks_found || "\u2014"}</td>
+                    <td className="miners-hide-mobile">{m.workers_count}</td>
+                    <td className="miners-hide-mobile">{m.blocks_found || "\u2014"}</td>
                     <td style={{ color: "var(--text-dim)" }}>{timeAgo(m.last_share_at)}</td>
                   </tr>
                 );
@@ -202,14 +220,14 @@ const MinersPage: React.FC = () => {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="leaderboard-pagination">
+          <div className="miners-pagination">
             <button onClick={() => setPage(0)} disabled={page === 0}>
               &laquo;
             </button>
             <button onClick={() => setPage(page - 1)} disabled={page === 0}>
               &lsaquo;
             </button>
-            <span className="lb-page-info">
+            <span className="miners-page-info">
               {page + 1} / {totalPages}
             </span>
             <button onClick={() => setPage(page + 1)} disabled={page >= totalPages - 1}>

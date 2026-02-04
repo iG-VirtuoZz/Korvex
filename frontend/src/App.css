@@ -2533,6 +2533,245 @@ a:hover { color: var(--accent-hover); }
   }
 }
 
+/* ==================== MINERS PAGE (Modern Style) ==================== */
+
+.miners-table-card {
+  margin-bottom: 28px;
+}
+
+.miners-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.miners-search {
+  position: relative;
+  flex: 1;
+  max-width: 300px;
+}
+
+.miners-search input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 36px 10px 14px;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.miners-search input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.miners-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0;
+}
+
+.miners-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.miners-total {
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.miners-pagesize {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.miners-table-scroll {
+  overflow-x: auto;
+}
+
+.miners-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.miners-table th,
+.miners-table td {
+  padding: 12px 14px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+
+.miners-table th {
+  background: var(--bg);
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.miners-table tbody tr:hover {
+  background: var(--card-hover);
+}
+
+.miners-rank {
+  width: 50px;
+  color: var(--text-dim);
+}
+
+.miners-sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.miners-sortable:hover {
+  color: var(--accent);
+}
+
+.miners-sort-arrow {
+  margin-left: 4px;
+  color: var(--accent);
+}
+
+.miners-address-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+.miners-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.miners-status-dot.active {
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+}
+
+.miners-status-dot.idle {
+  background: var(--text-dim);
+}
+
+.miners-address {
+  font-family: monospace;
+  font-size: 13px;
+  color: var(--accent);
+  cursor: pointer;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.miners-address:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
+.miners-copy {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.miners-copy:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+.miners-copy.copied {
+  color: var(--green);
+}
+
+.miners-row-loading {
+  opacity: 0.5;
+}
+
+.miners-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 0;
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.miners-pagination button {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.miners-pagination button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.miners-pagination button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.miners-page-info {
+  color: var(--text-dim);
+  font-size: 14px;
+  padding: 0 12px;
+}
+
+@media (max-width: 768px) {
+  .miners-hide-mobile {
+    display: none;
+  }
+  .miners-address {
+    max-width: 120px;
+  }
+  .miners-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .miners-search {
+    max-width: none;
+  }
+  .miners-meta {
+    justify-content: space-between;
+  }
+}
+
 /* ==================== LAYOUT: SIDEBAR (legacy) ==================== */
 
 .layout-sidebar-main {
