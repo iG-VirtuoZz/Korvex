@@ -22,16 +22,61 @@ const formatErg = (nanoStr: string | undefined | null) => {
   return val.toFixed(4) + " ERG";
 };
 
-const timeAgo = (dateStr: string | null | undefined) => {
+// Fonction statique pour calculer le temps ecoule
+const calcTimeAgo = (dateStr: string | null | undefined) => {
   if (!dateStr) return "\u2014";
   const diff = Date.now() - new Date(dateStr).getTime();
   const sec = Math.floor(diff / 1000);
+  if (sec < 5) return "Now";
   if (sec < 60) return sec + "s ago";
   const min = Math.floor(sec / 60);
   if (min < 60) return min + " min ago";
   const hr = Math.floor(min / 60);
   if (hr < 24) return hr + "h ago";
   return Math.floor(hr / 24) + "d ago";
+};
+
+// Composant LiveTimeAgo - mise a jour adaptative avec sync precise
+// < 60 sec : update chaque seconde
+// >= 60 sec : update synchronise sur le changement de minute
+const LiveTimeAgo: React.FC<{ dateStr: string | null | undefined }> = ({ dateStr }) => {
+  const [display, setDisplay] = useState(() => calcTimeAgo(dateStr));
+
+  useEffect(() => {
+    if (!dateStr) {
+      setDisplay("\u2014");
+      return;
+    }
+
+    let timeoutId: NodeJS.Timeout;
+
+    const scheduleUpdate = () => {
+      const diffMs = Date.now() - new Date(dateStr).getTime();
+      const diffSec = Math.floor(diffMs / 1000);
+
+      setDisplay(calcTimeAgo(dateStr));
+
+      let nextUpdateMs: number;
+      if (diffSec < 60) {
+        // Moins de 60 sec : update chaque seconde
+        nextUpdateMs = 1000;
+      } else {
+        // Plus de 60 sec : calculer le temps jusqu'a la prochaine minute
+        // Ex: a 1min 45sec, attendre 15 sec pour passer a 2 min
+        const secsIntoCurrentMinute = diffSec % 60;
+        nextUpdateMs = (60 - secsIntoCurrentMinute) * 1000;
+        // Securite : minimum 1 sec, maximum 60 sec
+        nextUpdateMs = Math.max(1000, Math.min(nextUpdateMs, 60000));
+      }
+
+      timeoutId = setTimeout(scheduleUpdate, nextUpdateMs);
+    };
+
+    scheduleUpdate();
+    return () => clearTimeout(timeoutId);
+  }, [dateStr]);
+
+  return <>{display}</>;
 };
 
 const effortColor = (effort: number | null) => {
@@ -187,12 +232,12 @@ const MinerPage: React.FC = () => {
 
   if (!paramAddress) {
     return (
-      <div>
-        <div className="page-title">
+      <div className="layout-modern">
+        <div className="modern-header">
           <h1>MINER STATS</h1>
           <p>Use the search bar above to look up a wallet address</p>
         </div>
-        <div className="card" style={{ textAlign: "center", padding: 40, color: "var(--text-dim)" }}>
+        <div className="modern-info-card" style={{ textAlign: "center", padding: 40, color: "var(--text-dim)" }}>
           Enter a wallet address in the header search bar to view miner statistics.
         </div>
       </div>
@@ -200,17 +245,18 @@ const MinerPage: React.FC = () => {
   }
 
   return (
-    <div>
-      <div className="page-title">
+    <div className="layout-modern">
+      {/* Header */}
+      <div className="modern-header">
         <h1>MINER STATS</h1>
         <p>Detailed statistics for a single miner</p>
       </div>
 
       {loading && !miner && (
-        <div className="card" style={{ textAlign: "center", color: "var(--text-dim)" }}>Loading...</div>
+        <div className="modern-info-card" style={{ textAlign: "center", color: "var(--text-dim)", padding: 32 }}>Loading...</div>
       )}
       {error && (
-        <div className="card miner-not-found">
+        <div className="modern-info-card miner-not-found">
           <div className="mnf-icon">&#128269;</div>
           <div className="mnf-title">No data yet</div>
           <div className="mnf-addr">{paramAddress}</div>
@@ -219,13 +265,13 @@ const MinerPage: React.FC = () => {
       )}
 
       {miner && (
-        <div>
-          {/* Adresse */}
-          <div className="miner-address-display">
-            <span className="label">Address:</span>
-            <span className="address">{miner.address}</span>
+        <>
+          {/* Adresse du mineur */}
+          <div className="miner-address-bar">
+            <span className="miner-address-label">Address</span>
+            <span className="miner-address-value">{miner.address}</span>
             <button
-              className="miner-copy-btn"
+              className="miner-address-copy"
               onClick={() => navigator.clipboard.writeText(miner.address)}
               title="Copy address"
             >
@@ -233,84 +279,68 @@ const MinerPage: React.FC = () => {
             </button>
           </div>
 
-          {/* Section 1 — Financier */}
-          <div className="miner-section-label">Earnings</div>
-          <div className="stats-grid stats-grid-3">
-            <div className="stat-card-new stat-card-accent">
-              <div>
-                <div className="stat-label">Unpaid (Pending)</div>
-                <div className="stat-value">{formatErg(miner.pending_balance)}</div>
-                <div className="stat-sub">PPLNS rewards awaiting confirmation</div>
-              </div>
-              <div className="stat-icon">&#9203;</div>
+          {/* Section Earnings - 3 stats */}
+          <div className="miner-section-title">Earnings</div>
+          <div className="modern-stats-grid">
+            <div className="modern-stat-card modern-stat-accent">
+              <div className="msc-icon">&#9203;</div>
+              <div className="msc-label">Unpaid (Pending)</div>
+              <div className="msc-value">{formatErg(miner.pending_balance)}</div>
+              <div className="msc-sub">PPLNS rewards awaiting confirmation</div>
             </div>
-            <div className="stat-card-new stat-card-accent">
-              <div>
-                <div className="stat-label">Confirmed Balance</div>
-                <div className="stat-value">{formatErg(miner.balance)}</div>
-                <div className="stat-sub">Ready for payout (&ge; 1 ERG)</div>
-              </div>
-              <div className="stat-icon">&#128176;</div>
+            <div className="modern-stat-card modern-stat-accent">
+              <div className="msc-icon">&#128176;</div>
+              <div className="msc-label">Confirmed Balance</div>
+              <div className="msc-value">{formatErg(miner.balance)}</div>
+              <div className="msc-sub">Ready for payout (&ge; 1 ERG)</div>
             </div>
-            <div className="stat-card-new stat-card-accent">
-              <div>
-                <div className="stat-label">Total Paid</div>
-                <div className="stat-value">{formatErg(miner.total_paid_nano)}</div>
-                <div className="stat-sub">Lifetime earnings sent</div>
-              </div>
-              <div className="stat-icon">&#128184;</div>
+            <div className="modern-stat-card modern-stat-accent">
+              <div className="msc-icon">&#128184;</div>
+              <div className="msc-label">Total Paid</div>
+              <div className="msc-value">{formatErg(miner.total_paid_nano)}</div>
+              <div className="msc-sub">Lifetime earnings sent</div>
             </div>
           </div>
 
-          {/* Section 2 — Performance */}
-          <div className="miner-section-label">Performance</div>
-          <div className="stats-grid">
-            <div className="stat-card-new">
-              <div>
-                <div className="stat-label">Hashrate 15min</div>
-                <div className="stat-value">{formatHash(miner.hashrate_15m)}</div>
-              </div>
-              <div className="stat-icon">&#9889;</div>
+          {/* Section Performance - 5 stats */}
+          <div className="miner-section-title">Performance</div>
+          <div className="modern-stats-grid modern-stats-grid-5">
+            <div className="modern-stat-card">
+              <div className="msc-icon">&#9889;</div>
+              <div className="msc-label">Hashrate 15m</div>
+              <div className="msc-value">{formatHash(miner.hashrate_15m)}</div>
             </div>
-            <div className="stat-card-new">
-              <div>
-                <div className="stat-label">Hashrate 1h</div>
-                <div className="stat-value">{formatHash(miner.hashrate_1h)}</div>
-              </div>
-              <div className="stat-icon">&#9889;</div>
+            <div className="modern-stat-card">
+              <div className="msc-icon">&#9889;</div>
+              <div className="msc-label">Hashrate 1h</div>
+              <div className="msc-value">{formatHash(miner.hashrate_1h)}</div>
             </div>
-            <div className="stat-card-new">
-              <div>
-                <div className="stat-label">Workers</div>
-                <div className="stat-value">{visibleWorkers.length || 0}</div>
-              </div>
-              <div className="stat-icon">&#128296;</div>
+            <div className="modern-stat-card">
+              <div className="msc-icon">&#128296;</div>
+              <div className="msc-label">Workers</div>
+              <div className="msc-value">{visibleWorkers.length || 0}</div>
             </div>
-            <div className="stat-card-new">
-              <div>
-                <div className="stat-label">Shares (total)</div>
-                <div className="stat-value">{miner.total_shares ? Number(miner.total_shares).toLocaleString() : "0"}</div>
-              </div>
-              <div className="stat-icon">&#128200;</div>
+            <div className="modern-stat-card">
+              <div className="msc-icon">&#128200;</div>
+              <div className="msc-label">Total Shares</div>
+              <div className="msc-value">{miner.total_shares ? Number(miner.total_shares).toLocaleString() : "0"}</div>
             </div>
-            <div className="stat-card-new">
-              <div>
-                <div className="stat-label">Last Share</div>
-                <div className="stat-value">{timeAgo(lastShareAt)}</div>
-              </div>
-              <div className="stat-icon">&#128338;</div>
+            <div className="modern-stat-card">
+              <div className="msc-icon">&#128338;</div>
+              <div className="msc-label">Last Share</div>
+              <div className="msc-value"><LiveTimeAgo dateStr={lastShareAt} /></div>
             </div>
           </div>
 
-          {/* Hashrate Chart */}
-          <div className="card">
+          {/* Graphique Hashrate */}
+          <div className="modern-info-card">
             <MinerChart address={paramAddress} />
           </div>
 
-          {/* Workers */}
-          <div className="card">
+          {/* Workers Table - gardé tel quel */}
+          <div className="modern-info-card">
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <h3 style={{ color: "#fff", margin: 0 }}>Active Workers</h3>
+              <div className="modern-info-title" style={{ marginBottom: 0 }}>Active Workers</div>
               {hasOfflineWorkers && (
                 <button className="worker-remove-all" onClick={hideAllOffline}>
                   Remove all offline workers
@@ -383,7 +413,7 @@ const MinerPage: React.FC = () => {
                           </td>
                           <td>{w.blocks_found || 0}</td>
                           <td style={{ color: "var(--text-dim)" }}>
-                            {timeAgo(w.last_share)}
+                            <LiveTimeAgo dateStr={w.last_share} />
                           </td>
                         </tr>
                       );
@@ -439,9 +469,9 @@ const MinerPage: React.FC = () => {
             )}
           </div>
 
-          {/* Estimated Earnings — sous Active Workers */}
+          {/* Estimated Earnings - gardé tel quel */}
           {poolStats && networkDifficulty > 0 && (
-            <div className="card">
+            <div className="modern-info-card">
               <EarningsCalculator
                 minerHashrate={miner.hashrate_1h || 0}
                 networkDifficulty={networkDifficulty}
@@ -453,9 +483,9 @@ const MinerPage: React.FC = () => {
             </div>
           )}
 
-          {/* Payments */}
-          <div className="card">
-            <h3 style={{ marginBottom: 12, color: "#fff" }}>Recent Payments</h3>
+          {/* Payments - gardé tel quel */}
+          <div className="modern-info-card">
+            <div className="modern-info-title">Recent Payments</div>
             {miner.payments && miner.payments.length > 0 ? (
               <table className="payments-table">
                 <thead>
@@ -497,7 +527,7 @@ const MinerPage: React.FC = () => {
               <div style={{ color: "var(--text-dim)", padding: "12px 0" }}>No payments yet.</div>
             )}
           </div>
-        </div>
+        </>
       )}
     </div>
   );

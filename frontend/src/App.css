@@ -2533,6 +2533,110 @@ a:hover { color: var(--accent-hover); }
   }
 }
 
+/* ==================== MINER PAGE (Modern Style) ==================== */
+
+.miner-address-bar {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 20px;
+  margin-bottom: 28px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.miner-address-label {
+  color: var(--text-dim);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  flex-shrink: 0;
+}
+
+.miner-address-value {
+  color: var(--accent);
+  font-size: 14px;
+  font-family: monospace;
+  word-break: break-all;
+  flex: 1;
+}
+
+.miner-address-copy {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.miner-address-copy:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.miner-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+  margin-top: 8px;
+}
+
+/* Grille à 5 colonnes pour Performance */
+.modern-stats-grid-5 {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+@media (max-width: 1100px) {
+  .modern-stats-grid-5 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .modern-stats-grid-5 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .modern-stats-grid-5 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Cards avec accent (Earnings) */
+.modern-stat-accent {
+  border-color: var(--accent-dim);
+  background: linear-gradient(135deg, var(--card) 0%, rgba(249, 115, 22, 0.05) 100%);
+}
+
+.modern-stat-accent:hover {
+  border-color: var(--accent);
+}
+
+/* Icône dans les stat cards */
+.msc-icon {
+  font-size: 24px;
+  opacity: 0.6;
+  margin-bottom: 8px;
+}
+
+/* Sous-texte dans les stat cards */
+.msc-sub {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 6px;
+  opacity: 0.8;
+}
+
 /* ==================== MINERS PAGE (Modern Style) ==================== */
 
 .miners-table-card {
