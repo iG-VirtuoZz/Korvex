@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import LanguageSelector from "./LanguageSelector";
 import StyleSelector from "./StyleSelector";
-import { PoolStyle, loadSavedStyle, applyStyle } from "../themes/styles";
+import { PoolLayout, loadSavedLayout, applyLayout } from "../themes/styles";
 
 const STORAGE_KEY = "korvex_miner_address";
 
@@ -42,7 +42,7 @@ const DiscordIcon: React.FC = () => (
 const Header: React.FC = () => {
   const { t } = useTranslation();
   const [searchValue, setSearchValue] = useState("");
-  const [currentStyle, setCurrentStyle] = useState<PoolStyle>(loadSavedStyle());
+  const [currentLayout, setCurrentLayout] = useState<PoolLayout>(loadSavedLayout());
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -50,8 +50,8 @@ const Header: React.FC = () => {
     if (saved) {
       setSearchValue(saved);
     }
-    // Appliquer le style sauvegarde au chargement
-    applyStyle(currentStyle);
+    // Appliquer le layout sauvegarde au chargement
+    applyLayout(currentLayout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -92,7 +92,7 @@ const Header: React.FC = () => {
         </div>
 
         <div className="header-actions">
-          <StyleSelector currentStyle={currentStyle} onStyleChange={setCurrentStyle} />
+          <StyleSelector currentLayout={currentLayout} onLayoutChange={setCurrentLayout} />
           <LanguageSelector />
           <NavLink to="/discord" className="header-discord" title="Join our Discord">
             <DiscordIcon />

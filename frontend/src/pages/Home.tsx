@@ -2,18 +2,7 @@ import React, { useEffect, useState } from "react";
 import { getHealth, getStats, getBlocks, HealthData, PoolStats } from "../api";
 import PoolChart from "../components/PoolChart";
 
-function StatCard({ icon, label, value, sub, className, valueColor }: { icon: string; label: string; value: string; sub?: string; className?: string; valueColor?: string }) {
-  return (
-    <div className={"stat-card-new" + (className ? " " + className : "")}>
-      <div>
-        <div className="stat-label">{label}</div>
-        <div className="stat-value" style={valueColor ? { color: valueColor } : undefined}>{value}</div>
-        {sub && <div className="stat-sub">{sub}</div>}
-      </div>
-      <div className="stat-icon">{icon}</div>
-    </div>
-  );
-}
+// ==================== HELPERS ====================
 
 const formatHash = (h: number) => {
   if (h >= 1e12) return (h / 1e12).toFixed(2) + " TH/s";
@@ -56,10 +45,315 @@ const effortLabel = (effort: number | null | undefined): string => {
   return effort.toFixed(1) + "%";
 };
 
+// ==================== BLOCKS TABLE ====================
+
+const BlocksTable: React.FC<{ blocks: any[] }> = ({ blocks }) => {
+  const badgeClass = (status: string) => {
+    if (status === "confirmed") return "badge badge-confirmed";
+    if (status === "orphan") return "badge badge-orphan";
+    return "badge badge-pending";
+  };
+
+  if (blocks.length === 0) return null;
+
+  return (
+    <table className="blocks-table">
+      <thead>
+        <tr>
+          <th>Height</th>
+          <th>Miner</th>
+          <th>Effort</th>
+          <th>Status</th>
+          <th>Found</th>
+        </tr>
+      </thead>
+      <tbody>
+        {blocks.slice(0, 10).map((b) => (
+          <tr key={b.height}>
+            <td style={{ color: "var(--accent)" }}>{b.height}</td>
+            <td style={{ fontFamily: "monospace", fontSize: 13 }}>
+              {b.finder_address ? b.finder_address.slice(0, 12) + "..." : "-"}
+            </td>
+            <td>
+              <span className="effort-badge" style={{ color: effortColor(b.effort_percent) }}>
+                {effortLabel(b.effort_percent)}
+              </span>
+            </td>
+            <td><span className={badgeClass(b.status)}>{b.status}</span></td>
+            <td style={{ color: "var(--text-dim)" }}>
+              {new Date(b.created_at).toLocaleString("fr-FR")}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+};
+
+// ==================== LAYOUT: CLEAN CARDS ====================
+// Structure aeree, cards bien separees, simplicite
+
+const LayoutCleanCards: React.FC<{ stats: PoolStats | null; health: HealthData | null; blocks: any[] }> = ({ stats, health, blocks }) => {
+  const networkDiff = health?.node?.difficulty || 0;
+  const networkHr = parseInt(stats?.nodes?.[0]?.networkhashps || "0");
+  const poolHr = stats?.hashrate || 0;
+  const lastBlockTime = blocks.length > 0 ? timeAgo(blocks[0].created_at) : "N/A";
+
+  return (
+    <div className="layout-clean">
+      {/* Header simple */}
+      <div className="clean-header">
+        <h1>KORVEX POOL</h1>
+        <p>Ergo Mining Pool</p>
+      </div>
+
+      {/* 2 cards principales cote a cote */}
+      <div className="clean-main-row">
+        <div className="clean-card">
+          <div className="clean-card-title">Pool</div>
+          <div className="clean-stat-row">
+            <span className="clean-stat-label">Hashrate</span>
+            <span className="clean-stat-value">{formatHash(poolHr)}</span>
+          </div>
+          <div className="clean-stat-row">
+            <span className="clean-stat-label">Miners</span>
+            <span className="clean-stat-value">{stats?.minersTotal || 0}</span>
+          </div>
+          <div className="clean-stat-row">
+            <span className="clean-stat-label">Workers</span>
+            <span className="clean-stat-value">{stats?.workersTotal || 0}</span>
+          </div>
+          <div className="clean-stat-row">
+            <span className="clean-stat-label">Effort</span>
+            <span className="clean-stat-value" style={{ color: effortColor(stats?.currentEffort) }}>
+              {effortLabel(stats?.currentEffort)}
+            </span>
+          </div>
+          <div className="clean-stat-row">
+            <span className="clean-stat-label">Last Block</span>
+            <span className="clean-stat-value">{lastBlockTime}</span>
+          </div>
+        </div>
+
+        <div className="clean-card">
+          <div className="clean-card-title">Network</div>
+          <div className="clean-stat-row">
+            <span className="clean-stat-label">Hashrate</span>
+            <span className="clean-stat-value">{formatHash(networkHr)}</span>
+          </div>
+          <div className="clean-stat-row">
+            <span className="clean-stat-label">Difficulty</span>
+            <span className="clean-stat-value">{formatDiff(networkDiff)}</span>
+          </div>
+          <div className="clean-stat-row">
+            <span className="clean-stat-label">ERG Price</span>
+            <span className="clean-stat-value">${stats?.ergPriceUsd?.toFixed(4) || "—"}</span>
+          </div>
+          <div className="clean-stat-row">
+            <span className="clean-stat-label">Block Reward</span>
+            <span className="clean-stat-value">{stats?.blockReward || 6} ERG</span>
+          </div>
+          <div className="clean-stat-row">
+            <span className="clean-stat-label">Pool Fee</span>
+            <span className="clean-stat-value">1%</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Graphique */}
+      <div className="clean-chart">
+        <PoolChart />
+      </div>
+
+      {/* Table des blocs */}
+      {blocks.length > 0 && (
+        <div className="clean-card clean-blocks">
+          <div className="clean-card-title">Recent Blocks</div>
+          <BlocksTable blocks={blocks} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ==================== LAYOUT: DASHBOARD PRO ====================
+// 2 grandes sections Pool/Network avec graphique integre
+
+const LayoutDashboardPro: React.FC<{ stats: PoolStats | null; health: HealthData | null; blocks: any[] }> = ({ stats, health, blocks }) => {
+  const networkDiff = health?.node?.difficulty || 0;
+  const networkHr = parseInt(stats?.nodes?.[0]?.networkhashps || "0");
+  const poolHr = stats?.hashrate || 0;
+  const lastBlockTime = blocks.length > 0 ? timeAgo(blocks[0].created_at) : "N/A";
+
+  return (
+    <div className="layout-dashboard">
+      {/* Header avec titre */}
+      <div className="dashboard-header">
+        <h1>KORVEX</h1>
+      </div>
+
+      {/* Section principale : Graphique + Stats */}
+      <div className="dashboard-main">
+        <div className="dashboard-chart-section">
+          <PoolChart />
+        </div>
+        <div className="dashboard-stats-section">
+          <div className="dashboard-stats-group">
+            <div className="dashboard-group-title">Pool Stats</div>
+            <div className="dashboard-stat">
+              <span className="ds-label">Hashrate</span>
+              <span className="ds-value">{formatHash(poolHr)}</span>
+            </div>
+            <div className="dashboard-stat">
+              <span className="ds-label">Miners</span>
+              <span className="ds-value">{stats?.minersTotal || 0}</span>
+            </div>
+            <div className="dashboard-stat">
+              <span className="ds-label">Workers</span>
+              <span className="ds-value">{stats?.workersTotal || 0}</span>
+            </div>
+            <div className="dashboard-stat">
+              <span className="ds-label">Effort</span>
+              <span className="ds-value" style={{ color: effortColor(stats?.currentEffort) }}>
+                {effortLabel(stats?.currentEffort)}
+              </span>
+            </div>
+            <div className="dashboard-stat">
+              <span className="ds-label">Last Block</span>
+              <span className="ds-value">{lastBlockTime}</span>
+            </div>
+          </div>
+
+          <div className="dashboard-stats-group">
+            <div className="dashboard-group-title">Network</div>
+            <div className="dashboard-stat">
+              <span className="ds-label">Hashrate</span>
+              <span className="ds-value">{formatHash(networkHr)}</span>
+            </div>
+            <div className="dashboard-stat">
+              <span className="ds-label">Difficulty</span>
+              <span className="ds-value">{formatDiff(networkDiff)}</span>
+            </div>
+            <div className="dashboard-stat">
+              <span className="ds-label">ERG Price</span>
+              <span className="ds-value">${stats?.ergPriceUsd?.toFixed(4) || "—"}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Table des blocs */}
+      {blocks.length > 0 && (
+        <div className="dashboard-blocks">
+          <div className="dashboard-group-title">Recent Blocks</div>
+          <BlocksTable blocks={blocks} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ==================== LAYOUT: MODERN GRID ====================
+// Grille moderne avec stats individuelles et equilibre
+
+const LayoutModernGrid: React.FC<{ stats: PoolStats | null; health: HealthData | null; blocks: any[] }> = ({ stats, health, blocks }) => {
+  const networkDiff = health?.node?.difficulty || 0;
+  const networkHr = parseInt(stats?.nodes?.[0]?.networkhashps || "0");
+  const poolHr = stats?.hashrate || 0;
+  const lastBlockTime = blocks.length > 0 ? timeAgo(blocks[0].created_at) : "N/A";
+
+  return (
+    <div className="layout-modern">
+      {/* Header */}
+      <div className="modern-header">
+        <h1>KORVEX POOL</h1>
+        <p>Ergo Mining Pool for Everyone</p>
+      </div>
+
+      {/* Stats en grille 3 colonnes */}
+      <div className="modern-stats-grid">
+        <div className="modern-stat-card">
+          <div className="msc-label">Pool Hashrate</div>
+          <div className="msc-value">{formatHash(poolHr)}</div>
+        </div>
+        <div className="modern-stat-card">
+          <div className="msc-label">Miners / Workers</div>
+          <div className="msc-value">{stats?.minersTotal || 0} / {stats?.workersTotal || 0}</div>
+        </div>
+        <div className="modern-stat-card">
+          <div className="msc-label">Current Effort</div>
+          <div className="msc-value" style={{ color: effortColor(stats?.currentEffort) }}>
+            {effortLabel(stats?.currentEffort)}
+          </div>
+        </div>
+      </div>
+
+      {/* Graphique */}
+      <div className="modern-chart">
+        <PoolChart />
+      </div>
+
+      {/* 2 cards info cote a cote */}
+      <div className="modern-info-row-grid">
+        <div className="modern-info-card">
+          <div className="modern-info-title">Network</div>
+          <div className="modern-info-row">
+            <span>Hashrate</span>
+            <span>{formatHash(networkHr)}</span>
+          </div>
+          <div className="modern-info-row">
+            <span>Difficulty</span>
+            <span>{formatDiff(networkDiff)}</span>
+          </div>
+          <div className="modern-info-row">
+            <span>ERG Price</span>
+            <span>${stats?.ergPriceUsd?.toFixed(4) || "—"}</span>
+          </div>
+          <div className="modern-info-row">
+            <span>Block Reward</span>
+            <span>{stats?.blockReward || 6} ERG</span>
+          </div>
+        </div>
+
+        <div className="modern-info-card">
+          <div className="modern-info-title">Pool Info</div>
+          <div className="modern-info-row">
+            <span>Last Block Found</span>
+            <span>{lastBlockTime}</span>
+          </div>
+          <div className="modern-info-row">
+            <span>Pool Fee</span>
+            <span>1%</span>
+          </div>
+          <div className="modern-info-row">
+            <span>Min Payout</span>
+            <span>1 ERG</span>
+          </div>
+          <div className="modern-info-row">
+            <span>Confirmations</span>
+            <span>720 blocks</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Table des blocs si disponible */}
+      {blocks.length > 0 && (
+        <div className="modern-blocks-card modern-blocks-full">
+          <div className="modern-info-title">Recent Blocks</div>
+          <BlocksTable blocks={blocks} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ==================== MAIN COMPONENT ====================
+
 const Home: React.FC = () => {
   const [health, setHealth] = useState<HealthData | null>(null);
   const [stats, setStats] = useState<PoolStats | null>(null);
   const [blocks, setBlocks] = useState<any[]>([]);
+  const [layout, setLayout] = useState<string>("clean-cards");
 
   useEffect(() => {
     const load = () => {
@@ -72,127 +366,25 @@ const Home: React.FC = () => {
     return () => clearInterval(t);
   }, []);
 
-  const lastBlockTime = blocks.length > 0 ? timeAgo(blocks[0].created_at) : "N/A";
-  const networkDiff = health?.node?.difficulty || 0;
-  const networkHr = parseInt(stats?.nodes?.[0]?.networkhashps || "0");
+  // Observer le changement de layout
+  useEffect(() => {
+    const updateLayout = () => {
+      const current = document.documentElement.getAttribute("data-layout") || "clean-cards";
+      setLayout(current);
+    };
+    updateLayout();
+    const observer = new MutationObserver(updateLayout);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-layout"] });
+    return () => observer.disconnect();
+  }, []);
 
-  const badgeClass = (status: string) => {
-    if (status === "confirmed") return "badge badge-confirmed";
-    if (status === "orphan") return "badge badge-orphan";
-    return "badge badge-pending";
-  };
-
-  const poolHr = stats?.hashrate || 0;
-  const poolPct = (networkHr > 0 ? ((poolHr / networkHr) * 100).toFixed(2) + "% of network" : "") + " \u00B7 avg 30m";
+  const layoutProps = { stats, health, blocks };
 
   return (
-    <div>
-      {/* Titre */}
-      <div className="page-title">
-        <h1>KORVEX POOL</h1>
-        <p>Ergo Mining Pool for Everyone</p>
-      </div>
-
-      {/* Row 1 — 6 stat cards */}
-      <div className="stats-grid">
-        <StatCard icon="&#127760;" label="Network Hashrate" value={formatHash(networkHr)} sub={"Diff: " + formatDiff(networkDiff)} />
-        <StatCard icon="&#9889;" label="Pool Hashrate" value={formatHash(poolHr)} sub={poolPct} />
-        <StatCard icon="&#9935;" label="Miners Online" value={String(stats?.minersTotal || 0)} />
-        <StatCard icon="&#128296;" label="Workers" value={String(stats?.workersTotal || 0)} />
-        <StatCard icon="&#9878;" label="Last Block Found" value={lastBlockTime} sub={stats?.stats?.lastBlockFound ? "#" + stats.stats.lastBlockFound : ""} />
-        <StatCard
-          icon="&#127922;"
-          label="Current Effort"
-          value={effortLabel(stats?.currentEffort)}
-          valueColor={effortColor(stats?.currentEffort)}
-          sub={stats?.poolLuck != null ? "Avg luck: " + stats.poolLuck.toFixed(1) + "%" : "No blocks yet"}
-          className="effort-card"
-        />
-      </div>
-
-      {/* Chart */}
-      <PoolChart />
-
-      {/* Row 2 — Stats secondaires : Economics */}
-      <div className="secondary-stats-row">
-        <div className="secondary-stat">
-          <div className="ss-label">ERG Price</div>
-          <div className="ss-value-row">
-            <svg className="ss-icon" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="16" cy="16" r="15" fill="none" stroke="#FF5722" strokeWidth="1.5" opacity="0.6"/>
-              <text x="16" y="21" textAnchor="middle" fill="#FF5722" fontSize="16" fontWeight="700" fontFamily="Arial, sans-serif">&#931;</text>
-            </svg>
-            <span className="ss-value">${stats?.ergPriceUsd ? stats.ergPriceUsd.toFixed(4) : "—"}</span>
-          </div>
-        </div>
-        <div className="secondary-stat">
-          <div className="ss-label">ERG Block Reward</div>
-          <div className="ss-value">{stats?.blockReward || 6} ERG</div>
-        </div>
-        <div className="secondary-stat">
-          <div className="ss-label">Pool Fee</div>
-          <div className="ss-value">{stats?.poolFee ? (stats.poolFee * 100).toFixed(0) : "1"}%</div>
-        </div>
-      </div>
-
-      {/* Row 3 — Stats secondaires : Rules */}
-      <div className="secondary-stats-row">
-        <div className="secondary-stat">
-          <div className="ss-label">Min Payout</div>
-          <div className="ss-value">1 ERG</div>
-        </div>
-        <div className="secondary-stat">
-          <div className="ss-label">Confirmations</div>
-          <div className="ss-value">720 blocks</div>
-        </div>
-        <div className="secondary-stat tooltip-wrap">
-          <div className="ss-label">PPLNS Window</div>
-          <div className="ss-value">2&times; Network Diff</div>
-          <div className="tooltip">Standard PPLNS window. Prevents pool hopping and rewards long-term miners.</div>
-        </div>
-      </div>
-
-      {/* Table blocs */}
-      {blocks.length > 0 && (
-        <div className="card">
-          <h3 style={{ marginBottom: 12, color: "#fff" }}>Recent Blocks</h3>
-          <table className="blocks-table">
-            <thead>
-              <tr>
-                <th>Height</th>
-                <th>Miner</th>
-                <th>Effort</th>
-                <th>Status</th>
-                <th>Found</th>
-              </tr>
-            </thead>
-            <tbody>
-              {blocks.slice(0, 10).map((b) => (
-                <tr key={b.height}>
-                  <td style={{ color: "var(--accent)" }}>{b.height}</td>
-                  <td style={{ fontFamily: "monospace", fontSize: 13 }}>
-                    {b.finder_address ? b.finder_address.slice(0, 12) + "..." : "-"}
-                  </td>
-                  <td>
-                    <span
-                      className="effort-badge"
-                      style={{ color: effortColor(b.effort_percent) }}
-                    >
-                      {effortLabel(b.effort_percent)}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={badgeClass(b.status)}>{b.status}</span>
-                  </td>
-                  <td style={{ color: "var(--text-dim)" }}>
-                    {new Date(b.created_at).toLocaleString("fr-FR")}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+    <div className={"home-page layout-" + layout}>
+      {layout === "clean-cards" && <LayoutCleanCards {...layoutProps} />}
+      {layout === "dashboard-pro" && <LayoutDashboardPro {...layoutProps} />}
+      {layout === "modern-grid" && <LayoutModernGrid {...layoutProps} />}
     </div>
   );
 };

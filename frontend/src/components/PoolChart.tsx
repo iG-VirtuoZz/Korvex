@@ -151,10 +151,6 @@ const PoolChart: React.FC = () => {
     return [yMin, yMax] as [number, number];
   }, [data, tab, period]);
 
-  const smoothingLabel = tab === "hashrate"
-    ? period === "1d" ? "Smoothed ~30min avg" : "Averaged"
-    : null;
-
   return (
     <div className="chart-container">
       <div className="chart-header">
@@ -174,18 +170,6 @@ const PoolChart: React.FC = () => {
           ))}
         </div>
       </div>
-
-      {tab === "hashrate" && (
-        <div className="chart-info-row">
-          {smoothingLabel && <span className="chart-smoothing-label">{smoothingLabel}</span>}
-          <span className="chart-info-tooltip tooltip-wrap">
-            &#9432;
-            <span className="tooltip">
-              Hashrate is estimated from submitted shares. Vardiff adjustments and mining variance can cause temporary spikes or dips that do not reflect actual hardware changes.
-            </span>
-          </span>
-        </div>
-      )}
 
       {data.length === 0 ? (
         <div style={{ textAlign: "center", padding: "40px", color: colors.text }}>
