@@ -16,6 +16,8 @@
   --green: #2ea043;
   --yellow: #d29922;
   --red: #f85149;
+  --gradient-start: #A5F3FC;
+  --gradient-end: #0891B2;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -69,7 +71,7 @@ a:hover { color: var(--accent-hover); }
   font-size: 22px;
   font-weight: 800;
   letter-spacing: 2px;
-  background: linear-gradient(135deg, #A5F3FC, #00D4FF, #0891B2);
+  background: linear-gradient(135deg, var(--gradient-start), var(--accent), var(--gradient-end));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -131,7 +133,7 @@ a:hover { color: var(--accent-hover); }
 }
 
 .header-cta {
-  background: linear-gradient(135deg, #00D4FF, #0891B2);
+  background: linear-gradient(135deg, var(--accent), var(--gradient-end));
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -286,7 +288,7 @@ a:hover { color: var(--accent-hover); }
   font-size: 28px;
   font-weight: 800;
   letter-spacing: 3px;
-  background: linear-gradient(135deg, #A5F3FC, #00D4FF, #0891B2);
+  background: linear-gradient(135deg, var(--gradient-start), var(--accent), var(--gradient-end));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -414,7 +416,7 @@ a:hover { color: var(--accent-hover); }
 }
 
 .blocks-table tr:hover td {
-  background: rgba(0, 212, 255, 0.03);
+  background: var(--accent-glow);
 }
 
 /* ==================== STATUS BANNER ==================== */
@@ -714,12 +716,13 @@ a:hover { color: var(--accent-hover); }
 }
 
 .stat-card-accent {
-  border-color: rgba(0, 212, 255, 0.15);
-  background: linear-gradient(135deg, var(--card) 0%, rgba(0, 212, 255, 0.04) 100%);
+  border-color: var(--accent-glow);
+  background: linear-gradient(135deg, var(--card) 0%, var(--accent-glow) 100%);
 }
 
 .stat-card-accent:hover {
   border-color: var(--accent);
+  box-shadow: 0 0 20px var(--accent-glow);
 }
 
 @media (max-width: 768px) {
@@ -944,7 +947,7 @@ a:hover { color: var(--accent-hover); }
 }
 
 .leaderboard-table tbody tr:hover td {
-  background: rgba(0, 212, 255, 0.03);
+  background: var(--accent-glow);
 }
 
 .lb-row-loading td {
@@ -1678,7 +1681,7 @@ a:hover { color: var(--accent-hover); }
 
 .lang-selector-btn:hover {
   background: rgba(255, 255, 255, 0.15);
-  border-color: #00D4FF;
+  border-color: var(--accent);
 }
 
 .lang-flag {
@@ -1695,8 +1698,8 @@ a:hover { color: var(--accent-hover); }
   top: 100%;
   right: 0;
   margin-top: 8px;
-  background: #1a1a2e;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
   z-index: 1000;
@@ -1712,18 +1715,18 @@ a:hover { color: var(--accent-hover); }
   padding: 10px 14px;
   background: transparent;
   border: none;
-  color: #fff;
+  color: var(--text);
   cursor: pointer;
   transition: background 0.2s;
   text-align: left;
 }
 
 .lang-option:hover {
-  background: rgba(0, 212, 255, 0.1);
+  background: var(--card-hover);
 }
 
 .lang-option.active {
-  background: rgba(0, 212, 255, 0.2);
+  background: var(--accent-glow);
 }
 
 .lang-name {
@@ -1744,4 +1747,330 @@ a:hover { color: var(--accent-hover); }
 .lb-table th,
 .lb-table td {
   text-align: center;
+}
+
+/* ==================== THEME SELECTOR ==================== */
+
+.theme-selector {
+  position: relative;
+  z-index: 200;
+}
+
+.theme-selector-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.theme-selector-btn:hover {
+  border-color: var(--accent);
+  background: var(--card-hover);
+}
+
+.theme-color-preview {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.theme-selector-label {
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.theme-selector-arrow {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.theme-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px;
+  min-width: 200px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+.theme-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+  text-align: left;
+}
+
+.theme-option:hover {
+  background: var(--card-hover);
+}
+
+.theme-option.active {
+  background: var(--accent-glow);
+}
+
+.theme-option-name {
+  flex: 1;
+}
+
+.theme-check {
+  color: var(--accent);
+  font-weight: bold;
+}
+
+/* ==================== STYLE SELECTOR (remplace theme selector) ==================== */
+
+.style-selector {
+  position: relative;
+  z-index: 200;
+}
+
+.style-selector-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--button-radius, 8px);
+  padding: 8px 10px;
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.style-selector-btn:hover {
+  border-color: var(--accent);
+  background: var(--card-hover);
+}
+
+.style-color-preview {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.style-selector-icon {
+  font-size: 16px;
+  opacity: 0.8;
+}
+
+.style-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 8px;
+  min-width: 260px;
+  box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+}
+
+.style-dropdown-header {
+  padding: 10px 14px 8px;
+  color: var(--text-dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+.style-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.2s;
+  text-align: left;
+}
+
+.style-option:hover {
+  background: var(--card-hover);
+}
+
+.style-option.active {
+  background: var(--accent-glow);
+}
+
+.style-option-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.style-option-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.style-option-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.style-check {
+  color: var(--accent);
+  font-weight: bold;
+  font-size: 16px;
+}
+
+/* ==================== DYNAMIC STYLE VARIABLES ==================== */
+
+:root {
+  --card-radius: 12px;
+  --button-radius: 8px;
+  --input-radius: 8px;
+  --card-shadow: none;
+}
+
+/* Apply dynamic radius */
+.card,
+.stat-card-new,
+.stat-card,
+.chart-container,
+.leaderboard-card,
+.secondary-stat,
+.how-to-start-page,
+.legal-page {
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+}
+
+.header-cta,
+.chart-periods button.active {
+  border-radius: var(--button-radius);
+}
+
+.header-search input,
+.leaderboard-search input,
+.earnings-field,
+.earnings-select {
+  border-radius: var(--input-radius);
+}
+
+/* ==================== GLASSMORPHISM STYLE ==================== */
+
+.style-glass .card,
+.style-glass .stat-card-new,
+.style-glass .stat-card,
+.style-glass .chart-container,
+.style-glass .secondary-stat {
+  background: var(--card-bg, var(--card));
+  backdrop-filter: blur(var(--card-blur, 0));
+  -webkit-backdrop-filter: blur(var(--card-blur, 0));
+  border: 1px solid var(--border);
+}
+
+.style-glass .header {
+  background: var(--header-bg, var(--card));
+  backdrop-filter: blur(var(--header-blur, 0));
+  -webkit-backdrop-filter: blur(var(--header-blur, 0));
+}
+
+.style-glass .stat-card-new:hover,
+.style-glass .card:hover {
+  background: var(--card-hover);
+  border-color: var(--accent);
+  box-shadow: 0 0 30px var(--accent-glow);
+}
+
+/* ==================== GLOW EFFECTS ==================== */
+
+.style-glow .stat-card-new:hover {
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+
+.style-glow .header-cta {
+  box-shadow: 0 4px 15px var(--accent-glow);
+}
+
+.style-glow .badge-confirmed {
+  box-shadow: 0 0 10px rgba(46, 160, 67, 0.3);
+}
+
+/* ==================== TABLE STYLES ==================== */
+
+/* Minimal table style */
+[data-table-style="minimal"] .blocks-table th,
+[data-table-style="minimal"] .leaderboard-table th,
+[data-table-style="minimal"] .payments-table th {
+  background: transparent;
+  border-bottom: 2px solid var(--border);
+}
+
+[data-table-style="minimal"] .blocks-table td,
+[data-table-style="minimal"] .leaderboard-table td,
+[data-table-style="minimal"] .payments-table td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Bordered table style */
+[data-table-style="bordered"] .blocks-table,
+[data-table-style="bordered"] .leaderboard-table,
+[data-table-style="bordered"] .payments-table {
+  border: 1px solid var(--border);
+}
+
+[data-table-style="bordered"] .blocks-table th,
+[data-table-style="bordered"] .leaderboard-table th,
+[data-table-style="bordered"] .payments-table th {
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+[data-table-style="bordered"] .blocks-table td,
+[data-table-style="bordered"] .leaderboard-table td,
+[data-table-style="bordered"] .payments-table td {
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+
+[data-table-style="bordered"] .blocks-table td:last-child,
+[data-table-style="bordered"] .leaderboard-table td:last-child,
+[data-table-style="bordered"] .payments-table td:last-child {
+  border-right: none;
+}
+
+/* Striped table style */
+[data-table-style="striped"] .blocks-table tbody tr:nth-child(odd),
+[data-table-style="striped"] .leaderboard-table tbody tr:nth-child(odd),
+[data-table-style="striped"] .payments-table tbody tr:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+[data-table-style="striped"] .blocks-table tbody tr:hover,
+[data-table-style="striped"] .leaderboard-table tbody tr:hover,
+[data-table-style="striped"] .payments-table tbody tr:hover {
+  background: var(--accent-glow);
 }

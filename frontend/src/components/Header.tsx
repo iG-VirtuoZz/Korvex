@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import LanguageSelector from "./LanguageSelector";
+import StyleSelector from "./StyleSelector";
+import { PoolStyle, loadSavedStyle, applyStyle } from "../themes/styles";
 
 const STORAGE_KEY = "korvex_miner_address";
 
@@ -9,10 +11,9 @@ const BoltIcon: React.FC = () => (
   <svg className="logo-bolt" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <linearGradient id="boltGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#A5F3FC" />
-        <stop offset="30%" stopColor="#67E8F9" />
-        <stop offset="70%" stopColor="#00D4FF" />
-        <stop offset="100%" stopColor="#0891B2" />
+        <stop offset="0%" stopColor="var(--gradient-start)" />
+        <stop offset="50%" stopColor="var(--accent)" />
+        <stop offset="100%" stopColor="var(--gradient-end)" />
       </linearGradient>
       <filter id="boltGlow" x="-50%" y="-50%" width="200%" height="200%">
         <feGaussianBlur stdDeviation="3" result="blur" />
@@ -23,8 +24,8 @@ const BoltIcon: React.FC = () => (
         </feMerge>
       </filter>
     </defs>
-    <rect x="0" y="0" width="64" height="64" rx="14" fill="#030712" />
-    <circle cx="32" cy="32" r="26" fill="none" stroke="#00D4FF" strokeWidth="1" opacity="0.2" />
+    <rect x="0" y="0" width="64" height="64" rx="14" fill="var(--bg)" />
+    <circle cx="32" cy="32" r="26" fill="none" stroke="var(--accent)" strokeWidth="1" opacity="0.2" />
     <g filter="url(#boltGlow)">
       <path d="M36,4 L18,34 L28,34 L24,60 L46,28 L34,28 L40,4 Z" fill="url(#boltGrad)" />
     </g>
@@ -41,6 +42,7 @@ const DiscordIcon: React.FC = () => (
 const Header: React.FC = () => {
   const { t } = useTranslation();
   const [searchValue, setSearchValue] = useState("");
+  const [currentStyle, setCurrentStyle] = useState<PoolStyle>(loadSavedStyle());
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -48,6 +50,9 @@ const Header: React.FC = () => {
     if (saved) {
       setSearchValue(saved);
     }
+    // Appliquer le style sauvegarde au chargement
+    applyStyle(currentStyle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSearch = () => {
@@ -87,6 +92,7 @@ const Header: React.FC = () => {
         </div>
 
         <div className="header-actions">
+          <StyleSelector currentStyle={currentStyle} onStyleChange={setCurrentStyle} />
           <LanguageSelector />
           <NavLink to="/discord" className="header-discord" title="Join our Discord">
             <DiscordIcon />
