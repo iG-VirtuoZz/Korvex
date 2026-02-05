@@ -2,7 +2,7 @@ import net from "net";
 import { config } from "../config";
 import { ergoNode, MiningCandidate } from "../ergo/node";
 import { database } from "../db/database";
-import { MinerSession } from "./session";
+import { MinerSession, MinerType } from "./session";
 import { validateShare } from "../ergo/autolykos2";
 import { distributePPLNS } from "../payout/pplns";
 
@@ -166,6 +166,18 @@ export class StratumServer {
   private handleMessage(session: MinerSession, method: string, params: any[], id: number | null) {
     switch (method) {
       case "mining.subscribe":
+        // Detecter le type de mineur via user-agent (params[0])
+        const userAgent = (params[0] || "").toLowerCase();
+        session.userAgent = params[0] || "";
+        if (userAgent.includes("srbminer")) {
+          session.minerType = "srbminer";
+        } else if (userAgent.includes("lolminer")) {
+          session.minerType = "lolminer";
+        } else if (userAgent.includes("teamredminer")) {
+          session.minerType = "teamredminer";
+        }
+        console.log("[Stratum] Subscribe: " + (session.userAgent || "no user-agent") + " -> minerType=" + session.minerType);
+
         session.sendResult(id, [
           [
             ["mining.set_difficulty", session.subscriptionId],
@@ -174,7 +186,7 @@ export class StratumServer {
           session.extraNonce,
           this.extraNonce2Size,
         ]);
-        // Envoyer set_difficulty(1) — neutre, les mineurs Ergo l'ignorent
+        // Envoyer set_difficulty(1) - tous les mineurs utilisent le b pre-multiplie
         session.sendNotify("mining.set_difficulty", [1]);
         break;
 
@@ -442,8 +454,8 @@ export class StratumServer {
   private sendJob(session: MinerSession) {
     if (!this.currentJob) return;
 
-    // bShare = bNetwork * vardiff (pre-multiplie pour le mineur)
-    // Le mineur utilise directement ce b comme target de share
+    // Tous les mineurs: envoyer bShare pre-multiplie (bNetwork * vardiff)
+    // C'est le comportement standard qui fonctionne avec lolMiner/TeamRedMiner
     const bShare = this.currentJob.bNetwork * BigInt(session.difficulty);
 
     session.sendNotify("mining.notify", [

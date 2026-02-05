@@ -24,6 +24,10 @@ const VARDIFF_CONFIG: VardiffConfig = {
 
 const DEFAULT_INITIAL_DIFF = 10000;
 
+// Type de mineur detecte via user-agent dans mining.subscribe
+// Certains mineurs (SRBMiner) interpretent set_difficulty differemment
+export type MinerType = "lolminer" | "teamredminer" | "srbminer" | "unknown";
+
 export class MinerSession {
   public socket: net.Socket;
   public address: string = "";
@@ -32,6 +36,8 @@ export class MinerSession {
   public difficulty: number = DEFAULT_INITIAL_DIFF;
   public subscriptionId: string;
   public extraNonce: string;
+  public minerType: MinerType = "unknown";
+  public userAgent: string = "";
 
   // Callback appele quand le vardiff change, pour que le serveur re-envoie le job
   public onDifficultyChanged: (() => void) | null = null;
@@ -116,8 +122,7 @@ export class MinerSession {
 
   setDifficulty(diff: number) {
     this.difficulty = Math.max(VARDIFF_CONFIG.minDiff, Math.min(VARDIFF_CONFIG.maxDiff, Math.round(diff)));
-    // Toujours envoyer 1 : les mineurs Ergo ignorent set_difficulty
-    // et utilisent directement le b de mining.notify
+    // Toujours envoyer 1: tous les mineurs utilisent le b pre-multiplie de mining.notify
     this.sendNotify("mining.set_difficulty", [1]);
     // Informer le serveur pour qu'il re-envoie le job avec le nouveau b
     if (this.onDifficultyChanged) this.onDifficultyChanged();
