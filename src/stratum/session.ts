@@ -12,17 +12,18 @@ interface VardiffConfig {
 // Modele multiplyDifficulty : le vardiff controle directement le b envoye au mineur
 // bShare = bNetwork * vardiff (envoye dans mining.notify params[6])
 // mining.set_difficulty envoie toujours 1 (neutre, les mineurs Ergo l'ignorent)
-// minDiff=100 permet de supporter des rigs jusqu'a ~21 TH/s
-// DEFAULT_INITIAL_DIFF=10000 cible ~15s pour un rig de ~1.9 GH/s
 const VARDIFF_CONFIG: VardiffConfig = {
   targetShareTime: 15,
-  minDiff: 100,
-  maxDiff: 16431986528747520,
-  retargetTime: 60,
-  variancePercent: 30,
+  minDiff: 5000,       // Plancher: evite shares trop frequentes
+  maxDiff: 100000,     // Plafond: evite oscillations (vardiff 241781 causait des bugs)
+  retargetTime: 90,    // 90s entre chaque ajustement (plus stable)
+  variancePercent: 25, // Tolerance 25% avant ajustement
 };
 
-const DEFAULT_INITIAL_DIFF = 10000;
+const DEFAULT_INITIAL_DIFF = 20000; // Diff initiale moyenne
+
+// Limite de changement par retarget: max x1.5 ou /1.5 (evite sauts brutaux)
+const MAX_DIFF_CHANGE_RATIO = 1.5;
 
 // Type de mineur detecte via user-agent dans mining.subscribe
 // Certains mineurs (SRBMiner) interpretent set_difficulty differemment
@@ -141,7 +142,8 @@ export class MinerSession {
   }
 
   private retargetDifficulty() {
-    if (this.shareTimestamps.length < 4) return;
+    // Besoin d'au moins 6 shares pour un calcul fiable
+    if (this.shareTimestamps.length < 6) return;
 
     const times: number[] = [];
     for (let i = 1; i < this.shareTimestamps.length; i++) {
@@ -152,15 +154,20 @@ export class MinerSession {
     const variance = target * (VARDIFF_CONFIG.variancePercent / 100);
 
     if (avgTime < target - variance || avgTime > target + variance) {
-      // Formule multiplyDifficulty (comme ErgoStratumServer PR #13):
-      // ddiff = avgTime / target
-      // Si shares trop rapides (avgTime < target): ddiff < 1 -> vardiff diminue -> target plus dur
-      // Si shares trop lentes (avgTime > target): ddiff > 1 -> vardiff augmente -> target plus facile
-      const newDiff = this.difficulty * (avgTime / target);
+      // Calcul du ratio de changement
+      let ratio = avgTime / target;
+
+      // IMPORTANT: Limiter le changement a x1.5 ou /1.5 max par cycle
+      // Cela evite les oscillations violentes qui causaient les deconnexions
+      if (ratio > MAX_DIFF_CHANGE_RATIO) ratio = MAX_DIFF_CHANGE_RATIO;
+      if (ratio < 1 / MAX_DIFF_CHANGE_RATIO) ratio = 1 / MAX_DIFF_CHANGE_RATIO;
+
+      const newDiff = this.difficulty * ratio;
       const clampedDiff = Math.max(VARDIFF_CONFIG.minDiff, Math.min(VARDIFF_CONFIG.maxDiff, Math.round(newDiff)));
+
       if (clampedDiff !== this.difficulty) {
         this.setDifficulty(clampedDiff);
-        // Reset buffer apres retarget (comme NOMP: timeBuffer.clear())
+        // Reset buffer apres retarget
         this.shareTimestamps = [Date.now()];
       }
     }
