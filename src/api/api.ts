@@ -75,6 +75,42 @@ async function getErgPriceCached(): Promise<{ usd: number; btc: number }> {
   }
 }
 
+// Cache pour le timestamp du dernier bloc reseau (avec logs de debug)
+// On utilise le moment de DETECTION du bloc (pas le timestamp du bloc lui-meme)
+// pour que la barre parte toujours de 0% quand un nouveau bloc est trouve
+let cachedDetectionTs: number | null = null;
+let cachedLastBlockHeight: number = 0;
+
+async function getLastBlockTimestampCached(): Promise<number | null> {
+  try {
+    const info = await ergoNode.getInfo();
+    const currentHeight = info.fullHeight || 0;
+
+    // Si la hauteur a change, on utilise le temps actuel comme reference
+    if (currentHeight !== cachedLastBlockHeight && currentHeight > 0) {
+      const oldHeight = cachedLastBlockHeight;
+      const oldTs = cachedDetectionTs;
+      const now = Date.now();
+
+      // Log le changement de bloc
+      if (oldHeight > 0) {
+        const oldElapsed = oldTs ? Math.floor((now - oldTs) / 1000) : 0;
+        console.log(`[BlockProgress] Nouveau bloc! Hauteur: ${oldHeight} -> ${currentHeight}, ` +
+          `Ancien elapsed: ${oldElapsed}s (${(oldElapsed/120*100).toFixed(1)}%), Reset a 0%`);
+      } else {
+        console.log(`[BlockProgress] Init hauteur: ${currentHeight}`);
+      }
+
+      cachedLastBlockHeight = currentHeight;
+      cachedDetectionTs = now; // On utilise le moment de detection, pas le timestamp du bloc
+    }
+    return cachedDetectionTs;
+  } catch (err) {
+    console.error("[BlockProgress] Erreur:", err);
+    return cachedDetectionTs;
+  }
+}
+
 export function createApi(getStratumInfo: () => { sessions: number; miners: string[] }) {
   const app = express();
   app.use(cors({
@@ -202,12 +238,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
       const ergPrice = await getErgPriceCached();
 
       // Timestamp du dernier bloc reseau (pour la barre de progression)
-      let lastNetworkBlockTimestamp: number | null = null;
-      try {
-        lastNetworkBlockTimestamp = await ergoNode.getLastBlockTimestamp();
-      } catch {
-        // Ignore - pas critique
-      }
+      const lastNetworkBlockTimestamp = await getLastBlockTimestampCached();
 
       res.json({
         hashrate,

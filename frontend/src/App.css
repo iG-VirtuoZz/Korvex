@@ -2564,12 +2564,25 @@ a:hover { color: var(--accent-hover); }
 
 /* ==================== BLOCK PROGRESS BAR ==================== */
 
+.progress-bars-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 900px) {
+  .progress-bars-container {
+    grid-template-columns: 1fr;
+  }
+}
+
 .block-progress-bar {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 16px 20px;
-  margin-bottom: 24px;
+  margin-bottom: 0;
 }
 
 .block-progress-label {

@@ -159,6 +159,63 @@ const NetworkBlockProgress: React.FC<{ lastBlockTimestamp: number }> = ({ lastBl
   );
 };
 
+// Composant barre d'effort de la pool
+// Affiche le % d'effort actuel de la pool pour trouver un bloc
+const PoolEffortProgress: React.FC<{ effort: number | null }> = ({ effort }) => {
+  const percent = effort ?? 0;
+
+  // Position du remplissage (max 100% de la barre = 250% effort)
+  const fillPercent = Math.min((percent / 250) * 100, 100);
+
+  // Couleur et degrade selon l'effort actuel
+  const getGradient = () => {
+    if (percent <= 50) return "linear-gradient(90deg, #16a34a 0%, #22c55e 100%)";
+    if (percent <= 100) return "linear-gradient(90deg, #16a34a 0%, #84cc16 50%, #a3e635 100%)";
+    if (percent <= 150) return "linear-gradient(90deg, #84cc16 0%, #facc15 100%)";
+    if (percent <= 200) return "linear-gradient(90deg, #facc15 0%, #f97316 100%)";
+    return "linear-gradient(90deg, #f97316 0%, #ef4444 100%)";
+  };
+
+  const getCurrentColor = () => {
+    if (percent <= 50) return "#22c55e";
+    if (percent <= 100) return "#a3e635";
+    if (percent <= 150) return "#facc15";
+    if (percent <= 200) return "#f97316";
+    return "#ef4444";
+  };
+
+  return (
+    <div className="block-progress-bar">
+      <div className="block-progress-label">
+        <span>Pool Effort</span>
+        <span className="block-progress-percent" style={{ color: getCurrentColor() }}>
+          {percent.toFixed(1)}%
+        </span>
+      </div>
+      <div className="block-progress-track-v2">
+        <div
+          className="block-progress-fill-v2"
+          style={{
+            width: `${fillPercent}%`,
+            background: getGradient()
+          }}
+        >
+          <div className="block-progress-stripes"></div>
+          <div className="block-progress-arrow" style={{ borderLeftColor: getCurrentColor() }}></div>
+        </div>
+      </div>
+      <div className="block-progress-markers-v2">
+        <span>0%</span>
+        <span>50%</span>
+        <span>100%</span>
+        <span>150%</span>
+        <span>200%</span>
+        <span>250%</span>
+      </div>
+    </div>
+  );
+};
+
 // Determine le statut d'un worker selon la date de sa derniere share
 const getWorkerStatus = (lastShare: string | null): "online" | "warning" | "offline" => {
   if (!lastShare) return "offline";
@@ -408,10 +465,15 @@ const MinerPage: React.FC = () => {
             <MinerChart address={paramAddress} />
           </div>
 
-          {/* Barre de progression du bloc reseau */}
-          {poolStats && poolStats.lastNetworkBlockTimestamp && (
-            <NetworkBlockProgress lastBlockTimestamp={poolStats.lastNetworkBlockTimestamp} />
-          )}
+          {/* Barres de progression */}
+          <div className="progress-bars-container">
+            {poolStats && poolStats.lastNetworkBlockTimestamp && (
+              <NetworkBlockProgress lastBlockTimestamp={poolStats.lastNetworkBlockTimestamp} />
+            )}
+            {poolStats && (
+              <PoolEffortProgress effort={poolStats.currentEffort} />
+            )}
+          </div>
 
           {/* Workers Table - gardé tel quel */}
           <div className="modern-info-card">
