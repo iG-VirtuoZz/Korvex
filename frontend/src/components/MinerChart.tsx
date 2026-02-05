@@ -128,14 +128,7 @@ const MinerChart: React.FC<MinerChartProps> = ({ address, worker, hideTitle = fa
   return (
     <div className="chart-container">
       <div className="chart-header">
-        {!hideTitle && (
-          <div className="chart-tabs">
-            <button className="active">
-              {worker ? "Worker: " + worker : "Hashrate History"}
-            </button>
-          </div>
-        )}
-        <div className="chart-periods" style={hideTitle ? { marginLeft: 'auto' } : undefined}>
+        <div className="chart-periods" style={{ marginLeft: 'auto' }}>
           {PERIODS.map((p) => (
             <button
               key={p.key}

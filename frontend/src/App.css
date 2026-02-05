@@ -703,6 +703,45 @@ a:hover { color: var(--accent-hover); }
   font-style: italic;
 }
 
+.how-to-start-page .badge-recommended {
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.how-to-start-page .miner-recommendation {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 24px 0 16px 0;
+}
+
+.how-to-start-page .miner-recommendation h4 {
+  color: #22c55e;
+  margin: 0 0 4px 0;
+  border: none;
+  padding: 0;
+}
+
+.how-to-start-page .miner-recommendation p {
+  margin: 0;
+}
+
+.how-to-start-page .miner-recommendation.miner-supported {
+  background: rgba(251, 191, 36, 0.1);
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+.how-to-start-page .miner-recommendation.miner-supported h4 {
+  color: #fbbf24;
+}
+
 /* ==================== LEGAL PAGE ==================== */
 
 .legal-page {
@@ -2521,6 +2560,95 @@ a:hover { color: var(--accent-hover); }
 .modern-info-row span:last-child {
   color: var(--text);
   font-weight: 500;
+}
+
+/* ==================== BLOCK PROGRESS BAR ==================== */
+
+.block-progress-bar {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+}
+
+.block-progress-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.block-progress-percent {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.block-progress-track-v2 {
+  position: relative;
+  height: 28px;
+  background: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%);
+  border-radius: 6px;
+  overflow: visible;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.block-progress-fill-v2 {
+  position: relative;
+  height: 100%;
+  border-radius: 6px 0 0 6px;
+  transition: width 0.5s ease;
+  overflow: hidden;
+  min-width: 20px;
+}
+
+.block-progress-stripes {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 8px,
+    rgba(255, 255, 255, 0.15) 8px,
+    rgba(255, 255, 255, 0.15) 16px
+  );
+  animation: progress-stripes 1s linear infinite;
+}
+
+@keyframes progress-stripes {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 22.6px 0;
+  }
+}
+
+.block-progress-arrow {
+  position: absolute;
+  right: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-top: 14px solid transparent;
+  border-bottom: 14px solid transparent;
+  border-left: 12px solid;
+  filter: drop-shadow(2px 0 2px rgba(0, 0, 0, 0.3));
+}
+
+.block-progress-markers-v2 {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--text-dim);
+  padding: 0 2px;
 }
 
 .modern-blocks-full {

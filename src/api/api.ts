@@ -201,6 +201,14 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
       // Prix ERG avec cache
       const ergPrice = await getErgPriceCached();
 
+      // Timestamp du dernier bloc reseau (pour la barre de progression)
+      let lastNetworkBlockTimestamp: number | null = null;
+      try {
+        lastNetworkBlockTimestamp = await ergoNode.getLastBlockTimestamp();
+      } catch {
+        // Ignore - pas critique
+      }
+
       res.json({
         hashrate,
         minersTotal: stratum.miners.length,
@@ -223,6 +231,8 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
         poolFee: config.pool.fee,
         ergPriceUsd: ergPrice.usd,
         ergPriceBtc: ergPrice.btc,
+        // Timestamp du dernier bloc reseau (ms)
+        lastNetworkBlockTimestamp,
       });
     } catch (err) {
       console.error("[API] Erreur /api/stats:", err);

@@ -39,6 +39,7 @@ export interface PoolStats {
   poolFee: number;
   ergPriceUsd: number;
   ergPriceBtc: number;
+  lastNetworkBlockTimestamp: number | null;
 }
 
 export interface ChartPoint { ts: string; value: number; height?: number; }

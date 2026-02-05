@@ -150,6 +150,20 @@ class ErgoNode {
       return true;
     }
   }
+
+  // Obtenir le timestamp du dernier bloc du reseau (pour la barre de progression)
+  async getLastBlockTimestamp(): Promise<number | null> {
+    try {
+      const info = await this.getInfo();
+      const height = info.fullHeight;
+      const blockIds = await this.getBlockIdsAtHeight(height);
+      if (blockIds.length === 0) return null;
+      const header = await this.getBlockHeaderById(blockIds[0]);
+      return header.timestamp;
+    } catch {
+      return null;
+    }
+  }
 }
 
 export const ergoNode = new ErgoNode();
