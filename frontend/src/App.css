@@ -2512,6 +2512,13 @@ a:hover { color: var(--accent-hover); }
   grid-template-columns: 1fr 1fr;
   gap: 24px;
   margin-bottom: 28px;
+  align-items: stretch;
+}
+
+.modern-info-row-grid > .modern-info-card {
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .modern-info-card,
