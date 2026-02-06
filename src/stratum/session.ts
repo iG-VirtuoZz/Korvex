@@ -14,16 +14,16 @@ interface VardiffConfig {
 // mining.set_difficulty envoie toujours 1 (neutre, les mineurs Ergo l'ignorent)
 const VARDIFF_CONFIG: VardiffConfig = {
   targetShareTime: 15,
-  minDiff: 5000,       // Plancher: evite shares trop frequentes
-  maxDiff: 100000,     // Plafond: evite oscillations (vardiff 241781 causait des bugs)
+  minDiff: 100,        // Plancher: supporte jusqu'a ~200 GH/s
+  maxDiff: 500000,     // Plafond: supporte jusqu'a ~40 MH/s
   retargetTime: 90,    // 90s entre chaque ajustement (plus stable)
-  variancePercent: 25, // Tolerance 25% avant ajustement
+  variancePercent: 30, // Tolerance 30% avant ajustement (zone morte elargie)
 };
 
 const DEFAULT_INITIAL_DIFF = 20000; // Diff initiale moyenne
 
-// Limite de changement par retarget: max x1.5 ou /1.5 (evite sauts brutaux)
-const MAX_DIFF_CHANGE_RATIO = 1.5;
+// Limite de changement par retarget: max x1.25 ou /1.25 (anti-oscillation)
+const MAX_DIFF_CHANGE_RATIO = 1.25;
 
 // Type de mineur detecte via user-agent dans mining.subscribe
 // Certains mineurs (SRBMiner) interpretent set_difficulty differemment
@@ -42,6 +42,10 @@ export class MinerSession {
 
   // Callback appele quand le vardiff change, pour que le serveur re-envoie le job
   public onDifficultyChanged: (() => void) | null = null;
+
+  // Bootstrap : estimation rapide du vardiff pour les nouveaux workers
+  private authorizedAt: number = 0;
+  private hasBootstrapped: boolean = false;
 
   private shareTimestamps: number[] = [];
   private vardiffTimer: NodeJS.Timeout | null = null;
@@ -135,15 +139,29 @@ export class MinerSession {
     if (this.shareTimestamps.length > 20) {
       this.shareTimestamps = this.shareTimestamps.slice(-20);
     }
-    // Pas de fast retarget : le retarget periodique (60s) suffit.
-    // Le fast retarget causait des oscillations violentes avec multiplyDifficulty
-    // car diviser le vardiff par 2 rendait la target 2x plus dure, puis le
-    // retarget normal remontait car les shares etaient trop lentes, etc.
+
+    // Bootstrap : estimation rapide du vardiff sur la 1ere share d'un nouveau worker
+    if (!this.hasBootstrapped && this.authorizedAt > 0) {
+      this.hasBootstrapped = true;
+      const elapsed = (now - this.authorizedAt) / 1000;
+      // Seulement si le temps est raisonnable (2s a 300s)
+      if (elapsed >= 2 && elapsed <= 300) {
+        const ratio = elapsed / VARDIFF_CONFIG.targetShareTime;
+        const newDiff = this.difficulty * ratio;
+        const clampedDiff = Math.max(VARDIFF_CONFIG.minDiff, Math.min(VARDIFF_CONFIG.maxDiff, Math.round(newDiff)));
+        if (clampedDiff !== this.difficulty) {
+          console.log("[Vardiff] Bootstrap " + this.address.substring(0, 12) + "..." + this.worker +
+            " : 1ere share en " + elapsed.toFixed(1) + "s, vardiff " + this.difficulty + " -> " + clampedDiff);
+          this.setDifficulty(clampedDiff);
+          this.shareTimestamps = [Date.now()];
+        }
+      }
+    }
   }
 
   private retargetDifficulty() {
-    // Besoin d'au moins 6 shares pour un calcul fiable
-    if (this.shareTimestamps.length < 6) return;
+    // Besoin d'au moins 8 shares pour un calcul fiable (moyenne plus stable)
+    if (this.shareTimestamps.length < 8) return;
 
     const times: number[] = [];
     for (let i = 1; i < this.shareTimestamps.length; i++) {
@@ -157,7 +175,7 @@ export class MinerSession {
       // Calcul du ratio de changement
       let ratio = avgTime / target;
 
-      // IMPORTANT: Limiter le changement a x1.5 ou /1.5 max par cycle
+      // IMPORTANT: Limiter le changement a x1.25 ou /1.25 max par cycle
       // Cela evite les oscillations violentes qui causaient les deconnexions
       if (ratio > MAX_DIFF_CHANGE_RATIO) ratio = MAX_DIFF_CHANGE_RATIO;
       if (ratio < 1 / MAX_DIFF_CHANGE_RATIO) ratio = 1 / MAX_DIFF_CHANGE_RATIO;
@@ -171,6 +189,30 @@ export class MinerSession {
         this.shareTimestamps = [Date.now()];
       }
     }
+  }
+
+  // --- Getters pour l'idle sweep (server.ts) ---
+
+  /** Timestamp de la derniere share, ou 0 si aucune */
+  getLastShareTimestamp(): number {
+    return this.shareTimestamps.length > 0 ? this.shareTimestamps[this.shareTimestamps.length - 1] : 0;
+  }
+
+  /** Reset le buffer de shares (utilise par l'idle sweep apres bump) */
+  resetShareTimestamps() {
+    this.shareTimestamps = [];
+  }
+
+  // --- Bootstrap (estimation initiale rapide) ---
+
+  /** Enregistre le moment d'autorisation (pour calculer le temps jusqu'a la 1ere share) */
+  markAuthorized() {
+    this.authorizedAt = Date.now();
+  }
+
+  /** Desactive le bootstrap (pour les workers restaures du cache qui ont deja un bon vardiff) */
+  markBootstrapped() {
+    this.hasBootstrapped = true;
   }
 
   disconnect() {

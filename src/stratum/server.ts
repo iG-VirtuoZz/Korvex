@@ -18,6 +18,11 @@ interface InvalidShareEntry {
   lastSeen: number;
 }
 
+// --- Idle Sweep : detection workers silencieux ---
+const IDLE_SWEEP_INTERVAL = 30_000; // 30s entre chaque sweep
+const IDLE_THRESHOLD_MS = 30_000;   // Worker considere idle si pas de share depuis 30s
+const IDLE_DIFF_BUMP = 1.5;         // Augmenter vardiff de 50% pour rendre plus facile
+
 export class StratumServer {
   private server: net.Server;
   private sessions: Map<string, MinerSession> = new Map();
@@ -27,6 +32,7 @@ export class StratumServer {
   private validJobs: Map<string, JobEntry> = new Map();
   private pollTimer: NodeJS.Timeout | null = null;
   private invalidSharePurgeTimer: NodeJS.Timeout | null = null;
+  private idleSweepTimer: NodeJS.Timeout | null = null;
   private lastNetworkDifficulty: number = 0;
 
   private connectionCounts: Map<string, number> = new Map();
@@ -77,6 +83,9 @@ export class StratumServer {
 
     // Purge periodique du cache workerLastDiff (TTL 24h)
     this.workerLastDiffPurgeTimer = setInterval(() => this.purgeWorkerLastDiff(), this.workerLastDiffTTL);
+
+    // Idle sweep : detecte les workers silencieux et baisse leur diff
+    this.idleSweepTimer = setInterval(() => this.idleSweep(), IDLE_SWEEP_INTERVAL);
   }
 
   private purgeInvalidShareCounts() {
@@ -104,6 +113,31 @@ export class StratumServer {
     }
     if (purged > 0) {
       console.log("[Stratum] Purge workerLastDiff: " + purged + " entree(s) expirees");
+    }
+  }
+
+  /**
+   * Idle Sweep : pour chaque session autorisee sans share depuis > 30s,
+   * augmenter le vardiff de 50% (rendre plus facile) pour debloquer le worker.
+   */
+  private idleSweep() {
+    const now = Date.now();
+    for (const session of this.sessions.values()) {
+      if (!session.authorized) continue;
+      const lastShare = session.getLastShareTimestamp();
+      // Pas de share du tout : le worker vient peut-etre de se connecter, ignorer
+      if (lastShare === 0) continue;
+      const idleMs = now - lastShare;
+      if (idleMs > IDLE_THRESHOLD_MS) {
+        // Augmenter le vardiff (= baisser la difficulte effective pour le mineur)
+        const newDiff = Math.round(session.difficulty * IDLE_DIFF_BUMP);
+        if (newDiff !== session.difficulty) {
+          console.log("[IdleSweep] " + session.address.substring(0, 12) + "..." + session.worker +
+            " idle " + (idleMs / 1000).toFixed(0) + "s, vardiff " + session.difficulty + " -> " + newDiff);
+          session.setDifficulty(newDiff);
+          session.resetShareTimestamps();
+        }
+      }
     }
   }
 
@@ -226,9 +260,11 @@ export class StratumServer {
     const lastDiffEntry = this.workerLastDiff.get(workerKey);
     if (lastDiffEntry && lastDiffEntry.diff >= 100) {
       session.setDifficulty(lastDiffEntry.diff);
+      session.markBootstrapped(); // Worker connu : pas besoin de bootstrap
       console.log("[Stratum] Mineur autorise: " + session.address.substring(0, 12) + "..." + session.worker + " (vardiff restaure: " + lastDiffEntry.diff + ")");
     } else {
-      console.log("[Stratum] Mineur autorise: " + session.address.substring(0, 12) + "..." + session.worker + " (vardiff initial: " + session.difficulty + ")");
+      session.markAuthorized(); // Nouveau worker : activer le bootstrap
+      console.log("[Stratum] Mineur autorise: " + session.address.substring(0, 12) + "..." + session.worker + " (vardiff initial: " + session.difficulty + ", bootstrap actif)");
     }
 
     if (this.currentJob) {
@@ -475,6 +511,7 @@ export class StratumServer {
     if (this.pollTimer) clearInterval(this.pollTimer);
     if (this.invalidSharePurgeTimer) clearInterval(this.invalidSharePurgeTimer);
     if (this.workerLastDiffPurgeTimer) clearInterval(this.workerLastDiffPurgeTimer);
+    if (this.idleSweepTimer) clearInterval(this.idleSweepTimer);
     for (const session of this.sessions.values()) {
       session.disconnect();
     }
