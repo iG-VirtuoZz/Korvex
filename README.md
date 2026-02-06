@@ -12,6 +12,7 @@ Pool de minage Ergo personnelle. Ce repository contient le code source et la doc
 | [Protocole Stratum](docs/mining/stratum-protocol.md) | Communication pool-mineur, mining.notify, submit |
 | [PPLNS](docs/mining/pplns.md) | Systeme de repartition des rewards |
 | [Architecture Pool](docs/pool-setup/architecture.md) | Vue d'ensemble backend/frontend/DB |
+| [**Fonctionnement Interne (tableaux)**](docs/pool-setup/pool-internals.md) | **Guide visuel : vardiff, shares, blocs, PPLNS, hashrate** |
 | [Gestion Wallet](docs/wallet/wallet-management.md) | Wallet pool, paiements automatiques |
 | [Operations](docs/operations/monitoring.md) | Monitoring, logs, troubleshooting |
 
