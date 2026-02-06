@@ -135,6 +135,7 @@ Le reverse proxy **expose le tout** :
 
 ## Voir aussi
 
+- [Fonctionnement interne (tableaux)](pool-internals.md) - Guide visuel complet
 - [Installer un noeud Ergo](node-setup.md)
 - [Structure base de donnees](database.md)
 - [Deploiement](deployment.md)
