@@ -6,10 +6,10 @@ import { database } from "../db/database";
 import { ergoNode } from "../ergo/node";
 
 // Facteur de correction hashrate pour Ergo/Autolykos2
-// Source: MiningCore (pool Ergo open-source de reference) utilise 1.15x
 // Compense le temps GPU perdu a la generation du dataset Autolykos2
-// qui change a chaque nouveau bloc (~2 min), causant 1-4s d'inactivite
-const ERGO_HASHRATE_CORRECTION = 1.15;
+// MiningCore utilise 1.15x, ajuste a 1.08 pour notre pool (mesure sur 8h)
+// HiveOS: 2.158 GH/s, Brut pool: 2.01 GH/s -> ratio ideal ~1.074
+const ERGO_HASHRATE_CORRECTION = 1.08;
 
 const CHART_PERIODS: Record<string, { interval: string | null; bucketSeconds: number }> = {
   "1d":  { interval: "24 hours",  bucketSeconds: 300 },
