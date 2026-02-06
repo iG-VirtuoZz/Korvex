@@ -90,3 +90,118 @@ export const getLeaderboard = (params: {
   if (params.search) qs.set("search", params.search);
   return fetchJson("miners/leaderboard?" + qs.toString());
 };
+
+// ========== ADMIN ==========
+
+const ADMIN_TOKEN_KEY = "korvex_admin_token";
+
+export function setAdminToken(password: string) {
+  localStorage.setItem(ADMIN_TOKEN_KEY, password);
+}
+
+export function clearAdminToken() {
+  localStorage.removeItem(ADMIN_TOKEN_KEY);
+}
+
+export function isAdminLoggedIn(): boolean {
+  return !!localStorage.getItem(ADMIN_TOKEN_KEY);
+}
+
+async function fetchJsonAdmin(path: string, options: RequestInit = {}) {
+  const token = localStorage.getItem(ADMIN_TOKEN_KEY);
+  const res = await fetch(API_BASE + "/" + path, {
+    ...options,
+    headers: {
+      ...options.headers,
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: "Bearer " + token } : {}),
+    },
+  });
+  if (res.status === 401) {
+    clearAdminToken();
+    throw new Error("Session expiree");
+  }
+  if (!res.ok) throw new Error("API error: " + res.status);
+  return res.json();
+}
+
+export async function adminLogin(password: string): Promise<boolean> {
+  const res = await fetch(API_BASE + "/admin/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
+  if (res.ok) {
+    setAdminToken(password);
+    return true;
+  }
+  return false;
+}
+
+export interface AdminDashboardData {
+  timestamp: string;
+  node: {
+    fullHeight: number;
+    headersHeight: number;
+    difficulty: number;
+    peersCount: number;
+    synced: boolean;
+  };
+  pool: {
+    hashrate: number;
+    sessions: number;
+    miners: string[];
+    minersCount: number;
+  };
+  wallet: {
+    confirmed: number;
+    unconfirmed: number;
+  };
+  pendingPayments: Array<{
+    address: string;
+    amount_nano: string;
+    amount_erg: string;
+  }>;
+  recentPayments: Array<{
+    address: string;
+    amount_nano: string;
+    amount_erg: string;
+    tx_hash: string;
+    status: string;
+    sent_at: string;
+    created_at: string;
+  }>;
+  blocks: {
+    pending: number;
+    confirmed: number;
+    orphan: number;
+    total: number;
+  };
+  alerts: {
+    unknownPayments: Array<{
+      address: string;
+      amount_nano: string;
+      tx_hash: string;
+      created_at: string;
+    }>;
+  };
+  database: {
+    shares_1h: number;
+    shares_24h: number;
+    active_miners: number;
+    db_size: string;
+  };
+  config: {
+    fee: number;
+    minPayout: number;
+    confirmations: number;
+    payoutInterval: number;
+    pplnsFactor: number;
+  };
+}
+
+export const getAdminDashboard = (): Promise<AdminDashboardData> =>
+  fetchJsonAdmin("admin/dashboard");
+
+export const triggerPayout = (): Promise<any> =>
+  fetchJsonAdmin("admin/trigger-payout", { method: "POST" });

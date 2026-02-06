@@ -34,4 +34,7 @@ export const config = {
     intervalMinutes: parseInt(process.env.PAYOUT_INTERVAL_MINUTES || "10"),
     walletPass: process.env.WALLET_PASS || "",
   },
+  admin: {
+    password: process.env.ADMIN_PASSWORD || "",
+  },
 };

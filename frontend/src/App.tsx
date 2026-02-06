@@ -8,6 +8,7 @@ import Status from "./pages/Status";
 import Legal from "./pages/Legal";
 import HowToStart from "./pages/HowToStart";
 import DiscordPage from "./pages/DiscordPage";
+import AdminDashboard from "./pages/AdminDashboard";
 import "./App.css";
 
 const Footer: React.FC = () => (
@@ -48,6 +49,7 @@ const App: React.FC = () => (
         <Route path="/legal" element={<Legal />} />
         <Route path="/how-to-start" element={<HowToStart />} />
         <Route path="/discord" element={<DiscordPage />} />
+        <Route path="/admin" element={<AdminDashboard />} />
       </Routes>
     </main>
     <Footer />

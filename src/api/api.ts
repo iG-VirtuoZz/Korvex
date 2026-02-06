@@ -1,9 +1,11 @@
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { config } from "../config";
 import { database } from "../db/database";
 import { ergoNode } from "../ergo/node";
+import { runConfirmer } from "../payout/confirmer";
+import { runPayer } from "../payout/payer";
 
 // Facteur de correction hashrate pour Ergo/Autolykos2
 // Compense le temps GPU perdu a la generation du dataset Autolykos2
@@ -117,8 +119,24 @@ async function getLastBlockTimestampCached(): Promise<number | null> {
   }
 }
 
+// Middleware d'authentification admin
+function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  if (!config.admin.password) {
+    return res.status(503).json({ error: "Admin non configure" });
+  }
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith("Bearer ") || auth.slice(7) !== config.admin.password) {
+    return res.status(401).json({ error: "Non autorise" });
+  }
+  next();
+}
+
 export function createApi(getStratumInfo: () => { sessions: number; miners: string[] }) {
   const app = express();
+
+  // Fix trust proxy pour express-rate-limit derriere Nginx
+  app.set("trust proxy", 1);
+
   app.use(cors({
     origin: ["https://korvexpool.com", "http://localhost:3000"],
   }));
@@ -991,6 +1009,197 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
     } catch (err) {
       console.error("[API] Erreur /api/chart/network-difficulty:", err);
       res.status(500).json({ error: "Erreur interne" });
+    }
+  });
+
+  // ========== ADMIN ENDPOINTS ==========
+
+  // Login admin
+  app.post("/api/admin/login", (req, res) => {
+    if (!config.admin.password) {
+      return res.status(503).json({ error: "Admin non configure" });
+    }
+    const { password } = req.body;
+    if (!password || password !== config.admin.password) {
+      return res.status(401).json({ error: "Mot de passe incorrect" });
+    }
+    res.json({ success: true });
+  });
+
+  // Dashboard admin - toutes les infos en un seul appel
+  app.get("/api/admin/dashboard", requireAdmin, async (_req, res) => {
+    try {
+      // Node info
+      const info = await ergoNode.getInfo();
+      const synced = await ergoNode.isSynced();
+
+      // Pool info
+      const stratum = getStratumInfo();
+      const hrResult = await database.query(
+        `WITH all_buckets AS (
+          SELECT
+            to_timestamp(floor(extract(epoch from ts_minute) / 300) * 300) as ts,
+            SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / GREATEST(COUNT(*) * 60, 1) as value
+          FROM pool_hashrate_1m
+          WHERE ts_minute > NOW() - INTERVAL '24 hours'
+          GROUP BY to_timestamp(floor(extract(epoch from ts_minute) / 300) * 300)
+        ),
+        cap AS (
+          SELECT PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY value) as p75
+          FROM all_buckets WHERE value > 0
+        ),
+        recent_capped AS (
+          SELECT b.ts,
+            CASE WHEN c.p75 > 0 AND b.value > c.p75 THEN c.p75
+                 ELSE b.value END as hr
+          FROM all_buckets b CROSS JOIN cap c
+          ORDER BY b.ts DESC
+          LIMIT 6
+        )
+        SELECT COALESCE(AVG(hr), 0) as avg_hr FROM recent_capped`
+      );
+      const poolHashrate = Math.round(parseFloat(hrResult.rows[0].avg_hr));
+
+      // Wallet balance
+      let walletConfirmed = 0;
+      let walletUnconfirmed = 0;
+      try {
+        // /wallet/balances retourne { balance, height, assets }
+        const walletRes = await fetch(config.ergoNode.url + "/wallet/balances", {
+          headers: { "api_key": config.ergoNode.apiKey },
+          signal: AbortSignal.timeout(5000),
+        });
+        if (walletRes.ok) {
+          const walletData = await walletRes.json() as any;
+          walletConfirmed = (walletData.balance || 0) / 1e9;
+        }
+        // /wallet/balances/withUnconfirmed retourne le solde incluant les tx mempool
+        const walletResUnconf = await fetch(config.ergoNode.url + "/wallet/balances/withUnconfirmed", {
+          headers: { "api_key": config.ergoNode.apiKey },
+          signal: AbortSignal.timeout(5000),
+        });
+        if (walletResUnconf.ok) {
+          const walletDataUnconf = await walletResUnconf.json() as any;
+          const totalWithUnconf = (walletDataUnconf.balance || 0) / 1e9;
+          walletUnconfirmed = totalWithUnconf - walletConfirmed;
+        }
+      } catch (err) {
+        console.error("[Admin] Erreur wallet balance:", err);
+      }
+
+      // Pending payments (mineurs eligibles au paiement)
+      const pendingPayments = await database.query(
+        `SELECT address, amount FROM balances WHERE amount >= ${config.pool.minPayoutNano.toString()}`
+      );
+
+      // Recent payments
+      const recentPayments = await database.getRecentPayments(20);
+
+      // Blocks stats
+      const blocksStats = await database.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE reward_distributed = false AND is_orphan = false AND reward_nano > 0) as pending,
+          COUNT(*) FILTER (WHERE reward_distributed = true) as confirmed,
+          COUNT(*) FILTER (WHERE is_orphan = true) as orphan,
+          COUNT(*) as total
+        FROM blocks
+      `);
+
+      // Alerts : paiements en status 'unknown'
+      const unknownPayments = await database.query(
+        "SELECT address, amount_nano, tx_hash, created_at FROM payments WHERE status = 'unknown' ORDER BY created_at DESC"
+      );
+
+      // Database stats
+      const dbStats = await database.query(`
+        SELECT
+          (SELECT COUNT(*) FROM shares WHERE created_at > NOW() - INTERVAL '1 hour') as shares_1h,
+          (SELECT COUNT(*) FROM shares WHERE created_at > NOW() - INTERVAL '24 hours') as shares_24h,
+          (SELECT COUNT(DISTINCT address) FROM miners WHERE last_seen > NOW() - INTERVAL '24 hours') as active_miners,
+          (SELECT pg_size_pretty(pg_database_size(current_database()))) as db_size
+      `);
+
+      res.json({
+        timestamp: new Date().toISOString(),
+        node: {
+          fullHeight: info.fullHeight || 0,
+          headersHeight: info.headersHeight || 0,
+          difficulty: info.difficulty || 0,
+          peersCount: info.peersCount || 0,
+          synced,
+        },
+        pool: {
+          hashrate: poolHashrate,
+          sessions: stratum.sessions,
+          miners: stratum.miners,
+          minersCount: stratum.miners.length,
+        },
+        wallet: {
+          confirmed: walletConfirmed,
+          unconfirmed: walletUnconfirmed,
+        },
+        pendingPayments: pendingPayments.rows.map((r: any) => ({
+          address: r.address,
+          amount_nano: r.amount.toString(),
+          amount_erg: (Number(BigInt(r.amount)) / 1e9).toFixed(4),
+        })),
+        recentPayments: recentPayments.map((p: any) => ({
+          address: p.address,
+          amount_nano: (p.amount_nano || "0").toString(),
+          amount_erg: p.amount_nano ? (Number(BigInt(p.amount_nano)) / 1e9).toFixed(4) : "0",
+          tx_hash: p.tx_hash,
+          status: p.status,
+          sent_at: p.sent_at,
+          created_at: p.created_at,
+        })),
+        blocks: {
+          pending: parseInt(blocksStats.rows[0].pending) || 0,
+          confirmed: parseInt(blocksStats.rows[0].confirmed) || 0,
+          orphan: parseInt(blocksStats.rows[0].orphan) || 0,
+          total: parseInt(blocksStats.rows[0].total) || 0,
+        },
+        alerts: {
+          unknownPayments: unknownPayments.rows.map((r: any) => ({
+            address: r.address,
+            amount_nano: (r.amount_nano || "0").toString(),
+            tx_hash: r.tx_hash,
+            created_at: r.created_at,
+          })),
+        },
+        database: {
+          shares_1h: parseInt(dbStats.rows[0].shares_1h) || 0,
+          shares_24h: parseInt(dbStats.rows[0].shares_24h) || 0,
+          active_miners: parseInt(dbStats.rows[0].active_miners) || 0,
+          db_size: dbStats.rows[0].db_size || "N/A",
+        },
+        config: {
+          fee: config.pool.fee,
+          minPayout: Number(config.pool.minPayoutNano) / 1e9,
+          confirmations: config.payout.confirmations,
+          payoutInterval: config.payout.intervalMinutes,
+          pplnsFactor: config.pplns.factor,
+        },
+      });
+    } catch (err) {
+      console.error("[Admin] Erreur dashboard:", err);
+      res.status(500).json({ error: "Erreur interne" });
+    }
+  });
+
+  // Trigger payout manuel
+  app.post("/api/admin/trigger-payout", requireAdmin, async (_req, res) => {
+    try {
+      console.log("[Admin] Declenchement manuel du cycle de paiement");
+      const confirmResult = await runConfirmer();
+      const payResult = await runPayer();
+      res.json({
+        success: true,
+        confirmer: confirmResult,
+        payer: payResult,
+      });
+    } catch (err) {
+      console.error("[Admin] Erreur trigger payout:", err);
+      res.status(500).json({ error: "Erreur lors du paiement" });
     }
   });
 
