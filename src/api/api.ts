@@ -5,6 +5,12 @@ import { config } from "../config";
 import { database } from "../db/database";
 import { ergoNode } from "../ergo/node";
 
+// Facteur de correction hashrate pour Ergo/Autolykos2
+// Source: MiningCore (pool Ergo open-source de reference) utilise 1.15x
+// Compense le temps GPU perdu a la generation du dataset Autolykos2
+// qui change a chaque nouveau bloc (~2 min), causant 1-4s d'inactivite
+const ERGO_HASHRATE_CORRECTION = 1.15;
+
 const CHART_PERIODS: Record<string, { interval: string | null; bucketSeconds: number }> = {
   "1d":  { interval: "24 hours",  bucketSeconds: 300 },
   "7d":  { interval: "7 days",    bucketSeconds: 3600 },
@@ -190,7 +196,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
         `WITH all_buckets AS (
           SELECT
             to_timestamp(floor(extract(epoch from ts_minute) / 300) * 300) as ts,
-            SUM(diff_sum) / GREATEST(COUNT(*) * 60, 1) as value
+            SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / GREATEST(COUNT(*) * 60, 1) as value
           FROM pool_hashrate_1m
           WHERE ts_minute > NOW() - INTERVAL '24 hours'
           GROUP BY to_timestamp(floor(extract(epoch from ts_minute) / 300) * 300)
@@ -306,8 +312,8 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
         miner_hr AS (
           SELECT
             address,
-            COALESCE(SUM(diff_sum) FILTER (WHERE ts_minute > NOW() - INTERVAL '15 minutes'), 0) / 900.0 as hashrate_15m,
-            COALESCE(SUM(diff_sum) FILTER (WHERE ts_minute > NOW() - INTERVAL '1 hour'), 0) / 3600.0 as hashrate_1h
+            COALESCE(SUM(diff_sum) FILTER (WHERE ts_minute > NOW() - INTERVAL '15 minutes'), 0) * ${ERGO_HASHRATE_CORRECTION} / 900.0 as hashrate_15m,
+            COALESCE(SUM(diff_sum) FILTER (WHERE ts_minute > NOW() - INTERVAL '1 hour'), 0) * ${ERGO_HASHRATE_CORRECTION} / 3600.0 as hashrate_1h
           FROM miner_hashrate_1m
           WHERE address IN (SELECT address FROM active_miners)
             AND ts_minute > NOW() - INTERVAL '1 hour'
@@ -426,7 +432,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
         `WITH all_buckets AS (
           SELECT
             to_timestamp(floor(extract(epoch from ts_minute) / 300) * 300) as ts,
-            SUM(diff_sum) / GREATEST(COUNT(*) * 60, 1) as value
+            SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / GREATEST(COUNT(*) * 60, 1) as value
           FROM miner_hashrate_1m
           WHERE address = $1 AND ts_minute > NOW() - INTERVAL '24 hours'
           GROUP BY to_timestamp(floor(extract(epoch from ts_minute) / 300) * 300)
@@ -503,7 +509,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
           SELECT
             worker,
             to_timestamp(floor(extract(epoch from ts_minute) / 300) * 300) as ts,
-            SUM(diff_sum) / GREATEST(COUNT(*) * 60, 1) as value
+            SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / GREATEST(COUNT(*) * 60, 1) as value
           FROM worker_hashrate_1m
           WHERE address = $1 AND ts_minute > NOW() - INTERVAL '24 hours'
           GROUP BY worker, to_timestamp(floor(extract(epoch from ts_minute) / 300) * 300)
@@ -710,7 +716,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
         data AS (
           SELECT
             to_timestamp(floor(extract(epoch from ts_minute) / ${bucketSeconds}) * ${bucketSeconds}) as ts,
-            SUM(diff_sum) / GREATEST(COUNT(*) * 60, 1) as value
+            SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / GREATEST(COUNT(*) * 60, 1) as value
           FROM pool_hashrate_1m
           WHERE ts_minute >= GREATEST(${periodStart}, (SELECT first_ts FROM first_data))
           GROUP BY to_timestamp(floor(extract(epoch from ts_minute) / ${bucketSeconds}) * ${bucketSeconds})
@@ -780,7 +786,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
         data AS (
           SELECT
             to_timestamp(floor(extract(epoch from ts_minute) / ${bucketSeconds}) * ${bucketSeconds}) as ts,
-            SUM(diff_sum) / GREATEST(COUNT(*) * 60, 1) as value
+            SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / GREATEST(COUNT(*) * 60, 1) as value
           FROM miner_hashrate_1m
           WHERE address = $1
             AND ts_minute >= GREATEST(NOW() - INTERVAL '${conf.interval}', (SELECT first_ts FROM first_data))
@@ -845,7 +851,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
         data AS (
           SELECT
             to_timestamp(floor(extract(epoch from ts_minute) / ${bucketSeconds}) * ${bucketSeconds}) as ts,
-            SUM(diff_sum) / GREATEST(COUNT(*) * 60, 1) as value
+            SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / GREATEST(COUNT(*) * 60, 1) as value
           FROM worker_hashrate_1m
           WHERE address = $1 AND worker = $2
             AND ts_minute >= GREATEST(NOW() - INTERVAL '${conf.interval}', (SELECT first_ts FROM first_data))
