@@ -31,7 +31,96 @@ Ce qui se passe quand un GPU trouve un hash et l'envoie a la pool :
 
 ---
 
-## 2. Le Vardiff - Comment la Pool Ajuste la Difficulte
+## 2. Comment on Trouve un Bloc (l'analogie du de)
+
+### Le principe : un de a 1 milliard de faces
+
+Imagine un de a **1 milliard de faces**. Tes GPU lancent ce de des millions de fois par seconde.
+
+| Qui decide | Regle | Difficulte |
+|------------|-------|------------|
+| Le **reseau Ergo** | "Pour un bloc, il faut faire **moins de 5**" | Quasi impossible (1 chance sur 200 millions) |
+| La **pool** | "Pour une share, il faut faire **moins de 50 000**" | Difficile mais faisable (1 chance sur 20 000) |
+
+### Ce qui se passe a chaque lancer
+
+```
+GPU lance le de des millions de fois par seconde...
+
+  Resultat : 8 392 571    → Trop haut, on jette (le GPU ne dit rien)
+  Resultat : 2 458 103    → Trop haut, on jette
+  Resultat : 38 421       → C'est < 50 000 !
+     Pool : "Share valide !"
+     Pool : "C'est < 5 ? NON → c'est pas un bloc, on continue"
+
+  ... des millions de lancers plus tard ...
+
+  Resultat : 3            → C'est < 50 000 ET < 5 !
+     Pool : "Share valide !"
+     Pool : "C'est < 5 ? OUI → BLOC TROUVE !!!"
+     Pool : → soumet la solution au reseau Ergo
+```
+
+> **Point cle** : une share et un bloc c'est le MEME calcul. La seule difference c'est le seuil. Un bloc est simplement une share qui a eu BEAUCOUP de chance.
+
+### Visuellement : ou tombe le hash ?
+
+```
+0          bNetwork                    bShare                              MAX
+|              |                         |                                  |
+|██████████████|█████████████████████████|                                  |
+|              |                         |                                  |
+|  hash ici ?  |    hash ici ?           |       hash ici ?                 |
+|  = BLOC !!!  |    = Share valide       |       = Rate (on jette)          |
+|  (ultra rare)|    (toutes les ~15s)    |       (la grande majorite)       |
+```
+
+Plus `bShare` est grand (= vardiff eleve), plus la zone "share valide" est large, plus c'est facile de trouver une share.
+Mais `bNetwork` ne bouge pas (c'est le reseau qui le decide), donc trouver un bloc reste aussi dur.
+
+### La formule magique
+
+```
+bShare = bNetwork x vardiff
+```
+
+| Target | Valeur (exemple) | C'est quoi |
+|--------|------------------|------------|
+| `bNetwork` | 1 000 000 | Le seuil du reseau (fixe, tres petit = tres dur) |
+| `vardiff` | 50 000 | Le multiplicateur choisi par la pool pour ce worker |
+| `bShare` | 1 000 000 x 50 000 = 50 milliards | Le seuil du worker (beaucoup plus grand = plus facile) |
+
+Un hash a **50 000x plus de chances** d'etre < bShare que d'etre < bNetwork.
+Donc pour ~50 000 shares valides, **1 seule** aurait aussi ete un bloc (statistiquement).
+
+### Avec nos vrais chiffres
+
+| Rig | Vardiff | Shares pour 1 bloc (theorie) | Shares/min | Temps estime (ce rig seul) |
+|-----|---------|------------------------------|------------|---------------------------|
+| Rig_4070x8 | ~53 000 | ~53 000 shares | ~4 | ~9.2 jours |
+| Rig_4070Super (NVIDIA) | ~43 000 | ~43 000 shares | ~4 | ~7.5 jours |
+| Rig_4070Super (AMD) | ~135 000 | ~135 000 shares | ~4 | ~23.4 jours |
+| Rig_Test | ~12 000 | ~12 000 shares | ~4 | ~2.1 jours |
+| **Tous ensemble** | - | - | **~16** | **~1.5 jours** |
+
+> Chaque rig lance le de de son cote. Plus on a de GPU, plus on lance le de souvent, plus on a de chances de tomber sur un nombre < bNetwork.
+
+### Pourquoi c'est completement aleatoire ?
+
+| Idee recue | Realite |
+|------------|---------|
+| "On se rapproche du bloc" | NON. Chaque hash est independant, il n'y a pas de "progression" |
+| "Si ca fait longtemps qu'on mine, le prochain bloc est bientot" | NON. C'est le biais du joueur (gambler's fallacy) |
+| "Le hashrate garantit un bloc dans X jours" | NON. C'est une moyenne statistique, pas une garantie |
+
+C'est **exactement** comme la loterie :
+- Acheter plus de tickets (= plus de hashrate) augmente tes **chances par tirage**
+- Mais tu peux gagner au 1er ticket ou au 100 000eme
+- Avoir perdu 99 999 fois ne rend pas le 100 000eme ticket plus chanceux
+
+---
+
+## 3. Le Vardiff - Comment la Pool Ajuste la Difficulte
 
 ### Principe
 
@@ -65,7 +154,7 @@ Le vardiff (variable difficulty) ajuste la difficulte de chaque worker pour qu'i
 
 ---
 
-## 3. Parametres Vardiff - Historique des Versions
+## 4. Parametres Vardiff - Historique des Versions
 
 ### v1 → v2 (06 fevrier 2026)
 
@@ -125,7 +214,7 @@ Le vardiff (variable difficulty) ajuste la difficulte de chaque worker pour qu'i
 
 ---
 
-## 4. Comment une Share est Pesee (shareDiff)
+## 5. Comment une Share est Pesee (shareDiff)
 
 ### Formule
 
@@ -157,7 +246,7 @@ C'est contre-intuitif mais logique : un GPU puissant a un vardiff plus dur donc 
 
 ---
 
-## 5. Le Bootstrap - Demarrage Rapide
+## 6. Le Bootstrap - Demarrage Rapide
 
 ### Sans bootstrap (v1) : Convergence lente
 
@@ -184,7 +273,7 @@ C'est contre-intuitif mais logique : un GPU puissant a un vardiff plus dur donc 
 
 ---
 
-## 6. L'Idle Sweep - Debloquer les Workers Silencieux
+## 7. L'Idle Sweep - Debloquer les Workers Silencieux
 
 ### Scenario type : Worker AMD qui recoit un vardiff trop eleve
 
@@ -215,7 +304,7 @@ Si un worker ne trouve aucune share (vardiff beaucoup trop bas = trop dur) :
 
 ---
 
-## 7. Le PPLNS - Repartition des Rewards
+## 8. Le PPLNS - Repartition des Rewards
 
 ### Principe
 
@@ -241,7 +330,7 @@ Bloc trouve ! Reward = 6 ERG (fee 1% = 0.06 ERG pour la pool)
 
 ---
 
-## 8. Cycle de Vie d'un Bloc
+## 9. Cycle de Vie d'un Bloc
 
 | Etape | Statut | Delai | Detail |
 |-------|--------|-------|--------|
@@ -261,7 +350,7 @@ Bloc trouve ! Reward = 6 ERG (fee 1% = 0.06 ERG pour la pool)
 
 ---
 
-## 9. Le Hashrate - D'ou Vient le Chiffre Affiche
+## 10. Le Hashrate - D'ou Vient le Chiffre Affiche
 
 ### Pipeline de calcul
 
@@ -299,7 +388,7 @@ GPU calcule → Share soumise → shareDiff enregistre → API aggrege → Front
 
 ---
 
-## 10. Nos Rigs - Configuration Actuelle
+## 11. Nos Rigs - Configuration Actuelle
 
 #### v2 (08 fevrier 2026) - Config actuelle
 
@@ -334,7 +423,7 @@ GPU calcule → Share soumise → shareDiff enregistre → API aggrege → Front
 
 ---
 
-## 11. Temps Moyen pour Trouver un Bloc
+## 12. Temps Moyen pour Trouver un Bloc
 
 ### Formule
 
