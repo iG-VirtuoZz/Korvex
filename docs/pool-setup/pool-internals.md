@@ -345,17 +345,19 @@ Blocs par jour pool = 720 * Part du reseau
 Temps moyen = 1 / Blocs par jour pool
 ```
 
-### Avec nos 2.16 GH/s
+### Avec nos 2.16 GH/s (08 fevrier 2026)
 
 | Donnee | Valeur |
 |--------|--------|
 | Hashrate pool | 2.16 GH/s |
-| Hashrate reseau | ~42 TH/s |
-| Part du reseau | 2.16 / 42 000 = 0.00514% |
-| Blocs par jour pool | 720 * 0.0000514 = 0.037 |
-| **Temps moyen** | **1 / 0.037 = ~27 jours** |
+| Hashrate reseau | ~2.36 TH/s |
+| Part du reseau | 2.16 / 2 360 = **0.0915%** |
+| Blocs par jour pool | 720 * 0.000915 = **0.659** |
+| **Temps moyen** | **1 / 0.659 = ~1.5 jours** |
 
-> C'est une **moyenne statistique**. On peut trouver un bloc demain ou dans 2 mois. C'est comme la loterie : la probabilite est fixe mais le resultat est aleatoire.
+> C'est une **moyenne statistique**. On peut trouver un bloc dans 2h ou dans 1 semaine. C'est comme la loterie : la probabilite est fixe mais le resultat est aleatoire.
+>
+> **Note** : Le hashrate reseau varie en permanence. Ce calcul est un snapshot au 08/02/2026. Le frontend de la pool affiche cette estimation en temps reel via l'API.
 
 ---
 
