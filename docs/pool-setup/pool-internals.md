@@ -120,7 +120,61 @@ C'est **exactement** comme la loterie :
 
 ---
 
-## 3. Le Vardiff - Comment la Pool Ajuste la Difficulte
+## 3. Securite : Pourquoi on ne Peut Pas Tricher
+
+### L'idee : "Si je baisse mon vardiff, j'ai plus de shares, donc plus de rewards ?"
+
+NON. Voici pourquoi :
+
+### Le poids de chaque share change !
+
+```
+shareDiff = networkDiff / vardiff
+```
+
+| Scenario | Vardiff | Shares/sec | shareDiff (poids) | Travail total/sec |
+|----------|---------|------------|-------------------|-------------------|
+| Normal | 50 000 | 0.07 | 6.2 G | **0.43 G** |
+| "Triche" | 1 | 3 500 | 0.000124 G | **0.43 G** |
+
+Le travail total par seconde est **identique** ! Avec un vardiff bas, tu as plein de shares mais chacune "pese" quasiment rien. C'est comme couper une pizza en 1000 parts au lieu de 8 : tu as plus de parts, mais la quantite totale de pizza n'a pas change.
+
+### Et pour trouver un bloc ?
+
+Le bloc est trouve quand le hash < `bNetwork`. Ca ne depend **PAS** du vardiff.
+
+```
+bShare = bNetwork x vardiff
+```
+
+| Vardiff | bShare | Plus facile de trouver une share ? | Plus facile de trouver un bloc ? |
+|---------|--------|------------------------------------|---------------------------------|
+| 50 000 | bNetwork x 50 000 | Oui (1 share / 15s) | **NON** - bNetwork n'a pas change |
+| 1 | bNetwork x 1 | Non (tres rare) | **NON** - bNetwork n'a pas change |
+| 500 000 | bNetwork x 500 000 | Oui (beaucoup) | **NON** - bNetwork n'a pas change |
+
+Le vardiff decide juste **a quelle frequence** le mineur montre son travail a la pool. Mais le GPU lance exactement le meme nombre de des par seconde quel que soit le vardiff. Et le bloc est trouve quand le de tombe sur < 5, que tu aies demande a voir les resultats < 50 000 ou < 50 milliards.
+
+### La seule facon d'augmenter ses chances ?
+
+**Avoir plus de hashrate** (= lancer le de plus souvent). Il n'y a aucun raccourci mathematique. C'est pour ca que le minage consomme autant d'electricite - c'est de la force brute pure.
+
+### Toutes les "triches" imaginables et pourquoi elles echouent
+
+| "Triche" imaginee | Ce qui se passe | Protection |
+|-------------------|-----------------|------------|
+| Baisser le vardiff | Les shares pesent moins, travail total identique | `shareDiff = netDiff / vardiff` |
+| Envoyer des fausses shares | La pool recalcule le hash Autolykos2 | → `Low difficulty share` → rejete |
+| Envoyer le meme hash 2 fois | Le nonce est deja dans le Set | → `Share duplique` → rejete |
+| Modifier le nonce | Le hash recalcule ne sera pas < bShare | → `Low difficulty share` → rejete |
+| Pretendre avoir trouve un bloc | Le noeud Ergo recalcule tout | → Bloc rejete par le reseau |
+| Flood de shares invalides | Compteur par IP, ban apres 50 | → `Trop de shares invalides, banni` |
+
+> Chaque couche verifie la precedente. Le GPU prouve son travail par les maths, la pool verifie les maths, le noeud Ergo re-verifie les maths. C'est ca la beaute de la **preuve de travail** (Proof of Work) : on ne peut pas mentir aux mathematiques.
+
+---
+
+## 4. Le Vardiff - Comment la Pool Ajuste la Difficulte
 
 ### Principe
 
@@ -154,7 +208,7 @@ Le vardiff (variable difficulty) ajuste la difficulte de chaque worker pour qu'i
 
 ---
 
-## 4. Parametres Vardiff - Historique des Versions
+## 5. Parametres Vardiff - Historique des Versions
 
 ### v1 → v2 (06 fevrier 2026)
 
@@ -214,7 +268,7 @@ Le vardiff (variable difficulty) ajuste la difficulte de chaque worker pour qu'i
 
 ---
 
-## 5. Comment une Share est Pesee (shareDiff)
+## 6. Comment une Share est Pesee (shareDiff)
 
 ### Formule
 
@@ -246,7 +300,7 @@ C'est contre-intuitif mais logique : un GPU puissant a un vardiff plus dur donc 
 
 ---
 
-## 6. Le Bootstrap - Demarrage Rapide
+## 7. Le Bootstrap - Demarrage Rapide
 
 ### Sans bootstrap (v1) : Convergence lente
 
@@ -273,7 +327,7 @@ C'est contre-intuitif mais logique : un GPU puissant a un vardiff plus dur donc 
 
 ---
 
-## 7. L'Idle Sweep - Debloquer les Workers Silencieux
+## 8. L'Idle Sweep - Debloquer les Workers Silencieux
 
 ### Scenario type : Worker AMD qui recoit un vardiff trop eleve
 
@@ -304,7 +358,7 @@ Si un worker ne trouve aucune share (vardiff beaucoup trop bas = trop dur) :
 
 ---
 
-## 8. Le PPLNS - Repartition des Rewards
+## 9. Le PPLNS - Repartition des Rewards
 
 ### Principe
 
@@ -330,7 +384,7 @@ Bloc trouve ! Reward = 6 ERG (fee 1% = 0.06 ERG pour la pool)
 
 ---
 
-## 9. Cycle de Vie d'un Bloc
+## 10. Cycle de Vie d'un Bloc
 
 | Etape | Statut | Delai | Detail |
 |-------|--------|-------|--------|
@@ -350,7 +404,7 @@ Bloc trouve ! Reward = 6 ERG (fee 1% = 0.06 ERG pour la pool)
 
 ---
 
-## 10. Le Hashrate - D'ou Vient le Chiffre Affiche
+## 11. Le Hashrate - D'ou Vient le Chiffre Affiche
 
 ### Pipeline de calcul
 
@@ -388,7 +442,7 @@ GPU calcule → Share soumise → shareDiff enregistre → API aggrege → Front
 
 ---
 
-## 11. Nos Rigs - Configuration Actuelle
+## 12. Nos Rigs - Configuration Actuelle
 
 #### v2 (08 fevrier 2026) - Config actuelle
 
@@ -423,7 +477,7 @@ GPU calcule → Share soumise → shareDiff enregistre → API aggrege → Front
 
 ---
 
-## 12. Temps Moyen pour Trouver un Bloc
+## 13. Temps Moyen pour Trouver un Bloc
 
 ### Formule
 
