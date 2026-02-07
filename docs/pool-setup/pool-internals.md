@@ -291,7 +291,7 @@ GPU calcule → Share soumise → shareDiff enregistre → API aggrege → Front
 
 | Source | Hashrate | Ecart |
 |--------|----------|-------|
-| HiveOS (reference) | 2.16 GH/s | - |
+| HiveOS (reference, 08/02) | 2.16 GH/s (969 + 711 + 479) | - |
 | Pool avec facteur 1.08 | 2.05 - 2.13 GH/s | 2-5% |
 | Pool SANS facteur | 1.90 - 2.01 GH/s | 8-15% |
 
@@ -301,13 +301,28 @@ GPU calcule → Share soumise → shareDiff enregistre → API aggrege → Front
 
 ## 10. Nos Rigs - Configuration Actuelle
 
+#### v2 (08 fevrier 2026) - Config actuelle
+
+| Rig | GPU | Logiciel | Hashrate | Conso |
+|-----|-----|----------|----------|-------|
+| Rig_4070x8 | 8x RTX 4070 | lolMiner 1.98a | ~969 MH/s | ~563W |
+| Rig_4070Super (NVIDIA) | RTX 3080 + RTX 3070 + RTX 3060 Ti + RTX 4070 | lolMiner 1.98a | ~447 MH/s | - |
+| Rig_4070Super (AMD) | 2x Vega 56 | TeamRedMiner 0.10.21 | ~264 MH/s | - |
+| Rig_4070Super (total) | 6 GPU | lolMiner + TeamRedMiner | **~711 MH/s** | **~527W** |
+| Rig_Test | RX 580 (mix) | TeamRedMiner 0.10.21 | ~479 MH/s | ~513W |
+| **Total** | | | **~2.16 GH/s** | **~1 603W** |
+
+#### v1 (06 fevrier 2026) - Ancienne config
+
 | Rig | GPU | Logiciel | Hashrate | Conso |
 |-----|-----|----------|----------|-------|
 | Rig_4070x8 | 8x RTX 4070 | lolMiner 1.98a | ~1 010 MH/s | ~950W |
 | Rig_4070Super (NVIDIA) | RTX 3080 + GTX 1080 + GTX 1070 + GTX 1080 Ti x2 + RTX 3070 + RTX 4070 | lolMiner 1.98a | ~448 MH/s | ~450W |
-| Rig_4070Super (AMD) | Vega 56 | TeamRedMiner 0.10.21 | ~132 MH/s | ~200W |
-| Rig_Test | Mix AMD | TeamRedMiner 0.10.21 | ~571 MH/s | ~??? |
+| Rig_4070Super (AMD) | 1x Vega 56 | TeamRedMiner 0.10.21 | ~132 MH/s | ~200W |
+| Rig_Test | Mix AMD | TeamRedMiner 0.10.21 | ~571 MH/s | ??? |
 | **Total** | **21 GPU** | | **~2.16 GH/s** | **~1 616W** |
+
+> **Changements v1 → v2** : 2eme Vega 56 ajoutee au Rig_4070Super (132 → 264 MH/s AMD). Quelques GPU changes sur le Rig_4070Super NVIDIA. Rig_Test = RX 580.
 
 ### Compatibilite logiciels de minage
 
@@ -315,7 +330,7 @@ GPU calcule → Share soumise → shareDiff enregistre → API aggrege → Front
 |----------|---------------|---------------|--------------|
 | lolMiner | NVIDIA + AMD | ~95% | Oui (NVIDIA) |
 | TeamRedMiner | AMD uniquement | ~99.9% | Oui (AMD) |
-| SRBMiner | AMD uniquement | ~70% (rejets) | Non |
+| SRBMiner | AMD uniquement | ~95% | Non (rejets plus eleves que TRM) |
 
 ---
 
