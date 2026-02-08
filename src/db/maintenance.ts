@@ -27,50 +27,55 @@ class Maintenance {
 
   private async aggregate(): Promise<void> {
     try {
-      // Agreger la minute courante ET la minute precedente (pour etre sur qu'elle est complete)
-      // Tout le calcul du timestamp se fait en SQL pour eviter les problemes de timezone JS -> PG
-      await database.query(
-        "INSERT INTO pool_hashrate_1m (ts_minute, diff_sum, share_count) " +
-        "SELECT ts_min, COALESCE(SUM(share_diff), 0), COUNT(*) " +
-        "FROM ( " +
-        "  SELECT date_trunc('minute', NOW()) as ts_min " +
-        "  UNION ALL " +
-        "  SELECT date_trunc('minute', NOW()) - INTERVAL '1 minute' " +
-        ") minutes " +
-        "LEFT JOIN shares ON created_at >= ts_min AND created_at < ts_min + INTERVAL '1 minute' " +
-        "GROUP BY ts_min " +
-        "ON CONFLICT (ts_minute) DO UPDATE " +
-        "SET diff_sum = EXCLUDED.diff_sum, share_count = EXCLUDED.share_count"
-      );
+      for (const mode of ['pplns', 'solo']) {
+        // Pool hashrate par mode
+        await database.query(
+          "INSERT INTO pool_hashrate_1m (ts_minute, mining_mode, diff_sum, share_count) " +
+          "SELECT ts_min, $1::varchar, COALESCE(SUM(s.share_diff), 0), COUNT(s.*) " +
+          "FROM ( " +
+          "  SELECT date_trunc('minute', NOW()) as ts_min " +
+          "  UNION ALL " +
+          "  SELECT date_trunc('minute', NOW()) - INTERVAL '1 minute' " +
+          ") minutes " +
+          "LEFT JOIN shares s ON s.created_at >= ts_min AND s.created_at < ts_min + INTERVAL '1 minute' AND s.mining_mode = $1 " +
+          "GROUP BY ts_min " +
+          "ON CONFLICT (ts_minute, mining_mode) DO UPDATE " +
+          "SET diff_sum = EXCLUDED.diff_sum, share_count = EXCLUDED.share_count",
+          [mode]
+        );
 
-      await database.query(
-        "INSERT INTO miner_hashrate_1m (ts_minute, address, diff_sum, share_count) " +
-        "SELECT ts_min, address, COALESCE(SUM(share_diff), 0), COUNT(*) " +
-        "FROM ( " +
-        "  SELECT date_trunc('minute', NOW()) as ts_min " +
-        "  UNION ALL " +
-        "  SELECT date_trunc('minute', NOW()) - INTERVAL '1 minute' " +
-        ") minutes " +
-        "INNER JOIN shares ON created_at >= ts_min AND created_at < ts_min + INTERVAL '1 minute' " +
-        "GROUP BY ts_min, address " +
-        "ON CONFLICT (ts_minute, address) DO UPDATE " +
-        "SET diff_sum = EXCLUDED.diff_sum, share_count = EXCLUDED.share_count"
-      );
+        // Miner hashrate par mode
+        await database.query(
+          "INSERT INTO miner_hashrate_1m (ts_minute, address, mining_mode, diff_sum, share_count) " +
+          "SELECT ts_min, s.address, $1::varchar, COALESCE(SUM(s.share_diff), 0), COUNT(*) " +
+          "FROM ( " +
+          "  SELECT date_trunc('minute', NOW()) as ts_min " +
+          "  UNION ALL " +
+          "  SELECT date_trunc('minute', NOW()) - INTERVAL '1 minute' " +
+          ") minutes " +
+          "INNER JOIN shares s ON s.created_at >= ts_min AND s.created_at < ts_min + INTERVAL '1 minute' AND s.mining_mode = $1 " +
+          "GROUP BY ts_min, s.address " +
+          "ON CONFLICT (ts_minute, address, mining_mode) DO UPDATE " +
+          "SET diff_sum = EXCLUDED.diff_sum, share_count = EXCLUDED.share_count",
+          [mode]
+        );
 
-      // Agregation par worker (meme logique que miner mais avec GROUP BY worker en plus)
-      await database.query(
-        "INSERT INTO worker_hashrate_1m (ts_minute, address, worker, diff_sum, share_count) " +
-        "SELECT ts_min, address, worker, COALESCE(SUM(share_diff), 0), COUNT(*) " +
-        "FROM ( " +
-        "  SELECT date_trunc('minute', NOW()) as ts_min " +
-        "  UNION ALL " +
-        "  SELECT date_trunc('minute', NOW()) - INTERVAL '1 minute' " +
-        ") minutes " +
-        "INNER JOIN shares ON created_at >= ts_min AND created_at < ts_min + INTERVAL '1 minute' " +
-        "GROUP BY ts_min, address, worker " +
-        "ON CONFLICT (ts_minute, address, worker) DO UPDATE " +
-        "SET diff_sum = EXCLUDED.diff_sum, share_count = EXCLUDED.share_count"
-      );
+        // Worker hashrate par mode
+        await database.query(
+          "INSERT INTO worker_hashrate_1m (ts_minute, address, worker, mining_mode, diff_sum, share_count) " +
+          "SELECT ts_min, s.address, s.worker, $1::varchar, COALESCE(SUM(s.share_diff), 0), COUNT(*) " +
+          "FROM ( " +
+          "  SELECT date_trunc('minute', NOW()) as ts_min " +
+          "  UNION ALL " +
+          "  SELECT date_trunc('minute', NOW()) - INTERVAL '1 minute' " +
+          ") minutes " +
+          "INNER JOIN shares s ON s.created_at >= ts_min AND s.created_at < ts_min + INTERVAL '1 minute' AND s.mining_mode = $1 " +
+          "GROUP BY ts_min, s.address, s.worker " +
+          "ON CONFLICT (ts_minute, address, worker, mining_mode) DO UPDATE " +
+          "SET diff_sum = EXCLUDED.diff_sum, share_count = EXCLUDED.share_count",
+          [mode]
+        );
+      }
     } catch (err) {
       console.error("[Maintenance] Erreur agregation:", err);
     }

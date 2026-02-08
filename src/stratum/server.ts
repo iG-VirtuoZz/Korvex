@@ -5,6 +5,7 @@ import { database } from "../db/database";
 import { MinerSession, MinerType } from "./session";
 import { validateShare } from "../ergo/autolykos2";
 import { distributePPLNS } from "../payout/pplns";
+import { distributeSolo } from "../payout/solo";
 
 interface JobEntry {
   candidate: MiningCandidate;
@@ -25,6 +26,7 @@ const IDLE_DIFF_BUMP = 1.5;         // Augmenter vardiff de 50% pour rendre plus
 
 export class StratumServer {
   private server: net.Server;
+  private soloServer: net.Server;
   private sessions: Map<string, MinerSession> = new Map();
   private extraNonceCounter: number = 0;
   private currentJob: JobEntry | null = null;
@@ -51,7 +53,8 @@ export class StratumServer {
   private workerLastDiffTTL: number = 24 * 3600_000; // 24 heures
 
   constructor() {
-    this.server = net.createServer((socket) => this.handleConnection(socket));
+    this.server = net.createServer((socket) => this.handleConnection(socket, 'pplns'));
+    this.soloServer = net.createServer((socket) => this.handleConnection(socket, 'solo'));
   }
 
   async start() {
@@ -73,7 +76,10 @@ export class StratumServer {
 
   private startListening() {
     this.server.listen(config.stratum.port, "0.0.0.0", () => {
-      console.log("[Stratum] Ecoute sur le port " + config.stratum.port);
+      console.log("[Stratum] PPLNS ecoute sur le port " + config.stratum.port);
+    });
+    this.soloServer.listen(config.stratum.soloPort, "0.0.0.0", () => {
+      console.log("[Stratum] SOLO ecoute sur le port " + config.stratum.soloPort);
     });
     this.pollTimer = setInterval(() => this.pollWork(), 2000);
     this.pollWork();
@@ -156,7 +162,7 @@ export class StratumServer {
     }
   }
 
-  private handleConnection(socket: net.Socket) {
+  private handleConnection(socket: net.Socket, miningMode: 'pplns' | 'solo' = 'pplns') {
     const ip = socket.remoteAddress || "unknown";
 
     const count = (this.connectionCounts.get(ip) || 0) + 1;
@@ -168,6 +174,7 @@ export class StratumServer {
 
     const extraNonce = (this.extraNonceCounter++ % 0xFFFF).toString(16).padStart(4, "0");
     const session = new MinerSession(socket, extraNonce);
+    session.miningMode = miningMode;
     const sessionId = session.subscriptionId;
     this.sessions.set(sessionId, session);
 
@@ -295,14 +302,14 @@ export class StratumServer {
     if (!job) {
       this.incrementInvalidCount(ip);
       session.sendResult(id, false, "Job introuvable");
-      await database.recordShare(session.address, session.worker, 0, 0, 0, false);
+      await database.recordShare(session.address, session.worker, 0, 0, 0, false, session.miningMode);
       return;
     }
 
     if (extraNonce2.length !== this.extraNonce2Size * 2) {
       this.incrementInvalidCount(ip);
       session.sendResult(id, false, "Taille extraNonce2 incorrecte");
-      await database.recordShare(session.address, session.worker, 0, 0, job.candidate.h, false);
+      await database.recordShare(session.address, session.worker, 0, 0, job.candidate.h, false, session.miningMode);
       return;
     }
 
@@ -310,14 +317,14 @@ export class StratumServer {
     if (fullNonceHex.length !== 16) {
       this.incrementInvalidCount(ip);
       session.sendResult(id, false, "Taille nonce incorrecte");
-      await database.recordShare(session.address, session.worker, 0, 0, job.candidate.h, false);
+      await database.recordShare(session.address, session.worker, 0, 0, job.candidate.h, false, session.miningMode);
       return;
     }
 
     if (job.submittedNonces.has(fullNonceHex)) {
       this.incrementInvalidCount(ip);
       session.sendResult(id, false, "Share duplique");
-      await database.recordShare(session.address, session.worker, 0, 0, job.candidate.h, false);
+      await database.recordShare(session.address, session.worker, 0, 0, job.candidate.h, false, session.miningMode);
       return;
     }
     job.submittedNonces.add(fullNonceHex);
@@ -333,7 +340,7 @@ export class StratumServer {
       if (!result.valid) {
         this.incrementInvalidCount(ip);
         session.sendResult(id, false, "Low difficulty share");
-        await database.recordShare(session.address, session.worker, 0, this.lastNetworkDifficulty, height, false);
+        await database.recordShare(session.address, session.worker, 0, this.lastNetworkDifficulty, height, false, session.miningMode);
         return;
       }
 
@@ -345,7 +352,7 @@ export class StratumServer {
       // mine a une target vardiff fois plus facile que le reseau.
       // Le travail absolu = networkDiff / vardiff
       const shareDiff = Math.round(this.lastNetworkDifficulty / session.difficulty);
-      await database.recordShare(session.address, session.worker, shareDiff, this.lastNetworkDifficulty, height, true);
+      await database.recordShare(session.address, session.worker, shareDiff, this.lastNetworkDifficulty, height, true, session.miningMode);
       console.log("[Stratum] Share OK: " + session.address.substring(0, 12) + "..." + session.worker + " shareDiff=" + shareDiff + " vardiff=" + session.difficulty + " netDiff=" + this.lastNetworkDifficulty);
       session.sendResult(id, true);
 
@@ -374,7 +381,7 @@ export class StratumServer {
                     embeds: [{
                       title: "🎉 BLOC TROUVÉ !",
                       color: 65280,
-                      description: `Hauteur: **${height}**\nMineur: ${session.address.substring(0, 12)}...${session.worker}`,
+                      description: `Hauteur: **${height}**\nMode: **${session.miningMode.toUpperCase()}**\nMineur: ${session.address.substring(0, 12)}...${session.worker}`,
                       timestamp: new Date().toISOString()
                     }]
                   })
@@ -386,9 +393,14 @@ export class StratumServer {
             // --- Calcul effort lisse AVANT recordBlock ---
             let effortPercent: number | null = null;
             try {
-              const effortFraction = await database.getEffortSinceLastBlock();
-              effortPercent = effortFraction * 100;
-              console.log("[Stratum] Effort bloc " + height + " = " + effortPercent.toFixed(2) + "%");
+              if (session.miningMode === 'solo') {
+                const effortFraction = await database.getEffortForMinerSolo(session.address);
+                effortPercent = effortFraction * 100;
+              } else {
+                const effortFraction = await database.getEffortSinceLastBlock('pplns');
+                effortPercent = effortFraction * 100;
+              }
+              console.log("[Stratum] Effort bloc " + height + " = " + effortPercent.toFixed(2) + "% (" + session.miningMode.toUpperCase() + ")");
             } catch (effortErr) {
               console.error("[Stratum] Erreur calcul effort:", effortErr);
             }
@@ -410,15 +422,19 @@ export class StratumServer {
               console.log("[Stratum] BlockId recupere: " + blockId);
             }
 
-            await database.recordBlock(height, blockId, 0, this.lastNetworkDifficulty, session.address, session.worker, effortPercent);
+            await database.recordBlock(height, blockId, 0, this.lastNetworkDifficulty, session.address, session.worker, effortPercent, session.miningMode);
 
-            // --- Distribution PPLNS ---
+            // --- Distribution conditionnelle ---
             try {
               const rewardNano = await ergoNode.getEmissionReward(height);
-              console.log("[Stratum] Reward bloc " + height + " = " + (Number(rewardNano) / 1e9) + " ERG");
-              await distributePPLNS(height, rewardNano, this.lastNetworkDifficulty);
-            } catch (pplnsErr) {
-              console.error("[Stratum] Erreur distribution PPLNS:", pplnsErr);
+              console.log("[Stratum] Reward bloc " + height + " = " + (Number(rewardNano) / 1e9) + " ERG (" + session.miningMode.toUpperCase() + ")");
+              if (session.miningMode === 'solo') {
+                await distributeSolo(height, rewardNano, session.address);
+              } else {
+                await distributePPLNS(height, rewardNano, this.lastNetworkDifficulty);
+              }
+            } catch (distErr) {
+              console.error("[Stratum] Erreur distribution:", distErr);
             }
           } else {
             console.log("[Stratum] Bloc rejete par le noeud");
@@ -514,16 +530,24 @@ export class StratumServer {
       session.disconnect();
     }
     this.server.close();
+    this.soloServer.close();
   }
 
-  getSessionCount(): number {
-    return this.sessions.size;
+  getSessionCount(miningMode?: string): number {
+    if (!miningMode) return this.sessions.size;
+    let count = 0;
+    for (const s of this.sessions.values()) {
+      if (s.miningMode === miningMode) count++;
+    }
+    return count;
   }
 
-  getAuthorizedMiners(): string[] {
+  getAuthorizedMiners(miningMode?: string): string[] {
     const miners = new Set<string>();
     for (const s of this.sessions.values()) {
-      if (s.authorized) miners.add(s.address);
+      if (s.authorized && (!miningMode || s.miningMode === miningMode)) {
+        miners.add(s.address);
+      }
     }
     return Array.from(miners);
   }

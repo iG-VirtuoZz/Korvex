@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { getLeaderboard, getStats, LeaderboardMiner, PoolStats } from "../api";
+import { useMiningMode, useCoinBasePath } from "../hooks/useMiningMode";
 
 const formatHash = (h: number) => {
   if (!h || h <= 0) return "\u2014";
@@ -27,6 +28,8 @@ type SortField = "hashrate_15m" | "hashrate_1h" | "workers_count" | "blocks_foun
 
 const MinersPage: React.FC = () => {
   const navigate = useNavigate();
+  const mode = useMiningMode();
+  const basePath = useCoinBasePath();
   const [miners, setMiners] = useState<LeaderboardMiner[]>([]);
   const [stats, setStats] = useState<PoolStats | null>(null);
   const [total, setTotal] = useState(0);
@@ -46,6 +49,7 @@ const MinersPage: React.FC = () => {
       sort,
       order,
       search: search || undefined,
+      mode,
     })
       .then((data) => {
         setMiners(data.miners);
@@ -53,17 +57,17 @@ const MinersPage: React.FC = () => {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [pageSize, page, sort, order, search]);
+  }, [pageSize, page, sort, order, search, mode]);
 
   useEffect(() => {
     load();
-    getStats().then(setStats).catch(() => {});
+    getStats(mode).then(setStats).catch(() => {});
     const t = setInterval(() => {
       load();
-      getStats().then(setStats).catch(() => {});
+      getStats(mode).then(setStats).catch(() => {});
     }, 30000);
     return () => clearInterval(t);
-  }, [load]);
+  }, [load, mode]);
 
   useEffect(() => {
     setPage(0);
@@ -96,8 +100,8 @@ const MinersPage: React.FC = () => {
     <div className="layout-modern">
       {/* Header */}
       <div className="modern-header">
-        <h1>MINERS</h1>
-        <p>Active miners on KORVEX Pool</p>
+        <h1>{mode === 'solo' ? 'SOLO MINERS' : 'MINERS'}</h1>
+        <p>{mode === 'solo' ? 'Solo miners on KORVEX Pool' : 'Active miners on KORVEX Pool'}</p>
       </div>
 
       {/* Stats en grille */}
@@ -111,7 +115,7 @@ const MinersPage: React.FC = () => {
           <div className="msc-value">{stats?.workersTotal || 0}</div>
         </div>
         <div className="modern-stat-card">
-          <div className="msc-label">Pool Hashrate</div>
+          <div className="msc-label">{mode === 'solo' ? 'Solo Hashrate' : 'Pool Hashrate'}</div>
           <div className="msc-value">{formatHash(poolHr)}</div>
         </div>
       </div>
@@ -185,7 +189,7 @@ const MinersPage: React.FC = () => {
                         <span className={`miners-status-dot ${isActive ? "active" : "idle"}`} />
                         <span
                           className="miners-address"
-                          onClick={() => navigate("/coin/ergo/miner/" + m.address)}
+                          onClick={() => navigate(basePath + "/miner/" + m.address)}
                           title={m.address}
                         >
                           {m.address}

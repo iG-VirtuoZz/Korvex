@@ -39,11 +39,11 @@ export const coins: CoinConfig[] = [
       {
         id: "solo",
         label: "Solo",
-        active: false,
+        active: true,
         fee: "1.5%",
         minPayout: "1 ERG",
         port: 3417,
-        route: "",
+        route: "/coin/ergo-solo",
       },
     ],
   },

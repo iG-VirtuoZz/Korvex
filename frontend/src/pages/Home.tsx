@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { getHealth, getStats, getBlocks, HealthData, PoolStats } from "../api";
 import PoolChart from "../components/PoolChart";
+import { useMiningMode } from "../hooks/useMiningMode";
 
 // ==================== HELPERS ====================
 
@@ -93,7 +94,7 @@ const BlocksTable: React.FC<{ blocks: any[] }> = ({ blocks }) => {
 // ==================== LAYOUT: CLEAN CARDS ====================
 // Structure aeree, cards bien separees, simplicite
 
-const LayoutCleanCards: React.FC<{ stats: PoolStats | null; health: HealthData | null; blocks: any[] }> = ({ stats, health, blocks }) => {
+const LayoutCleanCards: React.FC<{ stats: PoolStats | null; health: HealthData | null; blocks: any[]; mode: string }> = ({ stats, health, blocks, mode }) => {
   const networkDiff = health?.node?.difficulty || 0;
   const networkHr = parseInt(stats?.nodes?.[0]?.networkhashps || "0");
   const poolHr = stats?.hashrate || 0;
@@ -104,7 +105,7 @@ const LayoutCleanCards: React.FC<{ stats: PoolStats | null; health: HealthData |
       {/* Header simple */}
       <div className="clean-header">
         <h1>KORVEX POOL</h1>
-        <p>Ergo Mining Pool</p>
+        <p>{mode === 'solo' ? 'Solo Mining' : 'Ergo Mining Pool'}</p>
       </div>
 
       {/* 2 cards principales cote a cote */}
@@ -162,7 +163,7 @@ const LayoutCleanCards: React.FC<{ stats: PoolStats | null; health: HealthData |
 
       {/* Graphique */}
       <div className="clean-chart">
-        <PoolChart />
+        <PoolChart mode={mode} />
       </div>
 
       {/* Table des blocs */}
@@ -179,7 +180,7 @@ const LayoutCleanCards: React.FC<{ stats: PoolStats | null; health: HealthData |
 // ==================== LAYOUT: DASHBOARD PRO ====================
 // 2 grandes sections Pool/Network avec graphique integre
 
-const LayoutDashboardPro: React.FC<{ stats: PoolStats | null; health: HealthData | null; blocks: any[] }> = ({ stats, health, blocks }) => {
+const LayoutDashboardPro: React.FC<{ stats: PoolStats | null; health: HealthData | null; blocks: any[]; mode: string }> = ({ stats, health, blocks, mode }) => {
   const networkDiff = health?.node?.difficulty || 0;
   const networkHr = parseInt(stats?.nodes?.[0]?.networkhashps || "0");
   const poolHr = stats?.hashrate || 0;
@@ -195,7 +196,7 @@ const LayoutDashboardPro: React.FC<{ stats: PoolStats | null; health: HealthData
       {/* Section principale : Graphique + Stats */}
       <div className="dashboard-main">
         <div className="dashboard-chart-section">
-          <PoolChart />
+          <PoolChart mode={mode} />
         </div>
         <div className="dashboard-stats-section">
           <div className="dashboard-stats-group">
@@ -256,7 +257,7 @@ const LayoutDashboardPro: React.FC<{ stats: PoolStats | null; health: HealthData
 // ==================== LAYOUT: MODERN GRID ====================
 // Grille moderne avec stats individuelles et equilibre
 
-const LayoutModernGrid: React.FC<{ stats: PoolStats | null; health: HealthData | null; blocks: any[] }> = ({ stats, health, blocks }) => {
+const LayoutModernGrid: React.FC<{ stats: PoolStats | null; health: HealthData | null; blocks: any[]; mode: string }> = ({ stats, health, blocks, mode }) => {
   const networkDiff = health?.node?.difficulty || 0;
   const networkHr = parseInt(stats?.nodes?.[0]?.networkhashps || "0");
   const poolHr = stats?.hashrate || 0;
@@ -267,13 +268,13 @@ const LayoutModernGrid: React.FC<{ stats: PoolStats | null; health: HealthData |
       {/* Header */}
       <div className="modern-header">
         <h1>KORVEX POOL</h1>
-        <p>Ergo Mining Pool for Everyone</p>
+        <p>{mode === 'solo' ? 'Solo Mining - 100% Block Reward' : 'Ergo Mining Pool for Everyone'}</p>
       </div>
 
       {/* Stats en grille 3 colonnes */}
       <div className="modern-stats-grid">
         <div className="modern-stat-card">
-          <div className="msc-label">Pool Hashrate</div>
+          <div className="msc-label">{mode === 'solo' ? 'Solo Hashrate' : 'Pool Hashrate'}</div>
           <div className="msc-value">{formatHash(poolHr)}</div>
         </div>
         <div className="modern-stat-card">
@@ -281,16 +282,16 @@ const LayoutModernGrid: React.FC<{ stats: PoolStats | null; health: HealthData |
           <div className="msc-value">{stats?.minersTotal || 0} / {stats?.workersTotal || 0}</div>
         </div>
         <div className="modern-stat-card">
-          <div className="msc-label">Current Effort</div>
-          <div className="msc-value" style={{ color: effortColor(stats?.currentEffort) }}>
-            {effortLabel(stats?.currentEffort)}
+          <div className="msc-label">{mode === 'solo' ? 'Blocks Found' : 'Current Effort'}</div>
+          <div className="msc-value" style={mode === 'solo' ? {} : { color: effortColor(stats?.currentEffort) }}>
+            {mode === 'solo' ? (stats?.maturedTotal || 0) : effortLabel(stats?.currentEffort)}
           </div>
         </div>
       </div>
 
       {/* Graphique */}
       <div className="modern-chart">
-        <PoolChart />
+        <PoolChart mode={mode} />
       </div>
 
       {/* 2 cards info cote a cote */}
@@ -323,11 +324,15 @@ const LayoutModernGrid: React.FC<{ stats: PoolStats | null; health: HealthData |
           </div>
           <div className="modern-info-row">
             <span>Pool Fee</span>
-            <span>1%</span>
+            <span>{mode === 'solo' ? '1.5%' : '1%'}</span>
           </div>
           <div className="modern-info-row">
             <span>Min Payout</span>
             <span>1 ERG</span>
+          </div>
+          <div className="modern-info-row">
+            <span>Mode</span>
+            <span>{mode === 'solo' ? 'SOLO' : 'PPLNS'}</span>
           </div>
           <div className="modern-info-row">
             <span>Confirmations</span>
@@ -350,6 +355,7 @@ const LayoutModernGrid: React.FC<{ stats: PoolStats | null; health: HealthData |
 // ==================== MAIN COMPONENT ====================
 
 const Home: React.FC = () => {
+  const mode = useMiningMode();
   const [health, setHealth] = useState<HealthData | null>(null);
   const [stats, setStats] = useState<PoolStats | null>(null);
   const [blocks, setBlocks] = useState<any[]>([]);
@@ -358,13 +364,13 @@ const Home: React.FC = () => {
   useEffect(() => {
     const load = () => {
       getHealth().then(setHealth).catch(() => {});
-      getStats().then(setStats).catch(() => {});
-      getBlocks().then(setBlocks).catch(() => {});
+      getStats(mode).then(setStats).catch(() => {});
+      getBlocks(mode).then(setBlocks).catch(() => {});
     };
     load();
     const t = setInterval(load, 15000);
     return () => clearInterval(t);
-  }, []);
+  }, [mode]);
 
   // Observer le changement de layout
   useEffect(() => {
@@ -378,7 +384,7 @@ const Home: React.FC = () => {
     return () => observer.disconnect();
   }, []);
 
-  const layoutProps = { stats, health, blocks };
+  const layoutProps = { stats, health, blocks, mode };
 
   return (
     <div className={"home-page layout-" + layout}>

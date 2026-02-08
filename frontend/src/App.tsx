@@ -15,6 +15,7 @@ import "./App.css";
 const Footer: React.FC = () => {
   const location = useLocation();
   const isLanding = location.pathname === "/";
+  const isSolo = location.pathname.includes("ergo-solo");
 
   return (
     <footer className="footer-minimal">
@@ -26,9 +27,9 @@ const Footer: React.FC = () => {
             <>
               ERGO Mining Pool
               <span className="footer-sep">&middot;</span>
-              PPLNS
+              {isSolo ? "SOLO" : "PPLNS"}
               <span className="footer-sep">&middot;</span>
-              1% Fee
+              {isSolo ? "1.5% Fee" : "1% Fee"}
               <span className="footer-sep">&middot;</span>
               Autolykos2
             </>
@@ -56,6 +57,9 @@ const App: React.FC = () => (
         <Route path="/coin/ergo" element={<Home />} />
         <Route path="/coin/ergo/miners" element={<MinersPage />} />
         <Route path="/coin/ergo/miner/:address" element={<MinerPage />} />
+        <Route path="/coin/ergo-solo" element={<Home />} />
+        <Route path="/coin/ergo-solo/miners" element={<MinersPage />} />
+        <Route path="/coin/ergo-solo/miner/:address" element={<MinerPage />} />
         {/* Redirections anciennes URLs */}
         <Route path="/miners" element={<Navigate to="/coin/ergo/miners" replace />} />
         <Route path="/miner/:address" element={<RedirectMiner />} />

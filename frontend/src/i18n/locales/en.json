@@ -33,6 +33,14 @@
     "status": "Status",
     "active": "Active"
   },
+  "solo": {
+    "title": "Solo Mining",
+    "personal_effort": "Personal Effort",
+    "estimated_time": "Estimated Time",
+    "blocks_found": "Blocks Found",
+    "solo_fee": "1.5%",
+    "description": "100% block reward to you (minus pool fee)"
+  },
   "common": {
     "confirmed": "Confirmed",
     "pending": "Pending",

@@ -71,9 +71,10 @@ interface MinerChartProps {
   address: string;
   worker?: string;
   hideTitle?: boolean;
+  mode?: string;
 }
 
-const MinerChart: React.FC<MinerChartProps> = ({ address, worker, hideTitle = false }) => {
+const MinerChart: React.FC<MinerChartProps> = ({ address, worker, hideTitle = false, mode }) => {
   const [period, setPeriod] = useState("1d");
   const [rawData, setRawData] = useState<ChartPoint[]>([]);
   const [colors, setColors] = useState({ accent: "#f97316", card: "#18181b", border: "#27272a", text: "#a1a1aa" });
@@ -97,8 +98,8 @@ const MinerChart: React.FC<MinerChartProps> = ({ address, worker, hideTitle = fa
   useEffect(() => {
     const load = () => {
       const fetcher = worker
-        ? getChartWorkerHashrate(address, worker, period)
-        : getChartMinerHashrate(address, period);
+        ? getChartWorkerHashrate(address, worker, period, mode)
+        : getChartMinerHashrate(address, period, mode);
       fetcher
         .then((r) => setRawData(r.data))
         .catch(() => setRawData([]));
@@ -106,7 +107,7 @@ const MinerChart: React.FC<MinerChartProps> = ({ address, worker, hideTitle = fa
     load();
     const t = setInterval(load, 60_000);
     return () => clearInterval(t);
-  }, [address, worker, period]);
+  }, [address, worker, period, mode]);
 
   const data = useMemo(() => {
     return rawData.map((p) => ({

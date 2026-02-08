@@ -15,6 +15,10 @@ export const config = {
   },
   stratum: {
     port: parseInt(process.env.STRATUM_PORT || "3416"),
+    soloPort: parseInt(process.env.STRATUM_SOLO_PORT || "3417"),
+  },
+  solo: {
+    fee: parseFloat(process.env.SOLO_FEE || "0.015"),
   },
   api: {
     port: parseInt(process.env.API_PORT || "4000"),

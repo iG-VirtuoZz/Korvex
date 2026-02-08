@@ -63,17 +63,28 @@ export interface LeaderboardResponse {
   total: number;
 }
 
+function modeParam(mode?: string): string {
+  return mode ? "mode=" + mode : "";
+}
+
+function appendMode(qs: string, mode?: string): string {
+  if (!mode) return qs;
+  return qs + (qs.includes("?") ? "&" : "?") + "mode=" + mode;
+}
+
 export const getHealth = (): Promise<HealthData> => fetchJson("health");
-export const getStats = (): Promise<PoolStats> => fetchJson("stats");
+export const getStats = (mode?: string): Promise<PoolStats> => fetchJson("stats" + (mode ? "?mode=" + mode : ""));
 export const getMiners = (): Promise<any[]> => fetchJson("miners");
-export const getMiner = (addr: string): Promise<any> => fetchJson("miners/" + encodeURIComponent(addr));
-export const getBlocks = (): Promise<any[]> => fetchJson("blocks");
-export const getChartPoolHashrate = (p: string): Promise<ChartData> => fetchJson("chart/pool-hashrate?period=" + p);
+export const getMiner = (addr: string, mode?: string): Promise<any> =>
+  fetchJson("miners/" + encodeURIComponent(addr) + (mode ? "?mode=" + mode : ""));
+export const getBlocks = (mode?: string): Promise<any[]> => fetchJson("blocks" + (mode ? "?mode=" + mode : ""));
+export const getChartPoolHashrate = (p: string, mode?: string): Promise<ChartData> =>
+  fetchJson(appendMode("chart/pool-hashrate?period=" + p, mode));
 export const getChartNetworkDifficulty = (p: string): Promise<ChartData> => fetchJson("chart/network-difficulty?period=" + p);
-export const getChartMinerHashrate = (address: string, p: string): Promise<ChartData> =>
-  fetchJson("chart/miner-hashrate/" + encodeURIComponent(address) + "?period=" + p);
-export const getChartWorkerHashrate = (address: string, worker: string, p: string): Promise<ChartData> =>
-  fetchJson("chart/worker-hashrate/" + encodeURIComponent(address) + "/" + encodeURIComponent(worker) + "?period=" + p);
+export const getChartMinerHashrate = (address: string, p: string, mode?: string): Promise<ChartData> =>
+  fetchJson(appendMode("chart/miner-hashrate/" + encodeURIComponent(address) + "?period=" + p, mode));
+export const getChartWorkerHashrate = (address: string, worker: string, p: string, mode?: string): Promise<ChartData> =>
+  fetchJson(appendMode("chart/worker-hashrate/" + encodeURIComponent(address) + "/" + encodeURIComponent(worker) + "?period=" + p, mode));
 
 export const getLeaderboard = (params: {
   limit?: number;
@@ -81,6 +92,7 @@ export const getLeaderboard = (params: {
   sort?: string;
   order?: string;
   search?: string;
+  mode?: string;
 }): Promise<LeaderboardResponse> => {
   const qs = new URLSearchParams();
   if (params.limit) qs.set("limit", String(params.limit));
@@ -88,6 +100,7 @@ export const getLeaderboard = (params: {
   if (params.sort) qs.set("sort", params.sort);
   if (params.order) qs.set("order", params.order);
   if (params.search) qs.set("search", params.search);
+  if (params.mode) qs.set("mode", params.mode);
   return fetchJson("miners/leaderboard?" + qs.toString());
 };
 

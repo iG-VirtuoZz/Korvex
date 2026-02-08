@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { getMiner, getStats, PoolStats } from "../api";
+import { useMiningMode } from "../hooks/useMiningMode";
 import EarningsCalculator from "../components/EarningsCalculator";
 import MinerChart from "../components/MinerChart";
 
@@ -161,7 +162,7 @@ const NetworkBlockProgress: React.FC<{ lastBlockTimestamp: number }> = ({ lastBl
 
 // Composant barre d'effort de la pool
 // Affiche le % d'effort actuel de la pool pour trouver un bloc
-const PoolEffortProgress: React.FC<{ effort: number | null }> = ({ effort }) => {
+const PoolEffortProgress: React.FC<{ effort: number | null; label?: string }> = ({ effort, label }) => {
   const percent = effort ?? 0;
 
   // Position du remplissage (max 100% de la barre = 250% effort)
@@ -187,7 +188,7 @@ const PoolEffortProgress: React.FC<{ effort: number | null }> = ({ effort }) => 
   return (
     <div className="block-progress-bar">
       <div className="block-progress-label">
-        <span>Pool Effort</span>
+        <span>{label || "Pool Effort"}</span>
         <span className="block-progress-percent" style={{ color: getCurrentColor() }}>
           {percent.toFixed(1)}%
         </span>
@@ -241,6 +242,7 @@ const setHiddenWorkers = (address: string, workers: string[]) => {
 
 const MinerPage: React.FC = () => {
   const { address: paramAddress } = useParams<{ address: string }>();
+  const mode = useMiningMode();
   const [miner, setMiner] = useState<any>(null);
   const [poolStats, setPoolStats] = useState<PoolStats | null>(null);
   const [error, setError] = useState("");
@@ -259,7 +261,7 @@ const MinerPage: React.FC = () => {
     if (!addr) return;
     setError("");
     setLoading(true);
-    getMiner(addr)
+    getMiner(addr, mode)
       .then((data) => {
         setMiner(data);
         localStorage.setItem(STORAGE_KEY, addr);
@@ -269,24 +271,24 @@ const MinerPage: React.FC = () => {
         setError("Miner not found. Check the address.");
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [mode]);
 
   useEffect(() => {
     if (paramAddress) {
       loadMiner(paramAddress);
       setSelectedWorker(null);
     }
-    getStats().then(setPoolStats).catch(() => {});
-  }, [paramAddress, loadMiner]);
+    getStats(mode).then(setPoolStats).catch(() => {});
+  }, [paramAddress, loadMiner, mode]);
 
   useEffect(() => {
     if (!paramAddress) return;
     const t = setInterval(() => {
       loadMiner(paramAddress);
-      getStats().then(setPoolStats).catch(() => {});
+      getStats(mode).then(setPoolStats).catch(() => {});
     }, 4000); // Refresh toutes les 4 secondes pour voir les shares en temps reel
     return () => clearInterval(t);
-  }, [paramAddress, loadMiner]);
+  }, [paramAddress, loadMiner, mode]);
 
   // Masquer un worker (ajouter a la liste)
   const hideWorker = (workerName: string) => {
@@ -376,8 +378,8 @@ const MinerPage: React.FC = () => {
     <div className="layout-modern">
       {/* Header */}
       <div className="modern-header">
-        <h1>MINER STATS</h1>
-        <p>Detailed statistics for a single miner</p>
+        <h1>{mode === 'solo' ? 'SOLO MINER STATS' : 'MINER STATS'}</h1>
+        <p>{mode === 'solo' ? 'Solo mining statistics' : 'Detailed statistics for a single miner'}</p>
       </div>
 
       {loading && !miner && (
@@ -410,12 +412,21 @@ const MinerPage: React.FC = () => {
           {/* Section Earnings - 3 stats */}
           <div className="miner-section-title">Earnings</div>
           <div className="modern-stats-grid">
-            <div className="modern-stat-card modern-stat-accent">
-              <div className="msc-icon">&#9203;</div>
-              <div className="msc-label">Unpaid (Pending)</div>
-              <div className="msc-value">{formatErg(miner.pending_balance)}</div>
-              <div className="msc-sub">PPLNS rewards awaiting confirmation</div>
-            </div>
+            {mode === 'solo' ? (
+              <div className="modern-stat-card modern-stat-accent">
+                <div className="msc-icon">&#9874;</div>
+                <div className="msc-label">Solo Blocks Found</div>
+                <div className="msc-value">{miner.soloBlocksFound || 0}</div>
+                <div className="msc-sub">100% reward to you (minus 1.5% fee)</div>
+              </div>
+            ) : (
+              <div className="modern-stat-card modern-stat-accent">
+                <div className="msc-icon">&#9203;</div>
+                <div className="msc-label">Unpaid (Pending)</div>
+                <div className="msc-value">{formatErg(miner.pending_balance)}</div>
+                <div className="msc-sub">PPLNS rewards awaiting confirmation</div>
+              </div>
+            )}
             <div className="modern-stat-card modern-stat-accent">
               <div className="msc-icon">&#128176;</div>
               <div className="msc-label">Confirmed Balance</div>
@@ -462,7 +473,7 @@ const MinerPage: React.FC = () => {
 
           {/* Graphique Hashrate */}
           <div className="modern-info-card">
-            <MinerChart address={paramAddress} />
+            <MinerChart address={paramAddress} mode={mode} />
           </div>
 
           {/* Barres de progression */}
@@ -470,8 +481,14 @@ const MinerPage: React.FC = () => {
             {poolStats && poolStats.lastNetworkBlockTimestamp && (
               <NetworkBlockProgress lastBlockTimestamp={poolStats.lastNetworkBlockTimestamp} />
             )}
-            {poolStats && (
-              <PoolEffortProgress effort={poolStats.currentEffort} />
+            {mode === 'solo' ? (
+              miner.soloEffortPercent != null && (
+                <PoolEffortProgress effort={miner.soloEffortPercent} label="Personal Effort" />
+              )
+            ) : (
+              poolStats && (
+                <PoolEffortProgress effort={poolStats.currentEffort} />
+              )
             )}
           </div>
 
@@ -575,7 +592,7 @@ const MinerPage: React.FC = () => {
                       </button>
                     </div>
 
-                    <MinerChart address={paramAddress} worker={selectedWorker} hideTitle />
+                    <MinerChart address={paramAddress} worker={selectedWorker} hideTitle mode={mode} />
                   </div>
                 )}
               </>

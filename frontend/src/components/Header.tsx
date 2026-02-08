@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import LanguageSelector from "./LanguageSelector";
 import StyleSelector from "./StyleSelector";
 import { PoolLayout, loadSavedLayout, applyLayout } from "../themes/styles";
+import { useCoinBasePath } from "../hooks/useMiningMode";
 
 const STORAGE_KEY = "korvex_miner_address";
 
@@ -45,6 +46,7 @@ const Header: React.FC = () => {
   const [currentLayout, setCurrentLayout] = useState<PoolLayout>(loadSavedLayout());
   const navigate = useNavigate();
   const location = useLocation();
+  const basePath = useCoinBasePath();
 
   const isLanding = location.pathname === "/";
   const isCoinPage = location.pathname.startsWith("/coin/");
@@ -62,7 +64,7 @@ const Header: React.FC = () => {
     const addr = searchValue.trim();
     if (addr) {
       localStorage.setItem(STORAGE_KEY, addr);
-      navigate("/coin/ergo/miner/" + addr);
+      navigate(basePath + "/miner/" + addr);
     }
   };
 
@@ -111,8 +113,8 @@ const Header: React.FC = () => {
       {!isLanding && (
         <nav className="header-nav">
           <div className="header-nav-inner">
-            <NavLink to="/coin/ergo" end>{t('header.dashboard')}</NavLink>
-            <NavLink to="/coin/ergo/miners">{t('header.miners')}</NavLink>
+            <NavLink to={basePath} end>{t('header.dashboard')}</NavLink>
+            <NavLink to={basePath + "/miners"}>{t('header.miners')}</NavLink>
             <NavLink to="/how-to-start">{t('header.how_to_start')}</NavLink>
           </div>
         </nav>

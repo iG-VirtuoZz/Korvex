@@ -101,12 +101,15 @@ type TabMode = "pool" | "solo";
 const LandingPage: React.FC = () => {
   const { t } = useTranslation();
   const [stats, setStats] = useState<PoolStats | null>(null);
+  const [soloStats, setSoloStats] = useState<PoolStats | null>(null);
   const [tab, setTab] = useState<TabMode>("pool");
 
   useEffect(() => {
     getStats().then(setStats).catch(() => {});
+    getStats('solo').then(setSoloStats).catch(() => {});
     const interval = setInterval(() => {
       getStats().then(setStats).catch(() => {});
+      getStats('solo').then(setSoloStats).catch(() => {});
     }, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -148,7 +151,7 @@ const LandingPage: React.FC = () => {
             key={`${coin.id}-${mode.id}`}
             coin={coin}
             mode={mode}
-            stats={coin.id === "ergo" && mode.active ? stats : null}
+            stats={coin.id === "ergo" && mode.active ? (mode.id === "solo" ? soloStats : stats) : null}
           />
         ))}
       </div>

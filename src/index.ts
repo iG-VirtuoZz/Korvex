@@ -32,9 +32,9 @@ async function main() {
     const stratum = new StratumServer();
     await stratum.start();
 
-    createApi(() => ({
-      sessions: stratum.getSessionCount(),
-      miners: stratum.getAuthorizedMiners(),
+    createApi((mode?: string) => ({
+      sessions: stratum.getSessionCount(mode),
+      miners: stratum.getAuthorizedMiners(mode),
     }));
 
     maintenance.start();

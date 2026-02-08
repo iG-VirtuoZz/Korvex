@@ -37,6 +37,7 @@ export class MinerSession {
   public difficulty: number = DEFAULT_INITIAL_DIFF;
   public subscriptionId: string;
   public extraNonce: string;
+  public miningMode: 'pplns' | 'solo' = 'pplns';
   public minerType: MinerType = "unknown";
   public userAgent: string = "";
 

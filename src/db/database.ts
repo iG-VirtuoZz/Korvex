@@ -42,10 +42,10 @@ class Database {
     };
   }
 
-  async recordShare(address: string, worker: string, shareDiff: number, blockDiff: number, blockHeight: number, isValid: boolean) {
+  async recordShare(address: string, worker: string, shareDiff: number, blockDiff: number, blockHeight: number, isValid: boolean, miningMode: string = 'pplns') {
     await this.query(
-      "INSERT INTO shares (address, worker, share_diff, block_diff, block_height, is_valid) VALUES ($1,$2,$3,$4,$5,$6)",
-      [address, worker, shareDiff, blockDiff, blockHeight, isValid]
+      "INSERT INTO shares (address, worker, share_diff, block_diff, block_height, is_valid, mining_mode) VALUES ($1,$2,$3,$4,$5,$6,$7)",
+      [address, worker, shareDiff, blockDiff, blockHeight, isValid, miningMode]
     );
     await this.query(
       "INSERT INTO miners (address) VALUES ($1) ON CONFLICT (address) DO UPDATE SET last_seen=NOW(), total_shares=miners.total_shares+1",
@@ -53,10 +53,10 @@ class Database {
     );
   }
 
-  async recordBlock(height: number, hash: string, reward: number, difficulty: number, finderAddress: string, finderWorker: string, effortPercent: number | null = null) {
+  async recordBlock(height: number, hash: string, reward: number, difficulty: number, finderAddress: string, finderWorker: string, effortPercent: number | null = null, miningMode: string = 'pplns') {
     await this.query(
-      "INSERT INTO blocks (height,hash,reward,difficulty,finder_address,finder_worker,effort_percent) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (height) DO NOTHING",
-      [height, hash, reward, difficulty, finderAddress, finderWorker, effortPercent]
+      "INSERT INTO blocks (height,hash,reward,difficulty,finder_address,finder_worker,effort_percent,mining_mode) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (height) DO NOTHING",
+      [height, hash, reward, difficulty, finderAddress, finderWorker, effortPercent, miningMode]
     );
     await this.query(
       "UPDATE miners SET total_blocks=total_blocks+1 WHERE address=$1",
@@ -73,26 +73,45 @@ class Database {
    * Retourne le nombre de "fractions de bloc" accumule (1.0 = 100% effort).
    * Avantage : l'effort monte regulierement, pas de sauts quand la diff reseau change.
    */
-  async getEffortSinceLastBlock(): Promise<number> {
+  async getEffortSinceLastBlock(miningMode: string = 'pplns'): Promise<number> {
     const lastBlock = await this.query(
-      "SELECT created_at FROM blocks ORDER BY height DESC LIMIT 1"
+      "SELECT created_at FROM blocks WHERE mining_mode = $1 ORDER BY height DESC LIMIT 1",
+      [miningMode]
     );
 
     let effort: number;
     if (lastBlock.rows.length > 0) {
       const result = await this.query(
-        "SELECT COALESCE(SUM(share_diff::double precision / NULLIF(block_diff::double precision, 0)), 0) as total FROM shares WHERE is_valid = true AND share_diff > 0 AND created_at > $1",
-        [lastBlock.rows[0].created_at]
+        "SELECT COALESCE(SUM(share_diff::double precision / NULLIF(block_diff::double precision, 0)), 0) as total FROM shares WHERE is_valid = true AND share_diff > 0 AND mining_mode = $1 AND created_at > $2",
+        [miningMode, lastBlock.rows[0].created_at]
       );
       effort = parseFloat(result.rows[0].total) || 0;
     } else {
       const result = await this.query(
-        "SELECT COALESCE(SUM(share_diff::double precision / NULLIF(block_diff::double precision, 0)), 0) as total FROM shares WHERE is_valid = true AND share_diff > 0"
+        "SELECT COALESCE(SUM(share_diff::double precision / NULLIF(block_diff::double precision, 0)), 0) as total FROM shares WHERE is_valid = true AND share_diff > 0 AND mining_mode = $1",
+        [miningMode]
       );
       effort = parseFloat(result.rows[0].total) || 0;
     }
 
     return effort;
+  }
+
+  async getEffortForMinerSolo(address: string): Promise<number> {
+    const lastBlock = await this.query(
+      "SELECT created_at FROM blocks WHERE finder_address = $1 AND mining_mode = 'solo' ORDER BY height DESC LIMIT 1",
+      [address]
+    );
+    const since = lastBlock.rows.length > 0 ? lastBlock.rows[0].created_at : null;
+    const whereTime = since ? "AND created_at > $3" : "";
+    const params = since
+      ? [address, 'solo', since]
+      : [address, 'solo'];
+    const result = await this.query(
+      "SELECT COALESCE(SUM(share_diff::double precision / NULLIF(block_diff::double precision, 0)), 0) as total FROM shares WHERE is_valid = true AND share_diff > 0 AND address = $1 AND mining_mode = $2 " + whereTime,
+      params
+    );
+    return parseFloat(result.rows[0].total) || 0;
   }
 
   async getAverageEffort(limit: number = 20): Promise<number | null> {
@@ -117,7 +136,7 @@ class Database {
     while (cumulDiff < windowDiff) {
       const batch = await this.query(
         `SELECT address, share_diff FROM shares
-         WHERE is_valid = true AND share_diff > 0
+         WHERE is_valid = true AND share_diff > 0 AND mining_mode = 'pplns'
          ORDER BY id DESC
          LIMIT $1 OFFSET $2`,
         [batchSize, offset]

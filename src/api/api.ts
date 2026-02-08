@@ -131,7 +131,12 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-export function createApi(getStratumInfo: () => { sessions: number; miners: string[] }) {
+function getMiningMode(req: any): string {
+  const mode = ((req.query?.mode as string) || 'pplns').toLowerCase();
+  return mode === 'solo' ? 'solo' : 'pplns';
+}
+
+export function createApi(getStratumInfo: (mode?: string) => { sessions: number; miners: string[] }) {
   const app = express();
 
   // Fix trust proxy pour express-rate-limit derriere Nginx
@@ -201,22 +206,20 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
   });
 
   // Stats generales (compatible MiningPoolStats) + effort/luck + prix
-  app.get("/api/stats", async (_req, res) => {
+  app.get("/api/stats", async (req, res) => {
     try {
+      const mode = getMiningMode(req);
       const info = await ergoNode.getInfo();
-      const poolStats = await database.getPoolStats();
-      const stratum = getStratumInfo();
+      const stratum = getStratumInfo(mode);
 
-      // Hashrate pool : meme methode que le chart.
-      // P75 calcule sur 24h de buckets 5 min (robuste meme avec des spikes recents).
-      // Cap + smoothing sur les 6 derniers buckets (30 min).
+      // Hashrate pool : meme methode que le chart, filtree par mode
       const hrResult = await database.query(
         `WITH all_buckets AS (
           SELECT
             to_timestamp(floor(extract(epoch from ts_minute) / 300) * 300) as ts,
             SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / GREATEST(COUNT(*) * 60, 1) as value
           FROM pool_hashrate_1m
-          WHERE ts_minute > NOW() - INTERVAL '24 hours'
+          WHERE ts_minute > NOW() - INTERVAL '24 hours' AND mining_mode = $1
           GROUP BY to_timestamp(floor(extract(epoch from ts_minute) / 300) * 300)
         ),
         cap AS (
@@ -231,26 +234,41 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
           ORDER BY b.ts DESC
           LIMIT 6
         )
-        SELECT COALESCE(AVG(hr), 0) as avg_hr FROM recent_capped`
+        SELECT COALESCE(AVG(hr), 0) as avg_hr FROM recent_capped`,
+        [mode]
       );
       const hashrate = Math.round(parseFloat(hrResult.rows[0].avg_hr));
 
+      // Blocs trouves par ce mode
+      const blocksResult = await database.query(
+        "SELECT COUNT(*) as count FROM blocks WHERE mining_mode = $1",
+        [mode]
+      );
+      const totalBlocks = parseInt(blocksResult.rows[0].count) || 0;
+
+      const lastBlockResult = await database.query(
+        "SELECT height FROM blocks WHERE mining_mode = $1 ORDER BY height DESC LIMIT 1",
+        [mode]
+      );
+      const lastBlockHeight = lastBlockResult.rows[0]?.height || 0;
+
       // Effort en cours et luck moyenne
-      const networkDifficulty = info.difficulty || 0;
       let currentEffort: number | null = null;
       let poolLuck: number | null = null;
 
-      try {
-        const effortFraction = await database.getEffortSinceLastBlock();
-        currentEffort = effortFraction * 100;
-      } catch (err) {
-        console.error("[API] Erreur calcul effort:", err);
-      }
+      if (mode === 'pplns') {
+        try {
+          const effortFraction = await database.getEffortSinceLastBlock('pplns');
+          currentEffort = effortFraction * 100;
+        } catch (err) {
+          console.error("[API] Erreur calcul effort:", err);
+        }
 
-      try {
-        poolLuck = await database.getAverageEffort(20);
-      } catch (err) {
-        console.error("[API] Erreur calcul poolLuck:", err);
+        try {
+          poolLuck = await database.getAverageEffort(20);
+        } catch (err) {
+          console.error("[API] Erreur calcul poolLuck:", err);
+        }
       }
 
       // Block reward avec cache
@@ -266,25 +284,24 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
         hashrate,
         minersTotal: stratum.miners.length,
         workersTotal: stratum.sessions,
-        maturedTotal: poolStats.totalBlocks,
+        maturedTotal: totalBlocks,
         candidatesTotal: 0,
         immatureTotal: 0,
+        miningMode: mode,
         nodes: [{
           difficulty: info.difficulty?.toString() || "0",
           height: info.fullHeight?.toString() || "0",
           networkhashps: info.difficulty ? Math.round(info.difficulty / 120).toString() : "0",
         }],
         stats: {
-          lastBlockFound: poolStats.lastBlockHeight,
+          lastBlockFound: lastBlockHeight,
         },
-        // Nouveaux champs effort/luck/reward/prix
         currentEffort: currentEffort !== null ? Math.round(currentEffort * 100) / 100 : null,
         poolLuck: poolLuck !== null ? Math.round(poolLuck * 100) / 100 : null,
         blockReward,
-        poolFee: config.pool.fee,
+        poolFee: mode === 'solo' ? config.solo.fee : config.pool.fee,
         ergPriceUsd: ergPrice.usd,
         ergPriceBtc: ergPrice.btc,
-        // Timestamp du dernier bloc reseau (ms)
         lastNetworkBlockTimestamp,
       });
     } catch (err) {
@@ -296,6 +313,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
   // ========== LEADERBOARD — DOIT etre AVANT /api/miners/:address ==========
   app.get("/api/miners/leaderboard", async (req, res) => {
     try {
+      const mode = getMiningMode(req);
       const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 25, 1), 100);
       const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
       const search = (req.query.search as string || "").trim();
@@ -315,15 +333,21 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
       const sortCol = SORTABLE[req.query.sort as string] || "hashrate_1h";
       const sortOrder = (req.query.order as string) === "asc" ? "ASC" : "DESC";
 
-      const searchClause = search ? "AND address ILIKE $1" : "";
-      const searchParam = search ? [search + "%"] : [];
+      // Le parametre $1 est le mode, donc search commence a $2
+      const searchClause = search ? "AND address ILIKE $2" : "";
 
       const sql = `
         WITH active_miners AS (
+          SELECT DISTINCT s.address
+          FROM shares s
+          WHERE s.created_at > NOW() - INTERVAL '24 hours'
+            AND s.mining_mode = $1
+            ${search ? "AND s.address ILIKE $2" : ""}
+        ),
+        miner_info AS (
           SELECT address, last_seen, total_shares, total_blocks, total_paid
           FROM miners
-          WHERE last_seen > NOW() - INTERVAL '24 hours'
-          ${searchClause}
+          WHERE address IN (SELECT address FROM active_miners)
         ),
         miner_hr AS (
           SELECT
@@ -333,6 +357,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
           FROM miner_hashrate_1m
           WHERE address IN (SELECT address FROM active_miners)
             AND ts_minute > NOW() - INTERVAL '1 hour'
+            AND mining_mode = $1
           GROUP BY address
         ),
         miner_workers AS (
@@ -340,6 +365,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
           FROM shares
           WHERE address IN (SELECT address FROM active_miners)
             AND created_at > NOW() - INTERVAL '10 minutes'
+            AND mining_mode = $1
           GROUP BY address
         ),
         miner_shares_1h AS (
@@ -347,6 +373,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
           FROM shares
           WHERE address IN (SELECT address FROM active_miners)
             AND created_at > NOW() - INTERVAL '1 hour'
+            AND mining_mode = $1
           GROUP BY address
         ),
         miner_pending AS (
@@ -375,7 +402,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
           COALESCE(p.pending_balance_nano, 0)::bigint as pending_balance_nano,
           COALESCE(paid.total_paid_nano, 0)::bigint as total_paid_nano,
           COALESCE(m.total_blocks, 0)::int as blocks_found
-        FROM active_miners m
+        FROM miner_info m
         LEFT JOIN miner_hr hr ON hr.address = m.address
         LEFT JOIN miner_workers w ON w.address = m.address
         LEFT JOIN miner_shares_1h s ON s.address = m.address
@@ -383,19 +410,21 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
         LEFT JOIN miner_pending p ON p.address = m.address
         LEFT JOIN miner_paid paid ON paid.address = m.address
         ORDER BY ${sortCol} ${sortOrder} NULLS LAST
-        LIMIT ${search ? "$2" : "$1"} OFFSET ${search ? "$3" : "$2"}
+        LIMIT ${search ? "$3" : "$2"} OFFSET ${search ? "$4" : "$3"}
       `;
 
       const countSql = `
-        SELECT COUNT(*) as total FROM miners
-        WHERE last_seen > NOW() - INTERVAL '24 hours'
-        ${searchClause}
+        SELECT COUNT(DISTINCT address) as total FROM shares
+        WHERE created_at > NOW() - INTERVAL '24 hours'
+          AND mining_mode = $1
+          ${search ? "AND address ILIKE $2" : ""}
       `;
 
-      const dataParams = search ? [search + "%", limit, offset] : [limit, offset];
+      const dataParams = search ? [mode, search + "%", limit, offset] : [mode, limit, offset];
+      const countParams = search ? [mode, search + "%"] : [mode];
       const [dataResult, countResult] = await Promise.all([
         database.query(sql, dataParams),
-        database.query(countSql, searchParam),
+        database.query(countSql, countParams),
       ]);
 
       res.json({
@@ -435,6 +464,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
   // Stats d'un mineur (+ solde + paiements + effort par worker + hashrate par worker)
   app.get("/api/miners/:address", async (req, res) => {
     try {
+      const mode = getMiningMode(req);
       const { address } = req.params;
 
       const miner = await database.query("SELECT * FROM miners WHERE address = $1", [address]);
@@ -442,15 +472,14 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
         return res.status(404).json({ error: "Mineur non trouve" });
       }
 
-      // Hashrate mineur avec cap P90 anti-spike
-      // P90 (pas P75) car un mineur individuel a plus de variance que la pool entiere
+      // Hashrate mineur avec cap P90 anti-spike, filtre par mode
       const hrResult = await database.query(
         `WITH all_buckets AS (
           SELECT
             to_timestamp(floor(extract(epoch from ts_minute) / 300) * 300) as ts,
             SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / GREATEST(COUNT(*) * 60, 1) as value
           FROM miner_hashrate_1m
-          WHERE address = $1 AND ts_minute > NOW() - INTERVAL '24 hours'
+          WHERE address = $1 AND ts_minute > NOW() - INTERVAL '24 hours' AND mining_mode = $2
           GROUP BY to_timestamp(floor(extract(epoch from ts_minute) / 300) * 300)
         ),
         cap AS (
@@ -466,7 +495,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
           COALESCE(AVG(hr) FILTER (WHERE ts > NOW() - INTERVAL '15 minutes'), 0) as total_15m,
           COALESCE(AVG(hr) FILTER (WHERE ts > NOW() - INTERVAL '1 hour'), 0) as total_1h
         FROM capped`,
-        [address]
+        [address, mode]
       );
 
       const payments = await database.query(
@@ -476,7 +505,8 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
 
       // Workers enrichis : shares 1h + effort depuis dernier bloc + blocs trouves + hashrate par worker
       const lastBlockTime = await database.query(
-        "SELECT MAX(created_at) as last_block_at FROM blocks WHERE is_orphan = false"
+        "SELECT MAX(created_at) as last_block_at FROM blocks WHERE is_orphan = false AND mining_mode = $1",
+        [mode]
       );
       const lastBlockAt = lastBlockTime.rows[0]?.last_block_at || '1970-01-01';
 
@@ -498,15 +528,15 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
           COALESCE(weffort.effort_fraction, 0) as effort_fraction
         FROM (
           SELECT worker, COUNT(*) as shares, MAX(created_at) as last_share
-          FROM shares WHERE address=$1 AND created_at > NOW() - INTERVAL '24 hours'
+          FROM shares WHERE address=$1 AND created_at > NOW() - INTERVAL '24 hours' AND mining_mode = $3
           GROUP BY worker
         ) w24h
         LEFT JOIN (
           SELECT worker, SUM(share_diff::double precision / NULLIF(block_diff::double precision, 0)) as effort_fraction
-          FROM shares WHERE address=$1 AND created_at > $2 AND is_valid = true AND share_diff > 0
+          FROM shares WHERE address=$1 AND created_at > $2 AND is_valid = true AND share_diff > 0 AND mining_mode = $3
           GROUP BY worker
         ) weffort ON weffort.worker = w24h.worker`,
-        [address, lastBlockAt]
+        [address, lastBlockAt, mode]
       );
 
       // Blocs trouves par worker (lifetime)
@@ -519,7 +549,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
         if (row.worker) blocksMap[row.worker] = parseInt(row.blocks_found) || 0;
       }
 
-      // Hashrate par worker avec cap P90 anti-spike
+      // Hashrate par worker avec cap P90 anti-spike, filtre par mode
       const workerHr = await database.query(
         `WITH all_buckets AS (
           SELECT
@@ -527,7 +557,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
             to_timestamp(floor(extract(epoch from ts_minute) / 300) * 300) as ts,
             SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / GREATEST(COUNT(*) * 60, 1) as value
           FROM worker_hashrate_1m
-          WHERE address = $1 AND ts_minute > NOW() - INTERVAL '24 hours'
+          WHERE address = $1 AND ts_minute > NOW() - INTERVAL '24 hours' AND mining_mode = $2
           GROUP BY worker, to_timestamp(floor(extract(epoch from ts_minute) / 300) * 300)
         ),
         cap AS (
@@ -546,7 +576,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
           COALESCE(AVG(hr) FILTER (WHERE ts > NOW() - INTERVAL '1 hour'), 0) as hashrate_1h
         FROM capped
         GROUP BY worker`,
-        [address]
+        [address, mode]
       );
       const workerHrMap: Record<string, { hashrate_15m: number; hashrate_1h: number }> = {};
       for (const row of workerHr.rows) {
@@ -570,13 +600,33 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
       );
       const totalPaidNano = paidResult.rows[0].total_paid_nano || "0";
 
+      // Stats SOLO specifiques
+      let soloEffortPercent: number | null = null;
+      let soloBlocksFound = 0;
+      if (mode === 'solo') {
+        try {
+          const soloEffort = await database.getEffortForMinerSolo(address);
+          soloEffortPercent = soloEffort * 100;
+        } catch {}
+        try {
+          const soloBlocksResult = await database.query(
+            "SELECT COUNT(*) as count FROM blocks WHERE finder_address = $1 AND mining_mode = 'solo'",
+            [address]
+          );
+          soloBlocksFound = parseInt(soloBlocksResult.rows[0].count) || 0;
+        } catch {}
+      }
+
       res.json({
         ...miner.rows[0],
+        miningMode: mode,
         hashrate_15m: Math.round(parseFloat(hrResult.rows[0].total_15m) || 0),
         hashrate_1h: Math.round(parseFloat(hrResult.rows[0].total_1h) || 0),
         balance: balance.toString(),
         pending_balance: pendingBalance.toString(),
         total_paid_nano: totalPaidNano.toString(),
+        soloEffortPercent: soloEffortPercent !== null ? Math.round(soloEffortPercent * 100) / 100 : null,
+        soloBlocksFound,
         payments: payments.rows.map((p: any) => ({
           amount_nano: (p.amount_nano || "0").toString(),
           amount_erg: p.amount_nano ? (Number(BigInt(p.amount_nano)) / 1e9).toFixed(9) : "0",
@@ -605,10 +655,12 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
   });
 
   // Derniers blocs
-  app.get("/api/blocks", async (_req, res) => {
+  app.get("/api/blocks", async (req, res) => {
     try {
+      const mode = getMiningMode(req);
       const result = await database.query(
-        "SELECT * FROM blocks ORDER BY height DESC LIMIT 50"
+        "SELECT * FROM blocks WHERE mining_mode = $1 ORDER BY height DESC LIMIT 50",
+        [mode]
       );
       res.json(result.rows);
     } catch (err) {
@@ -680,6 +732,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
   // Chart pool hashrate
   app.get("/api/chart/pool-hashrate", async (req, res) => {
     try {
+      const mode = getMiningMode(req);
       const period = (req.query.period as string) || "1d";
       const conf = CHART_PERIODS[period] || CHART_PERIODS["1d"];
 
@@ -687,7 +740,8 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
 
       if (period === "all") {
         const oldest = await database.query(
-          "SELECT MIN(ts_minute) as oldest FROM pool_hashrate_1m"
+          "SELECT MIN(ts_minute) as oldest FROM pool_hashrate_1m WHERE mining_mode = $1",
+          [mode]
         );
         if (oldest.rows[0].oldest) {
           const oldestTime = new Date(oldest.rows[0].oldest).getTime();
@@ -713,7 +767,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
 
       const result = await database.query(`
         WITH first_data AS (
-          SELECT COALESCE(MIN(ts_minute), NOW()) as first_ts FROM pool_hashrate_1m
+          SELECT COALESCE(MIN(ts_minute), NOW()) as first_ts FROM pool_hashrate_1m WHERE mining_mode = $1
         ),
         params AS (
           SELECT
@@ -732,7 +786,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
             to_timestamp(floor(extract(epoch from ts_minute) / ${bucketSeconds}) * ${bucketSeconds}) as ts,
             SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / GREATEST(COUNT(*) * 60, 1) as value
           FROM pool_hashrate_1m
-          WHERE ts_minute >= GREATEST(${periodStart}, (SELECT first_ts FROM first_data))
+          WHERE ts_minute >= GREATEST(${periodStart}, (SELECT first_ts FROM first_data)) AND mining_mode = $1
           GROUP BY to_timestamp(floor(extract(epoch from ts_minute) / ${bucketSeconds}) * ${bucketSeconds})
         ),
         joined AS (
@@ -759,7 +813,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
           AVG(capped_value) OVER (ORDER BY ts ROWS BETWEEN ${smoothingWindow} PRECEDING AND ${smoothingWindow} FOLLOWING) as value
         FROM capped
         ORDER BY ts
-      `);
+      `, [mode]);
 
       res.json({ period, data: result.rows });
     } catch (err) {
@@ -771,6 +825,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
   // Chart miner hashrate (filtre par adresse)
   app.get("/api/chart/miner-hashrate/:address", async (req, res) => {
     try {
+      const mode = getMiningMode(req);
       const { address } = req.params;
       const period = (req.query.period as string) || "1d";
       const conf = MINER_CHART_PERIODS[period] || MINER_CHART_PERIODS["1d"];
@@ -783,7 +838,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
       const result = await database.query(`
         WITH first_data AS (
           SELECT COALESCE(MIN(ts_minute), NOW()) as first_ts
-          FROM miner_hashrate_1m WHERE address = $1
+          FROM miner_hashrate_1m WHERE address = $1 AND mining_mode = $2
         ),
         params AS (
           SELECT
@@ -802,7 +857,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
             to_timestamp(floor(extract(epoch from ts_minute) / ${bucketSeconds}) * ${bucketSeconds}) as ts,
             SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / GREATEST(COUNT(*) * 60, 1) as value
           FROM miner_hashrate_1m
-          WHERE address = $1
+          WHERE address = $1 AND mining_mode = $2
             AND ts_minute >= GREATEST(NOW() - INTERVAL '${conf.interval}', (SELECT first_ts FROM first_data))
           GROUP BY to_timestamp(floor(extract(epoch from ts_minute) / ${bucketSeconds}) * ${bucketSeconds})
         ),
@@ -825,7 +880,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
           AVG(capped_value) OVER (ORDER BY ts ROWS BETWEEN ${smoothingWindow} PRECEDING AND ${smoothingWindow} FOLLOWING) as value
         FROM capped
         ORDER BY ts
-      `, [address]);
+      `, [address, mode]);
 
       res.json({ period, data: result.rows });
     } catch (err) {
@@ -837,6 +892,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
   // Chart worker hashrate (filtre par adresse + worker)
   app.get("/api/chart/worker-hashrate/:address/:worker", async (req, res) => {
     try {
+      const mode = getMiningMode(req);
       const { address, worker } = req.params;
       const period = (req.query.period as string) || "1d";
       const conf = MINER_CHART_PERIODS[period] || MINER_CHART_PERIODS["1d"];
@@ -848,7 +904,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
       const result = await database.query(`
         WITH first_data AS (
           SELECT COALESCE(MIN(ts_minute), NOW()) as first_ts
-          FROM worker_hashrate_1m WHERE address = $1 AND worker = $2
+          FROM worker_hashrate_1m WHERE address = $1 AND worker = $2 AND mining_mode = $3
         ),
         params AS (
           SELECT
@@ -867,7 +923,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
             to_timestamp(floor(extract(epoch from ts_minute) / ${bucketSeconds}) * ${bucketSeconds}) as ts,
             SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / GREATEST(COUNT(*) * 60, 1) as value
           FROM worker_hashrate_1m
-          WHERE address = $1 AND worker = $2
+          WHERE address = $1 AND worker = $2 AND mining_mode = $3
             AND ts_minute >= GREATEST(NOW() - INTERVAL '${conf.interval}', (SELECT first_ts FROM first_data))
           GROUP BY to_timestamp(floor(extract(epoch from ts_minute) / ${bucketSeconds}) * ${bucketSeconds})
         ),
@@ -890,7 +946,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
           AVG(capped_value) OVER (ORDER BY ts ROWS BETWEEN ${smoothingWindow} PRECEDING AND ${smoothingWindow} FOLLOWING) as value
         FROM capped
         ORDER BY ts
-      `, [address, worker]);
+      `, [address, worker, mode]);
 
       res.json({ period, data: result.rows });
     } catch (err) {

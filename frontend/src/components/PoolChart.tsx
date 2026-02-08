@@ -80,7 +80,11 @@ interface ChartDataPoint {
   height?: number;
 }
 
-const PoolChart: React.FC = () => {
+interface PoolChartProps {
+  mode?: string;
+}
+
+const PoolChart: React.FC<PoolChartProps> = ({ mode }) => {
   const [tab, setTab] = useState("hashrate");
   const [period, setPeriod] = useState("1d");
   const [rawData, setRawData] = useState<ChartPoint[]>([]);
@@ -106,13 +110,16 @@ const PoolChart: React.FC = () => {
 
   useEffect(() => {
     const load = () => {
-      const fn = tab === "hashrate" ? getChartPoolHashrate : getChartNetworkDifficulty;
-      fn(period).then((r) => setRawData(r.data)).catch(() => setRawData([]));
+      if (tab === "hashrate") {
+        getChartPoolHashrate(period, mode).then((r) => setRawData(r.data)).catch(() => setRawData([]));
+      } else {
+        getChartNetworkDifficulty(period).then((r) => setRawData(r.data)).catch(() => setRawData([]));
+      }
     };
     load();
     const t = setInterval(load, 5 * 60 * 1000);
     return () => clearInterval(t);
-  }, [tab, period]);
+  }, [tab, period, mode]);
 
   const data: ChartDataPoint[] = useMemo(() => {
     return rawData.map((p) => ({
