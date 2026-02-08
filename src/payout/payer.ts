@@ -24,7 +24,8 @@ export async function runPayer(): Promise<{ sent: number; failed: number; unknow
       return { sent: 0, failed: 0, unknown: 0 };
     }
 
-    const payables = await database.getPayableBalances(config.pool.minPayoutNano);
+    // Exclure l'adresse de la pool : la fee reste dans le wallet, pas besoin de s'auto-payer
+    const payables = await database.getPayableBalances(config.pool.minPayoutNano, config.pool.address || undefined);
 
     if (payables.length === 0) {
       return { sent: 0, failed: 0, unknown: 0 };

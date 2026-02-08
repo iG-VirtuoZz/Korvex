@@ -284,11 +284,15 @@ class Database {
     }
   }
 
-  async getPayableBalances(minPayoutNano: bigint): Promise<Array<{ address: string; amount: bigint }>> {
-    const result = await this.query(
-      "SELECT address, amount FROM balances WHERE amount >= $1 ORDER BY amount DESC",
-      [minPayoutNano.toString()]
-    );
+  async getPayableBalances(minPayoutNano: bigint, excludeAddress?: string): Promise<Array<{ address: string; amount: bigint }>> {
+    // Exclure l'adresse de la pool pour ne pas s'envoyer un paiement a soi-meme
+    const query = excludeAddress
+      ? "SELECT address, amount FROM balances WHERE amount >= $1 AND address != $2 ORDER BY amount DESC"
+      : "SELECT address, amount FROM balances WHERE amount >= $1 ORDER BY amount DESC";
+    const params = excludeAddress
+      ? [minPayoutNano.toString(), excludeAddress]
+      : [minPayoutNano.toString()];
+    const result = await this.query(query, params);
     return result.rows.map((row: any) => ({
       address: row.address,
       amount: BigInt(row.amount),

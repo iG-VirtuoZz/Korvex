@@ -44,7 +44,7 @@ export class StratumServer {
   private invalidShareTTL: number = 3600_000; // 1 heure
   private maxValidJobs: number = 10;
 
-  private extraNonce2Size: number = 6;
+  private extraNonce2Size: number = 4;
 
   // Cache de la derniere diff par worker (address.worker -> {vardiff, lastSeen})
   // Permet de restaurer la diff a la reconnexion au lieu de repartir a 10000
@@ -172,7 +172,7 @@ export class StratumServer {
       return;
     }
 
-    const extraNonce = (this.extraNonceCounter++ % 0xFFFF).toString(16).padStart(4, "0");
+    const extraNonce = (this.extraNonceCounter++ % 0xFFFFFFFF).toString(16).padStart(8, "0");
     const session = new MinerSession(socket, extraNonce);
     session.miningMode = miningMode;
     const sessionId = session.subscriptionId;
@@ -252,10 +252,19 @@ export class StratumServer {
     const [fullAddress] = params;
     const parts = (fullAddress || "").split(".");
     session.address = parts[0] || "";
-    session.worker = parts[1] || "default";
+    // Sanitiser le worker name : alphanumerique, underscore, tiret, max 32 chars
+    const rawWorker = parts[1] || "default";
+    session.worker = rawWorker.replace(/[^a-zA-Z0-9_\-]/g, "").substring(0, 32) || "default";
 
-    if (!session.address || session.address.length < 30) {
+    // Validation adresse Ergo mainnet : commence par '9', base58, 40-55 chars
+    if (!session.address || session.address.length < 40 || session.address.length > 55 || !session.address.startsWith("9")) {
       session.sendResult(id, false, "Adresse ERGO invalide");
+      session.disconnect();
+      return;
+    }
+    // Verifier que l'adresse est du base58 valide (pas de 0, O, I, l)
+    if (!/^[1-9A-HJ-NP-Za-km-z]+$/.test(session.address)) {
+      session.sendResult(id, false, "Adresse ERGO invalide (caracteres non-base58)");
       session.disconnect();
       return;
     }
@@ -306,9 +315,9 @@ export class StratumServer {
       return;
     }
 
-    if (extraNonce2.length !== this.extraNonce2Size * 2) {
+    if (extraNonce2.length !== this.extraNonce2Size * 2 || !/^[0-9a-fA-F]+$/.test(extraNonce2)) {
       this.incrementInvalidCount(ip);
-      session.sendResult(id, false, "Taille extraNonce2 incorrecte");
+      session.sendResult(id, false, "extraNonce2 invalide");
       await database.recordShare(session.address, session.worker, 0, 0, job.candidate.h, false, session.miningMode);
       return;
     }

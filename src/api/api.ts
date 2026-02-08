@@ -1,5 +1,6 @@
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
+import crypto from "crypto";
 import rateLimit from "express-rate-limit";
 import { config } from "../config";
 import { database } from "../db/database";
@@ -119,13 +120,19 @@ async function getLastBlockTimestampCached(): Promise<number | null> {
   }
 }
 
+// Comparaison timing-safe pour eviter les timing attacks
+function safeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
 // Middleware d'authentification admin
 function requireAdmin(req: Request, res: Response, next: NextFunction) {
   if (!config.admin.password) {
     return res.status(503).json({ error: "Admin non configure" });
   }
   const auth = req.headers.authorization;
-  if (!auth || !auth.startsWith("Bearer ") || auth.slice(7) !== config.admin.password) {
+  if (!auth || !auth.startsWith("Bearer ") || !safeCompare(auth.slice(7), config.admin.password)) {
     return res.status(401).json({ error: "Non autorise" });
   }
   next();
@@ -1083,7 +1090,7 @@ export function createApi(getStratumInfo: (mode?: string) => { sessions: number;
       return res.status(503).json({ error: "Admin non configure" });
     }
     const { password } = req.body;
-    if (!password || password !== config.admin.password) {
+    if (!password || typeof password !== "string" || !safeCompare(password, config.admin.password)) {
       return res.status(401).json({ error: "Mot de passe incorrect" });
     }
     res.json({ success: true });
