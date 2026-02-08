@@ -124,6 +124,7 @@ Sur KORVEX, tu peux voir :
 
 ## Voir aussi
 
+- [SOLO Mining](solo-mining.md) - L'alternative "tout ou rien" au PPLNS
 - [Les Shares](shares.md) - Comprendre shareDiff
 - [Blocs et Rewards](../blockchain/blocks-rewards.md) - Confirmations
 - [Gestion Wallet](../wallet/wallet-management.md) - Paiements
