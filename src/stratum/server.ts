@@ -461,17 +461,19 @@ export class StratumServer {
 
   private async pollWork() {
     try {
-      const synced = await ergoNode.isSynced();
-      if (!synced) return;
-
-      const netDiff = await ergoNode.getNetworkDifficulty();
-      if (netDiff > 0) this.lastNetworkDifficulty = netDiff;
+      // Un seul appel getInfo() au lieu de isSynced() + getNetworkDifficulty() (economise 1 HTTP/2s)
+      const info = await ergoNode.getInfo();
+      if (!info.headersHeight || !info.fullHeight || (info.headersHeight - info.fullHeight) >= 5) return;
+      if (info.difficulty > 0) this.lastNetworkDifficulty = info.difficulty;
 
       const candidate = await ergoNode.getMiningCandidate();
       if (!candidate || !candidate.msg) return;
 
       const currentMsg = this.currentJob?.candidate.msg;
       if (!currentMsg || currentMsg !== candidate.msg) {
+        // Detecter si la hauteur a change (= nouveau bloc reseau)
+        const heightChanged = !this.currentJob || this.currentJob.candidate.h !== candidate.h;
+
         this.currentJobId++;
         const jobIdHex = this.currentJobId.toString(16);
 
@@ -494,29 +496,31 @@ export class StratumServer {
           }
         }
 
-        console.log("[Stratum] Nouveau job #" + this.currentJobId + " hauteur=" + candidate.h);
-        this.broadcastJob();
+        console.log("[Stratum] Nouveau job #" + this.currentJobId + " hauteur=" + candidate.h + (heightChanged ? " (NEW BLOCK)" : ""));
+        this.broadcastJob(heightChanged);
       }
     } catch (err) {
       console.error("[Stratum] Erreur pollWork:", err);
     }
   }
 
-  private broadcastJob() {
+  private broadcastJob(cleanJobs: boolean = false) {
     for (const session of this.sessions.values()) {
       if (session.authorized) {
-        this.sendJob(session);
+        this.sendJob(session, cleanJobs);
       }
     }
   }
 
-  private sendJob(session: MinerSession) {
+  private sendJob(session: MinerSession, cleanJobs: boolean = false) {
     if (!this.currentJob) return;
 
     // Tous les mineurs: envoyer bShare pre-multiplie (bNetwork * vardiff)
     // C'est le comportement standard qui fonctionne avec lolMiner/TeamRedMiner
     const bShare = this.currentJob.bNetwork * BigInt(session.difficulty);
 
+    // clean_jobs = true quand la hauteur change (nouveau bloc reseau)
+    // Les mineurs doivent abandonner leurs travaux en cours sur l'ancien bloc
     session.sendNotify("mining.notify", [
       this.currentJob.jobId,
       this.currentJob.candidate.h,
@@ -526,7 +530,7 @@ export class StratumServer {
       "00000002",
       bShare.toString(),
       "",
-      false,
+      cleanJobs,
     ]);
   }
 

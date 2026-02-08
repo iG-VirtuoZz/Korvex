@@ -286,7 +286,7 @@ const MinerPage: React.FC = () => {
     const t = setInterval(() => {
       loadMiner(paramAddress);
       getStats(mode).then(setPoolStats).catch(() => {});
-    }, 4000); // Refresh toutes les 4 secondes pour voir les shares en temps reel
+    }, 15000); // Refresh toutes les 15 secondes (evite surcharge DB/API)
     return () => clearInterval(t);
   }, [paramAddress, loadMiner, mode]);
 

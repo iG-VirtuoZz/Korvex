@@ -6,9 +6,20 @@ import { StratumServer } from "./stratum/server";
 import { createApi } from "./api/api";
 import { lockWallet } from "./payout/payer";
 
+// --- Handlers globaux : ne jamais crash silencieusement ---
+process.on("unhandledRejection", (reason) => {
+  console.error("[FATAL] Unhandled promise rejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[FATAL] Uncaught exception:", err);
+  // On ne force pas process.exit() : le process continue mais on est prevenu
+});
+
 console.log("===========================================");
 console.log("  KORVEX Pool v0.4.0 - ERGO Mining Pool");
 console.log("===========================================");
+
+let stratum: StratumServer | null = null;
 
 async function main() {
   try {
@@ -29,12 +40,12 @@ async function main() {
     const info = await ergoNode.getInfo();
     console.log("[Node] ERGO connecte - Hauteur:", info.fullHeight);
 
-    const stratum = new StratumServer();
+    stratum = new StratumServer();
     await stratum.start();
 
     createApi((mode?: string) => ({
-      sessions: stratum.getSessionCount(mode),
-      miners: stratum.getAuthorizedMiners(mode),
+      sessions: stratum!.getSessionCount(mode),
+      miners: stratum!.getAuthorizedMiners(mode),
     }));
 
     maintenance.start();
@@ -45,5 +56,30 @@ async function main() {
     process.exit(1);
   }
 }
+
+// --- Graceful shutdown : lock wallet + fermer stratum proprement ---
+async function gracefulShutdown(signal: string) {
+  console.log("[Pool] Signal " + signal + " recu, arret en cours...");
+  try {
+    if (config.payout.walletPass) {
+      await lockWallet();
+      console.log("[Pool] Wallet verrouille avant arret");
+    }
+  } catch (err) {
+    console.error("[Pool] Erreur lock wallet a l'arret:", err);
+  }
+  try {
+    if (stratum) {
+      await stratum.stop();
+      console.log("[Pool] Stratum arrete");
+    }
+  } catch (err) {
+    console.error("[Pool] Erreur arret stratum:", err);
+  }
+  process.exit(0);
+}
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
 main();
