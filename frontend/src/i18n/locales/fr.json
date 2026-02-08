@@ -21,6 +21,18 @@
     "effort": "Effort",
     "status": "Statut"
   },
+  "landing": {
+    "subtitle": "Pool de Minage Multi-Coins",
+    "algorithm": "Algorithme",
+    "fee": "Frais",
+    "min_payout": "Paiement min.",
+    "hashrate": "Hashrate Pool",
+    "miners": "Mineurs en ligne",
+    "view_pool": "Voir la Pool",
+    "coming_soon": "Bientôt disponible",
+    "status": "Statut",
+    "active": "Actif"
+  },
   "common": {
     "confirmed": "Confirmé",
     "pending": "En attente",

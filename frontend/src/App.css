@@ -3844,3 +3844,300 @@ a:hover { color: var(--accent-hover); }
     align-items: flex-start;
   }
 }
+
+/* ======================================================
+   LANDING PAGE — Multi-Coin Grid (style 2miners)
+   ====================================================== */
+
+.landing-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.landing-hero {
+  text-align: center;
+  padding: 48px 0 32px;
+}
+
+.landing-hero h1 {
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  background: linear-gradient(135deg, var(--gradient-start), var(--accent), var(--gradient-end));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 12px;
+}
+
+.landing-hero p {
+  color: var(--text-dim);
+  font-size: 16px;
+  letter-spacing: 1px;
+}
+
+/* Onglets PPLNS / SOLO */
+.landing-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 28px;
+  border-bottom: 2px solid var(--border);
+}
+
+.landing-tab {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  padding: 14px 32px;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.2s;
+}
+
+.landing-tab:hover {
+  color: var(--text);
+}
+
+.landing-tab-active {
+  color: var(--accent);
+}
+
+.landing-tab-active::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+}
+
+/* Grille de cards */
+.landing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  padding-bottom: 48px;
+}
+
+/* Card individuelle */
+.coin-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 20px 20px 44px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.coin-card-active {
+  cursor: pointer;
+}
+
+.coin-card-active:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 24px rgba(249, 115, 22, 0.15);
+  transform: translateY(-2px);
+}
+
+.coin-card-disabled {
+  opacity: 0.5;
+  filter: grayscale(0.3);
+}
+
+/* Texte algo vertical (style 2miners) */
+.coin-card-algo-vertical {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--border);
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Header de la card : logo + nom + hashrate */
+.coin-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+}
+
+.coin-card-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.coin-card-icon svg,
+.coin-card-icon img {
+  width: 40px;
+  height: 40px;
+  display: block;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.coin-card-name-row {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.coin-card-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.coin-card-hashrate {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* Details (fee, min payout, status) */
+.coin-card-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+}
+
+.coin-card-detail {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.coin-card-detail:last-child {
+  border-bottom: none;
+}
+
+.coin-card-detail span:first-child {
+  color: var(--text-dim);
+}
+
+.coin-card-detail span:last-child {
+  color: var(--text);
+  font-weight: 500;
+}
+
+/* Status active / coming soon */
+.coin-card-status-active {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--green);
+  font-weight: 600;
+}
+
+.coin-card-status-soon {
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.coin-card-status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 6px rgba(34, 197, 94, 0.4); }
+  50% { box-shadow: 0 0 12px rgba(34, 197, 94, 0.8); }
+}
+
+/* Footer card */
+.coin-card-footer {
+  margin-top: 4px;
+}
+
+.coin-card-btn {
+  display: block;
+  width: 100%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.2s;
+}
+
+.coin-card-btn:hover {
+  background: var(--accent-hover);
+}
+
+/* Responsive landing */
+@media (max-width: 900px) {
+  .landing-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .landing-hero h1 {
+    font-size: 32px;
+    letter-spacing: 4px;
+  }
+  .landing-tab {
+    padding: 12px 24px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 560px) {
+  .landing-grid {
+    grid-template-columns: 1fr;
+  }
+  .landing-hero {
+    padding: 32px 0 24px;
+  }
+  .landing-hero h1 {
+    font-size: 26px;
+    letter-spacing: 3px;
+  }
+  .landing-tab {
+    padding: 10px 20px;
+    font-size: 13px;
+    letter-spacing: 1px;
+  }
+}

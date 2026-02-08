@@ -61,18 +61,34 @@ const HowToStart: React.FC = () => (
       Replace <code>YOUR_WALLET</code> with your ERG address and <code>RIG_NAME</code> with a name for your machine.
     </p>
 
-    <h4>lolMiner</h4>
+    <div className="miner-recommendation">
+      <h4>✅ Recommended Miners</h4>
+      <p className="text-muted">These miners have 100% compatibility with KORVEX pool stratum implementation.</p>
+    </div>
+
+    <h4>lolMiner <span className="badge-recommended">Recommended</span></h4>
+    <p className="text-muted">NVIDIA &amp; AMD — Best overall compatibility</p>
     <pre><code>lolMiner --algo AUTOLYKOS2 --pool korvexpool.com:3416 --user YOUR_WALLET.RIG_NAME</code></pre>
 
-    <h4>Rigel</h4>
+    <h4>TeamRedMiner <span className="badge-recommended">Recommended</span></h4>
+    <p className="text-muted">AMD — Excellent performance and stability</p>
+    <pre><code>teamredminer -a autolykos2 -o stratum+tcp://korvexpool.com:3416 -u YOUR_WALLET.RIG_NAME -p x</code></pre>
+
+    <h4>Rigel <span className="badge-recommended">Recommended</span></h4>
+    <p className="text-muted">NVIDIA — Modern and efficient</p>
     <pre><code>rigel -a autolykos2 -o stratum+tcp://korvexpool.com:3416 -u YOUR_WALLET.RIG_NAME</code></pre>
 
+    <div className="miner-recommendation miner-supported">
+      <h4>⚠️ Also Supported</h4>
+      <p className="text-muted">These miners work but may have minor compatibility variations.</p>
+    </div>
+
     <h4>SRBMiner-MULTI</h4>
+    <p className="text-muted">AMD &amp; NVIDIA — Some users may experience sporadic client-side share rejections due to stratum protocol interpretation differences. Consider using lolMiner or TeamRedMiner for optimal results.</p>
     <pre><code>SRBMiner-MULTI --disable-cpu --algorithm autolykos2 --pool korvexpool.com:3416 --wallet YOUR_WALLET.RIG_NAME</code></pre>
 
     <p className="text-muted">
       <strong>Note:</strong> GPUs with less than 8 GB of VRAM cannot mine Autolykos2 anymore (the dataset no longer fits in memory).
-      Cards like GTX 1660 Super or RTX 2060 (6 GB) are no longer compatible.
     </p>
 
     <hr />

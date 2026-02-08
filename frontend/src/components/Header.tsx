@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import LanguageSelector from "./LanguageSelector";
 import StyleSelector from "./StyleSelector";
@@ -44,13 +44,16 @@ const Header: React.FC = () => {
   const [searchValue, setSearchValue] = useState("");
   const [currentLayout, setCurrentLayout] = useState<PoolLayout>(loadSavedLayout());
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const isLanding = location.pathname === "/";
+  const isCoinPage = location.pathname.startsWith("/coin/");
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       setSearchValue(saved);
     }
-    // Appliquer le layout sauvegarde au chargement
     applyLayout(currentLayout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -59,7 +62,7 @@ const Header: React.FC = () => {
     const addr = searchValue.trim();
     if (addr) {
       localStorage.setItem(STORAGE_KEY, addr);
-      navigate("/miner/" + addr);
+      navigate("/coin/ergo/miner/" + addr);
     }
   };
 
@@ -92,7 +95,9 @@ const Header: React.FC = () => {
         </div>
 
         <div className="header-actions">
-          <StyleSelector currentLayout={currentLayout} onLayoutChange={setCurrentLayout} />
+          {isCoinPage && (
+            <StyleSelector currentLayout={currentLayout} onLayoutChange={setCurrentLayout} />
+          )}
           <LanguageSelector />
           <NavLink to="/discord" className="header-discord" title="Join our Discord">
             <DiscordIcon />
@@ -103,13 +108,15 @@ const Header: React.FC = () => {
         </div>
       </div>
 
-      <nav className="header-nav">
-        <div className="header-nav-inner">
-          <NavLink to="/" end>{t('header.dashboard')}</NavLink>
-          <NavLink to="/miners">{t('header.miners')}</NavLink>
-          <NavLink to="/how-to-start">{t('header.how_to_start')}</NavLink>
-        </div>
-      </nav>
+      {!isLanding && (
+        <nav className="header-nav">
+          <div className="header-nav-inner">
+            <NavLink to="/coin/ergo" end>{t('header.dashboard')}</NavLink>
+            <NavLink to="/coin/ergo/miners">{t('header.miners')}</NavLink>
+            <NavLink to="/how-to-start">{t('header.how_to_start')}</NavLink>
+          </div>
+        </nav>
+      )}
     </header>
   );
 };

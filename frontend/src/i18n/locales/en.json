@@ -21,6 +21,18 @@
     "effort": "Effort",
     "status": "Status"
   },
+  "landing": {
+    "subtitle": "Multi-Coin Mining Pool",
+    "algorithm": "Algorithm",
+    "fee": "Pool Fee",
+    "min_payout": "Min Payout",
+    "hashrate": "Pool Hashrate",
+    "miners": "Miners Online",
+    "view_pool": "View Pool",
+    "coming_soon": "Coming Soon",
+    "status": "Status",
+    "active": "Active"
+  },
   "common": {
     "confirmed": "Confirmed",
     "pending": "Pending",

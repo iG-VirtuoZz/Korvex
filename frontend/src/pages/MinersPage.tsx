@@ -185,7 +185,7 @@ const MinersPage: React.FC = () => {
                         <span className={`miners-status-dot ${isActive ? "active" : "idle"}`} />
                         <span
                           className="miners-address"
-                          onClick={() => navigate("/miner/" + m.address)}
+                          onClick={() => navigate("/coin/ergo/miner/" + m.address)}
                           title={m.address}
                         >
                           {m.address}
