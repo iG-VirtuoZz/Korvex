@@ -1,6 +1,8 @@
 import { config } from "../config";
 import { database } from "../db/database";
 import { ergoNode } from "../ergo/node";
+import { distributePPLNS } from "./pplns";
+import { distributeSolo } from "./solo";
 
 export async function runConfirmer(): Promise<{ confirmed: number; orphaned: number }> {
   let confirmed = 0;
@@ -51,6 +53,25 @@ export async function runConfirmer(): Promise<{ confirmed: number; orphaned: num
         }
       }
 
+      // Verifier si les block_rewards existent (protection crash entre recordBlock et distribution)
+      const rewards = await database.getBlockRewards(blockHeight);
+      if (rewards.length === 0) {
+        console.warn(`[Confirmer] !!! Bloc ${blockHeight} sans block_rewards — re-distribution necessaire !!!`);
+        try {
+          await redistributeBlock(blockHeight);
+          // Verifier que la distribution a fonctionne
+          const recheck = await database.getBlockRewards(blockHeight);
+          if (recheck.length === 0) {
+            console.error(`[Confirmer] Re-distribution echouee pour bloc ${blockHeight}, skip`);
+            continue;
+          }
+          console.log(`[Confirmer] Re-distribution reussie pour bloc ${blockHeight} (${recheck.length} rewards)`);
+        } catch (redistErr) {
+          console.error(`[Confirmer] Erreur re-distribution bloc ${blockHeight}:`, redistErr);
+          continue;
+        }
+      }
+
       console.log(`[Confirmer] Bloc ${blockHeight} confirme (${confirmations} confirmations), credit des balances...`);
 
       try {
@@ -70,4 +91,29 @@ export async function runConfirmer(): Promise<{ confirmed: number; orphaned: num
   }
 
   return { confirmed, orphaned };
+}
+
+// Re-distribuer un bloc dont les block_rewards sont manquants
+// (crash entre recordBlock et distributePPLNS/distributeSolo)
+async function redistributeBlock(blockHeight: number): Promise<void> {
+  // Recuperer les infos du bloc
+  const blockResult = await database.query(
+    "SELECT height, difficulty, finder_address, mining_mode FROM blocks WHERE height = $1",
+    [blockHeight]
+  );
+  if (blockResult.rows.length === 0) {
+    throw new Error("Bloc " + blockHeight + " introuvable en DB");
+  }
+
+  const block = blockResult.rows[0];
+  const rewardNano = await ergoNode.getEmissionReward(blockHeight);
+
+  console.log("[Confirmer] Re-distribution bloc " + blockHeight + " mode=" + block.mining_mode +
+    " reward=" + (Number(rewardNano) / 1e9).toFixed(4) + " ERG");
+
+  if (block.mining_mode === 'solo') {
+    await distributeSolo(blockHeight, rewardNano, block.finder_address);
+  } else {
+    await distributePPLNS(blockHeight, rewardNano, parseFloat(block.difficulty));
+  }
 }

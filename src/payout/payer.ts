@@ -77,33 +77,36 @@ async function sendBatchSafe(batch: PayableEntry[]): Promise<{ sent: number; fai
   // ============================================
   // PHASE 1 : Preparer en DB (atomique)
   // Debite les balances + cree payments en 'pending'
+  // Retourne les payments crees avec adresse + montant (pas juste les IDs)
+  // pour eviter tout decalage si des entries sont skip
   // ============================================
-  let paymentIds: number[];
+  let prepared: Array<{ id: number; address: string; amount: bigint }>;
   try {
-    paymentIds = await database.prepareBatchPayments(batch);
+    prepared = await database.prepareBatchPayments(batch);
   } catch (err) {
     console.error("[Payer] Erreur preparation batch DB:", err);
     return { sent: 0, failed: batch.length, unknown: 0 };
   }
 
-  if (paymentIds.length === 0) {
+  if (prepared.length === 0) {
     console.log("[Payer] Aucun payment prepare (soldes insuffisants)");
     return { sent: 0, failed: 0, unknown: 0 };
   }
 
-  // Construire le payload a partir des entries dont le payment a ete cree
-  // On ne paie que les adresses qui ont ete effectivement debitees
-  const payableEntries = batch.filter((_entry, index) => index < paymentIds.length);
-  const requests = payableEntries.map((entry) => ({
-    address: entry.address,
-    value: Number(entry.amount),
+  const paymentIds = prepared.map((p) => p.id);
+
+  // Construire le payload directement depuis les payments prepares
+  // Chaque entry contient l'adresse et le montant exact qui a ete debite
+  const requests = prepared.map((p) => ({
+    address: p.address,
+    value: Number(p.amount),
   }));
 
   const txFee = 1_000_000;
   const payload = { requests, fee: txFee };
 
-  const totalErg = payableEntries.reduce((sum, e) => sum + Number(e.amount), 0) / 1e9;
-  console.log("[Payer] Envoi batch: " + paymentIds.length + " destinataire(s), total " + totalErg.toFixed(4) + " ERG");
+  const totalErg = prepared.reduce((sum, p) => sum + Number(p.amount), 0) / 1e9;
+  console.log("[Payer] Envoi batch: " + prepared.length + " destinataire(s), total " + totalErg.toFixed(4) + " ERG");
 
   // ============================================
   // PHASE 2 : UN SEUL POST, JAMAIS DE RETRY

@@ -504,11 +504,22 @@ export function createApi(getStratumInfo: (mode?: string) => { sessions: number;
       );
 
       // Workers enrichis : shares 1h + effort depuis dernier bloc + blocs trouves + hashrate par worker
-      const lastBlockTime = await database.query(
-        "SELECT MAX(created_at) as last_block_at FROM blocks WHERE is_orphan = false AND mining_mode = $1",
-        [mode]
-      );
-      const lastBlockAt = lastBlockTime.rows[0]?.last_block_at || '1970-01-01';
+      // En SOLO : effort depuis le dernier bloc du MINEUR (pas de n'importe quel mineur SOLO)
+      // En PPLNS : effort depuis le dernier bloc de la pool
+      let lastBlockAt: string;
+      if (mode === 'solo') {
+        const lastBlockTime = await database.query(
+          "SELECT MAX(created_at) as last_block_at FROM blocks WHERE is_orphan = false AND mining_mode = 'solo' AND finder_address = $1",
+          [address]
+        );
+        lastBlockAt = lastBlockTime.rows[0]?.last_block_at || '1970-01-01';
+      } else {
+        const lastBlockTime = await database.query(
+          "SELECT MAX(created_at) as last_block_at FROM blocks WHERE is_orphan = false AND mining_mode = $1",
+          [mode]
+        );
+        lastBlockAt = lastBlockTime.rows[0]?.last_block_at || '1970-01-01';
+      }
 
       // Recuperer la difficulte reseau pour calculer l'effort
       let networkDifficulty = 0;

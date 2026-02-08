@@ -300,15 +300,15 @@ class Database {
   // ============================================
 
   // Phase 1 : reserve les fonds et cree les payments en 'pending' (1 transaction atomique)
-  // Retourne les IDs des payments crees pour finalisation
+  // Retourne les payments crees avec leur adresse et montant (pour construire le payload tx)
   async prepareBatchPayments(
     entries: Array<{ address: string; amount: bigint }>
-  ): Promise<number[]> {
+  ): Promise<Array<{ id: number; address: string; amount: bigint }>> {
     const client = await this.getClient();
     try {
       await client.query("BEGIN");
 
-      const paymentIds: number[] = [];
+      const prepared: Array<{ id: number; address: string; amount: bigint }> = [];
 
       for (const entry of entries) {
         // Debiter la balance avec lock (FOR UPDATE implicite via WHERE amount >= ...)
@@ -333,17 +333,20 @@ class Database {
           [entry.address, Number(entry.amount) / 1e9, entry.amount.toString()]
         );
 
-        paymentIds.push(payment.rows[0].id);
+        prepared.push({
+          id: payment.rows[0].id,
+          address: entry.address,
+          amount: entry.amount,
+        });
       }
 
-      if (paymentIds.length === 0) {
-        // Aucun payment cree, rollback les debits (aucun en fait)
+      if (prepared.length === 0) {
         await client.query("ROLLBACK");
         return [];
       }
 
       await client.query("COMMIT");
-      return paymentIds;
+      return prepared;
     } catch (err) {
       await client.query("ROLLBACK");
       throw err;
@@ -388,13 +391,24 @@ class Database {
   }
 
   // Phase 2b : marquer les payments comme 'unknown' (send echoue/timeout)
+  // Transactionnel pour eviter des payments "fantomes" en status pending si crash au milieu
   async markBatchPaymentsUnknown(paymentIds: number[], errorMsg: string): Promise<void> {
     if (paymentIds.length === 0) return;
-    for (const id of paymentIds) {
-      await this.query(
-        `UPDATE payments SET status = 'unknown', error_msg = $1 WHERE id = $2 AND status = 'pending'`,
-        [errorMsg, id]
-      );
+    const client = await this.getClient();
+    try {
+      await client.query("BEGIN");
+      for (const id of paymentIds) {
+        await client.query(
+          `UPDATE payments SET status = 'unknown', error_msg = $1 WHERE id = $2 AND status = 'pending'`,
+          [errorMsg, id]
+        );
+      }
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
     }
   }
 

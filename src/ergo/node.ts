@@ -146,7 +146,11 @@ class ErgoNode {
       const blockIds = await this.getBlockIdsAtHeight(height);
       if (blockIds.length === 0) return false;
       return blockIds.includes(blockId);
-    } catch {
+    } catch (err) {
+      // En cas d'erreur reseau, retourner true (= ne pas marquer orphan)
+      // C'est plus sur que de marquer un bloc valide comme orphan par erreur
+      // Le confirmer reessaiera au prochain cycle
+      console.warn("[Node] isBlockOnChain erreur pour hauteur " + height + ", presume valide:", err);
       return true;
     }
   }
