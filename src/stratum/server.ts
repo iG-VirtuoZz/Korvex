@@ -383,14 +383,12 @@ export class StratumServer {
             } catch {}
 
 
-            // --- Calcul effort AVANT recordBlock ---
+            // --- Calcul effort lisse AVANT recordBlock ---
             let effortPercent: number | null = null;
             try {
-              const totalShareDiff = await database.getShareDiffSinceLastBlock();
-              if (this.lastNetworkDifficulty > 0) {
-                effortPercent = (totalShareDiff / this.lastNetworkDifficulty) * 100;
-                console.log("[Stratum] Effort bloc " + height + " = " + effortPercent.toFixed(2) + "%");
-              }
+              const effortFraction = await database.getEffortSinceLastBlock();
+              effortPercent = effortFraction * 100;
+              console.log("[Stratum] Effort bloc " + height + " = " + effortPercent.toFixed(2) + "%");
             } catch (effortErr) {
               console.error("[Stratum] Erreur calcul effort:", effortErr);
             }

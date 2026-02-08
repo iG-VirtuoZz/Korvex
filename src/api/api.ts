@@ -241,10 +241,8 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
       let poolLuck: number | null = null;
 
       try {
-        const totalShareDiff = await database.getShareDiffSinceLastBlock();
-        if (networkDifficulty > 0) {
-          currentEffort = (totalShareDiff / networkDifficulty) * 100;
-        }
+        const effortFraction = await database.getEffortSinceLastBlock();
+        currentEffort = effortFraction * 100;
       } catch (err) {
         console.error("[API] Erreur calcul effort:", err);
       }
@@ -491,21 +489,21 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
         console.error("[API] Erreur fetch networkDifficulty:", err);
       }
 
-      // Workers avec shares 24h (pour voir aussi les inactifs jaunes/rouges) ET effort depuis dernier bloc
+      // Workers avec shares 24h (pour voir aussi les inactifs jaunes/rouges) ET effort lisse depuis dernier bloc
       const workers = await database.query(
         `SELECT
           w24h.worker,
           w24h.shares,
           w24h.last_share,
-          COALESCE(weffort.diff_since_block, 0) as diff_since_block
+          COALESCE(weffort.effort_fraction, 0) as effort_fraction
         FROM (
           SELECT worker, COUNT(*) as shares, MAX(created_at) as last_share
           FROM shares WHERE address=$1 AND created_at > NOW() - INTERVAL '24 hours'
           GROUP BY worker
         ) w24h
         LEFT JOIN (
-          SELECT worker, SUM(share_diff) as diff_since_block
-          FROM shares WHERE address=$1 AND created_at > $2
+          SELECT worker, SUM(share_diff::double precision / NULLIF(block_diff::double precision, 0)) as effort_fraction
+          FROM shares WHERE address=$1 AND created_at > $2 AND is_valid = true AND share_diff > 0
           GROUP BY worker
         ) weffort ON weffort.worker = w24h.worker`,
         [address, lastBlockAt]
@@ -593,9 +591,7 @@ export function createApi(getStratumInfo: () => { sessions: number; miners: stri
             worker: w.worker,
             shares: parseInt(w.shares) || 0,
             last_share: w.last_share,
-            effort_percent: networkDifficulty > 0
-              ? Math.round((parseFloat(w.diff_since_block) / networkDifficulty) * 10000) / 100
-              : null,
+            effort_percent: Math.round(parseFloat(w.effort_fraction) * 10000) / 100,
             blocks_found: blocksMap[w.worker] || 0,
             hashrate_15m: hr.hashrate_15m,
             hashrate_1h: hr.hashrate_1h,

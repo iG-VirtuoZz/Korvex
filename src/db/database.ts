@@ -68,26 +68,31 @@ class Database {
   // Effort / Luck
   // ============================================
 
-  async getShareDiffSinceLastBlock(): Promise<number> {
+  /**
+   * Effort lisse : chaque share est pesee par la difficulte reseau AU MOMENT ou elle a ete soumise.
+   * Retourne le nombre de "fractions de bloc" accumule (1.0 = 100% effort).
+   * Avantage : l'effort monte regulierement, pas de sauts quand la diff reseau change.
+   */
+  async getEffortSinceLastBlock(): Promise<number> {
     const lastBlock = await this.query(
       "SELECT created_at FROM blocks ORDER BY height DESC LIMIT 1"
     );
 
-    let totalDiff: number;
+    let effort: number;
     if (lastBlock.rows.length > 0) {
       const result = await this.query(
-        "SELECT COALESCE(SUM(share_diff), 0) as total FROM shares WHERE is_valid = true AND share_diff > 0 AND created_at > $1",
+        "SELECT COALESCE(SUM(share_diff::double precision / NULLIF(block_diff::double precision, 0)), 0) as total FROM shares WHERE is_valid = true AND share_diff > 0 AND created_at > $1",
         [lastBlock.rows[0].created_at]
       );
-      totalDiff = parseFloat(result.rows[0].total) || 0;
+      effort = parseFloat(result.rows[0].total) || 0;
     } else {
       const result = await this.query(
-        "SELECT COALESCE(SUM(share_diff), 0) as total FROM shares WHERE is_valid = true AND share_diff > 0"
+        "SELECT COALESCE(SUM(share_diff::double precision / NULLIF(block_diff::double precision, 0)), 0) as total FROM shares WHERE is_valid = true AND share_diff > 0"
       );
-      totalDiff = parseFloat(result.rows[0].total) || 0;
+      effort = parseFloat(result.rows[0].total) || 0;
     }
 
-    return totalDiff;
+    return effort;
   }
 
   async getAverageEffort(limit: number = 20): Promise<number | null> {
