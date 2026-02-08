@@ -1,101 +1,44 @@
-import React, { useState, useRef, useEffect } from "react";
-import { poolLayouts, PoolLayout, applyLayout } from "../themes/styles";
+import React, { useState } from "react";
+import { getBgThemeById, applyBgTheme, loadSavedBgTheme } from "../themes/styles";
 
-interface LayoutSelectorProps {
-  currentLayout: PoolLayout;
-  onLayoutChange: (layout: PoolLayout) => void;
-}
+const SunIcon: React.FC = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="5" />
+    <line x1="12" y1="1" x2="12" y2="3" />
+    <line x1="12" y1="21" x2="12" y2="23" />
+    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+    <line x1="1" y1="12" x2="3" y2="12" />
+    <line x1="21" y1="12" x2="23" y2="12" />
+    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+  </svg>
+);
 
-// Icones pour representer visuellement chaque layout
-const LayoutIcon: React.FC<{ layoutId: string; size?: number }> = ({ layoutId, size = 20 }) => {
-  const icons: Record<string, React.ReactNode> = {
-    "clean-cards": (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        {/* Cards separees */}
-        <rect x="2" y="2" width="9" height="6" rx="1" />
-        <rect x="13" y="2" width="9" height="6" rx="1" />
-        <rect x="2" y="10" width="20" height="6" rx="1" />
-        <rect x="2" y="18" width="20" height="4" rx="1" />
-      </svg>
-    ),
-    "dashboard-pro": (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        {/* 2 grandes sections */}
-        <rect x="2" y="2" width="10" height="12" rx="1" />
-        <rect x="14" y="2" width="8" height="12" rx="1" />
-        <rect x="2" y="16" width="20" height="6" rx="1" />
-      </svg>
-    ),
-    "modern-grid": (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        {/* Grille equilibree */}
-        <rect x="2" y="2" width="6" height="5" rx="1" />
-        <rect x="9" y="2" width="6" height="5" rx="1" />
-        <rect x="16" y="2" width="6" height="5" rx="1" />
-        <rect x="2" y="9" width="20" height="7" rx="1" />
-        <rect x="2" y="18" width="10" height="4" rx="1" />
-        <rect x="14" y="18" width="8" height="4" rx="1" />
-      </svg>
-    ),
-  };
-  return (
-    <span className="layout-icon" style={{ width: size, height: size }}>
-      {icons[layoutId] || icons["clean-cards"]}
-    </span>
-  );
-};
+const MoonIcon: React.FC = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+  </svg>
+);
 
-const LayoutSelector: React.FC<LayoutSelectorProps> = ({ currentLayout, onLayoutChange }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+const StyleSelector: React.FC = () => {
+  const [isDark, setIsDark] = useState(loadSavedBgTheme().id !== "clair");
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handleSelect = (layout: PoolLayout) => {
-    applyLayout(layout);
-    onLayoutChange(layout);
-    setIsOpen(false);
+  const toggle = () => {
+    const newTheme = isDark ? getBgThemeById("clair") : getBgThemeById("noir-pur");
+    applyBgTheme(newTheme);
+    setIsDark(!isDark);
   };
 
   return (
-    <div className="style-selector" ref={dropdownRef}>
-      <button
-        className="style-selector-btn"
-        onClick={() => setIsOpen(!isOpen)}
-        title="Changer le layout"
-      >
-        <LayoutIcon layoutId={currentLayout.id} />
-      </button>
-
-      {isOpen && (
-        <div className="style-dropdown">
-          <div className="style-dropdown-header">Layout</div>
-          {poolLayouts.map((layout) => (
-            <button
-              key={layout.id}
-              className={"style-option" + (layout.id === currentLayout.id ? " active" : "")}
-              onClick={() => handleSelect(layout)}
-            >
-              <LayoutIcon layoutId={layout.id} size={24} />
-              <div className="style-option-info">
-                <span className="style-option-name">{layout.name}</span>
-                <span className="style-option-desc">{layout.description}</span>
-              </div>
-              {layout.id === currentLayout.id && <span className="style-check">✓</span>}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <button
+      className="theme-toggle-btn"
+      onClick={toggle}
+      title={isDark ? "Mode clair" : "Mode sombre"}
+    >
+      {isDark ? <SunIcon /> : <MoonIcon />}
+    </button>
   );
 };
 
-export default LayoutSelector;
+export default StyleSelector;

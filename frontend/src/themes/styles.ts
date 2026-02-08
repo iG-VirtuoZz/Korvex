@@ -1,89 +1,111 @@
-// Layouts/Designs pour Korvex Pool
-// Les couleurs sont fixes (Neo Minimal orange), seul le design change
+// Themes pour Korvex Pool
+// 2 modes : Sombre (noir pur) et Clair (blanc)
 
-// Couleurs fixes Neo Minimal
-const COLORS = {
-  bg: "#09090b",
-  card: "#18181b",
-  cardHover: "#27272a",
-  border: "#3f3f46",
-  text: "#fafafa",
-  textDim: "#a1a1aa",
-  accent: "#f97316",
-  accentHover: "#fb923c",
-  accentDim: "#ea580c",
-  accentGlow: "rgba(249, 115, 22, 0.08)",
-  green: "#22c55e",
-  yellow: "#fbbf24",
-  red: "#ef4444",
-  gradientStart: "#fdba74",
-  gradientEnd: "#ea580c",
-};
-
-export interface PoolLayout {
+export interface BgTheme {
   id: string;
   name: string;
-  description: string;
+  bg: string;
+  card: string;
+  cardHover: string;
+  border: string;
+  text: string;
+  textDim: string;
+  accent: string;
+  accentHover: string;
+  accentDim: string;
+  accentGlow: string;
+  green: string;
+  yellow: string;
+  red: string;
+  gradientStart: string;
+  gradientEnd: string;
+  preview: string;
 }
 
-export const poolLayouts: PoolLayout[] = [
+export const bgThemes: BgTheme[] = [
   {
-    id: "clean-cards",
-    name: "Clean Cards",
-    description: "Aere et simple, cards bien separees",
+    id: "noir-pur",
+    name: "Sombre",
+    bg: "#09090b",
+    card: "#18181b",
+    cardHover: "#27272a",
+    border: "#3f3f46",
+    text: "#fafafa",
+    textDim: "#a1a1aa",
+    accent: "#f97316",
+    accentHover: "#fb923c",
+    accentDim: "#ea580c",
+    accentGlow: "rgba(249, 115, 22, 0.08)",
+    green: "#22c55e",
+    yellow: "#fbbf24",
+    red: "#ef4444",
+    gradientStart: "#fdba74",
+    gradientEnd: "#ea580c",
+    preview: "#09090b",
   },
   {
-    id: "dashboard-pro",
-    name: "Dashboard Pro",
-    description: "2 grandes sections Pool/Network",
-  },
-  {
-    id: "modern-grid",
-    name: "Modern Grid",
-    description: "Grille moderne et equilibree",
+    id: "clair",
+    name: "Clair",
+    bg: "#f5f5f5",
+    card: "#ffffff",
+    cardHover: "#f0f0f0",
+    border: "#e0e0e0",
+    text: "#1a1a1a",
+    textDim: "#6b7280",
+    accent: "#ea580c",
+    accentHover: "#f97316",
+    accentDim: "#c2410c",
+    accentGlow: "rgba(234, 88, 12, 0.08)",
+    green: "#16a34a",
+    yellow: "#ca8a04",
+    red: "#dc2626",
+    gradientStart: "#fb923c",
+    gradientEnd: "#c2410c",
+    preview: "#f5f5f5",
   },
 ];
 
-export const getLayoutById = (id: string): PoolLayout => {
-  return poolLayouts.find((l) => l.id === id) || poolLayouts[0];
+export const getBgThemeById = (id: string): BgTheme => {
+  return bgThemes.find((t) => t.id === id) || bgThemes[0];
 };
 
-export const applyLayout = (layout: PoolLayout) => {
+export const applyBgTheme = (theme: BgTheme) => {
   const root = document.documentElement;
 
-  // Appliquer les couleurs fixes
-  root.style.setProperty("--bg", COLORS.bg);
-  root.style.setProperty("--card", COLORS.card);
-  root.style.setProperty("--card-hover", COLORS.cardHover);
-  root.style.setProperty("--border", COLORS.border);
-  root.style.setProperty("--text", COLORS.text);
-  root.style.setProperty("--text-dim", COLORS.textDim);
-  root.style.setProperty("--accent", COLORS.accent);
-  root.style.setProperty("--accent-hover", COLORS.accentHover);
-  root.style.setProperty("--accent-dim", COLORS.accentDim);
-  root.style.setProperty("--accent-glow", COLORS.accentGlow);
-  root.style.setProperty("--green", COLORS.green);
-  root.style.setProperty("--yellow", COLORS.yellow);
-  root.style.setProperty("--red", COLORS.red);
-  root.style.setProperty("--gradient-start", COLORS.gradientStart);
-  root.style.setProperty("--gradient-end", COLORS.gradientEnd);
-  document.body.style.background = COLORS.bg;
+  root.style.setProperty("--bg", theme.bg);
+  root.style.setProperty("--card", theme.card);
+  root.style.setProperty("--card-hover", theme.cardHover);
+  root.style.setProperty("--border", theme.border);
+  root.style.setProperty("--text", theme.text);
+  root.style.setProperty("--text-dim", theme.textDim);
+  root.style.setProperty("--accent", theme.accent);
+  root.style.setProperty("--accent-hover", theme.accentHover);
+  root.style.setProperty("--accent-dim", theme.accentDim);
+  root.style.setProperty("--accent-glow", theme.accentGlow);
+  root.style.setProperty("--green", theme.green);
+  root.style.setProperty("--yellow", theme.yellow);
+  root.style.setProperty("--red", theme.red);
+  root.style.setProperty("--gradient-start", theme.gradientStart);
+  root.style.setProperty("--gradient-end", theme.gradientEnd);
+  document.body.style.background = theme.bg;
 
-  // Appliquer le layout via data attribute
-  root.setAttribute("data-layout", layout.id);
+  // Classe pour le mode clair (permet CSS overrides specifiques)
+  if (theme.id === "clair") {
+    root.classList.add("light-mode");
+  } else {
+    root.classList.remove("light-mode");
+  }
 
-  // Sauvegarder le choix
-  localStorage.setItem("korvex-layout", layout.id);
+  root.setAttribute("data-layout", "modern-grid");
+  localStorage.setItem("korvex-bg-theme", theme.id);
 };
 
-export const loadSavedLayout = (): PoolLayout => {
-  const savedId = localStorage.getItem("korvex-layout");
-  return getLayoutById(savedId || "clean-cards");
+export const loadSavedBgTheme = (): BgTheme => {
+  const savedId = localStorage.getItem("korvex-bg-theme");
+  return getBgThemeById(savedId || "noir-pur");
 };
 
-// Export pour compatibilite avec l'ancien code
-export type PoolStyle = PoolLayout;
-export const poolStyles = poolLayouts;
-export const getStyleById = getLayoutById;
-export const applyStyle = applyLayout;
-export const loadSavedStyle = loadSavedLayout;
+// Compat ancien code
+export interface PoolLayout { id: string; name: string; description: string; }
+export const applyLayout = (_layout: PoolLayout) => applyBgTheme(loadSavedBgTheme());
+export const loadSavedLayout = (): PoolLayout => ({ id: "modern-grid", name: "Modern Grid", description: "" });

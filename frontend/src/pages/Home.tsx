@@ -91,173 +91,9 @@ const BlocksTable: React.FC<{ blocks: any[] }> = ({ blocks }) => {
   );
 };
 
-// ==================== LAYOUT: CLEAN CARDS ====================
-// Structure aeree, cards bien separees, simplicite
+// ==================== LAYOUT ====================
 
-const LayoutCleanCards: React.FC<{ stats: PoolStats | null; health: HealthData | null; blocks: any[]; mode: string }> = ({ stats, health, blocks, mode }) => {
-  const networkDiff = health?.node?.difficulty || 0;
-  const networkHr = parseInt(stats?.nodes?.[0]?.networkhashps || "0");
-  const poolHr = stats?.hashrate || 0;
-  const lastBlockTime = blocks.length > 0 ? timeAgo(blocks[0].created_at) : "N/A";
-
-  return (
-    <div className="layout-clean">
-      {/* Header simple */}
-      <div className="clean-header">
-        <h1>KORVEX POOL</h1>
-        <p>{mode === 'solo' ? 'Solo Mining' : 'Ergo Mining Pool'}</p>
-      </div>
-
-      {/* 2 cards principales cote a cote */}
-      <div className="clean-main-row">
-        <div className="clean-card">
-          <div className="clean-card-title">Pool</div>
-          <div className="clean-stat-row">
-            <span className="clean-stat-label">Hashrate</span>
-            <span className="clean-stat-value">{formatHash(poolHr)}</span>
-          </div>
-          <div className="clean-stat-row">
-            <span className="clean-stat-label">Miners</span>
-            <span className="clean-stat-value">{stats?.minersTotal || 0}</span>
-          </div>
-          <div className="clean-stat-row">
-            <span className="clean-stat-label">Workers</span>
-            <span className="clean-stat-value">{stats?.workersTotal || 0}</span>
-          </div>
-          <div className="clean-stat-row">
-            <span className="clean-stat-label">Effort</span>
-            <span className="clean-stat-value" style={{ color: effortColor(stats?.currentEffort) }}>
-              {effortLabel(stats?.currentEffort)}
-            </span>
-          </div>
-          <div className="clean-stat-row">
-            <span className="clean-stat-label">Last Block</span>
-            <span className="clean-stat-value">{lastBlockTime}</span>
-          </div>
-        </div>
-
-        <div className="clean-card">
-          <div className="clean-card-title">Network</div>
-          <div className="clean-stat-row">
-            <span className="clean-stat-label">Hashrate</span>
-            <span className="clean-stat-value">{formatHash(networkHr)}</span>
-          </div>
-          <div className="clean-stat-row">
-            <span className="clean-stat-label">Difficulty</span>
-            <span className="clean-stat-value">{formatDiff(networkDiff)}</span>
-          </div>
-          <div className="clean-stat-row">
-            <span className="clean-stat-label">ERG Price</span>
-            <span className="clean-stat-value">${stats?.ergPriceUsd?.toFixed(4) || "—"}</span>
-          </div>
-          <div className="clean-stat-row">
-            <span className="clean-stat-label">Block Reward</span>
-            <span className="clean-stat-value">{stats?.blockReward || 6} ERG</span>
-          </div>
-          <div className="clean-stat-row">
-            <span className="clean-stat-label">Pool Fee</span>
-            <span className="clean-stat-value">1%</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Graphique */}
-      <div className="clean-chart">
-        <PoolChart mode={mode} />
-      </div>
-
-      {/* Table des blocs */}
-      {blocks.length > 0 && (
-        <div className="clean-card clean-blocks">
-          <div className="clean-card-title">Recent Blocks</div>
-          <BlocksTable blocks={blocks} />
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ==================== LAYOUT: DASHBOARD PRO ====================
-// 2 grandes sections Pool/Network avec graphique integre
-
-const LayoutDashboardPro: React.FC<{ stats: PoolStats | null; health: HealthData | null; blocks: any[]; mode: string }> = ({ stats, health, blocks, mode }) => {
-  const networkDiff = health?.node?.difficulty || 0;
-  const networkHr = parseInt(stats?.nodes?.[0]?.networkhashps || "0");
-  const poolHr = stats?.hashrate || 0;
-  const lastBlockTime = blocks.length > 0 ? timeAgo(blocks[0].created_at) : "N/A";
-
-  return (
-    <div className="layout-dashboard">
-      {/* Header avec titre */}
-      <div className="dashboard-header">
-        <h1>KORVEX</h1>
-      </div>
-
-      {/* Section principale : Graphique + Stats */}
-      <div className="dashboard-main">
-        <div className="dashboard-chart-section">
-          <PoolChart mode={mode} />
-        </div>
-        <div className="dashboard-stats-section">
-          <div className="dashboard-stats-group">
-            <div className="dashboard-group-title">Pool Stats</div>
-            <div className="dashboard-stat">
-              <span className="ds-label">Hashrate</span>
-              <span className="ds-value">{formatHash(poolHr)}</span>
-            </div>
-            <div className="dashboard-stat">
-              <span className="ds-label">Miners</span>
-              <span className="ds-value">{stats?.minersTotal || 0}</span>
-            </div>
-            <div className="dashboard-stat">
-              <span className="ds-label">Workers</span>
-              <span className="ds-value">{stats?.workersTotal || 0}</span>
-            </div>
-            <div className="dashboard-stat">
-              <span className="ds-label">Effort</span>
-              <span className="ds-value" style={{ color: effortColor(stats?.currentEffort) }}>
-                {effortLabel(stats?.currentEffort)}
-              </span>
-            </div>
-            <div className="dashboard-stat">
-              <span className="ds-label">Last Block</span>
-              <span className="ds-value">{lastBlockTime}</span>
-            </div>
-          </div>
-
-          <div className="dashboard-stats-group">
-            <div className="dashboard-group-title">Network</div>
-            <div className="dashboard-stat">
-              <span className="ds-label">Hashrate</span>
-              <span className="ds-value">{formatHash(networkHr)}</span>
-            </div>
-            <div className="dashboard-stat">
-              <span className="ds-label">Difficulty</span>
-              <span className="ds-value">{formatDiff(networkDiff)}</span>
-            </div>
-            <div className="dashboard-stat">
-              <span className="ds-label">ERG Price</span>
-              <span className="ds-value">${stats?.ergPriceUsd?.toFixed(4) || "—"}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Table des blocs */}
-      {blocks.length > 0 && (
-        <div className="dashboard-blocks">
-          <div className="dashboard-group-title">Recent Blocks</div>
-          <BlocksTable blocks={blocks} />
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ==================== LAYOUT: MODERN GRID ====================
-// Grille moderne avec stats individuelles et equilibre
-
-const LayoutModernGrid: React.FC<{ stats: PoolStats | null; health: HealthData | null; blocks: any[]; mode: string }> = ({ stats, health, blocks, mode }) => {
+const HomeLayout: React.FC<{ stats: PoolStats | null; health: HealthData | null; blocks: any[]; mode: string }> = ({ stats, health, blocks, mode }) => {
   const networkDiff = health?.node?.difficulty || 0;
   const networkHr = parseInt(stats?.nodes?.[0]?.networkhashps || "0");
   const poolHr = stats?.hashrate || 0;
@@ -359,7 +195,6 @@ const Home: React.FC = () => {
   const [health, setHealth] = useState<HealthData | null>(null);
   const [stats, setStats] = useState<PoolStats | null>(null);
   const [blocks, setBlocks] = useState<any[]>([]);
-  const [layout, setLayout] = useState<string>("clean-cards");
 
   useEffect(() => {
     const load = () => {
@@ -372,25 +207,9 @@ const Home: React.FC = () => {
     return () => clearInterval(t);
   }, [mode]);
 
-  // Observer le changement de layout
-  useEffect(() => {
-    const updateLayout = () => {
-      const current = document.documentElement.getAttribute("data-layout") || "clean-cards";
-      setLayout(current);
-    };
-    updateLayout();
-    const observer = new MutationObserver(updateLayout);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-layout"] });
-    return () => observer.disconnect();
-  }, []);
-
-  const layoutProps = { stats, health, blocks, mode };
-
   return (
-    <div className={"home-page layout-" + layout}>
-      {layout === "clean-cards" && <LayoutCleanCards {...layoutProps} />}
-      {layout === "dashboard-pro" && <LayoutDashboardPro {...layoutProps} />}
-      {layout === "modern-grid" && <LayoutModernGrid {...layoutProps} />}
+    <div className="home-page layout-modern-grid">
+      <HomeLayout stats={stats} health={health} blocks={blocks} mode={mode} />
     </div>
   );
 };

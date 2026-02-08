@@ -1997,110 +1997,35 @@ a:hover { color: var(--accent-hover); }
   font-weight: bold;
 }
 
-/* ==================== STYLE SELECTOR (remplace theme selector) ==================== */
+/* ==================== THEME TOGGLE (soleil / lune) ==================== */
 
-.style-selector {
-  position: relative;
-  z-index: 200;
-}
-
-.style-selector-btn {
+.theme-toggle-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: var(--bg);
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: transparent;
   border: 1px solid var(--border);
-  border-radius: var(--button-radius, 8px);
-  padding: 8px 10px;
-  color: var(--text);
+  color: var(--text-dim);
   cursor: pointer;
-  transition: border-color 0.2s, background 0.2s;
+  transition: border-color 0.2s, color 0.2s, background 0.2s, transform 0.2s;
 }
 
-.style-selector-btn:hover {
+.theme-toggle-btn:hover {
   border-color: var(--accent);
-  background: var(--card-hover);
-}
-
-.style-color-preview {
-  width: 18px;
-  height: 18px;
-  border-radius: 6px;
-  flex-shrink: 0;
-}
-
-.style-selector-icon {
-  font-size: 16px;
-  opacity: 0.8;
-}
-
-.style-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 8px;
-  min-width: 260px;
-  box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(10px);
-}
-
-.style-dropdown-header {
-  padding: 10px 14px 8px;
-  color: var(--text-dim);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  font-weight: 600;
-}
-
-.style-option {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  background: none;
-  border: none;
-  border-radius: 12px;
-  padding: 12px 14px;
-  color: var(--text);
-  cursor: pointer;
-  transition: background 0.2s;
-  text-align: left;
-}
-
-.style-option:hover {
-  background: var(--card-hover);
-}
-
-.style-option.active {
-  background: var(--accent-glow);
-}
-
-.style-option-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.style-option-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.style-option-desc {
-  font-size: 11px;
-  color: var(--text-dim);
-}
-
-.style-check {
   color: var(--accent);
-  font-weight: bold;
-  font-size: 16px;
+  background: var(--accent-glow);
+  transform: scale(1.05);
+}
+
+.theme-toggle-btn svg {
+  transition: transform 0.3s ease;
+}
+
+.theme-toggle-btn:hover svg {
+  transform: rotate(15deg);
 }
 
 /* ==================== DYNAMIC STYLE VARIABLES ==================== */
@@ -4140,4 +4065,196 @@ a:hover { color: var(--accent-hover); }
     font-size: 13px;
     letter-spacing: 1px;
   }
+}
+
+/* ==================== MODE CLAIR ==================== */
+
+/* --- 1. Tous les textes hardcodes #fff → var(--text) --- */
+.light-mode .stat-value,
+.light-mode .stat-card p,
+.light-mode .how-to-start-page h3,
+.light-mode .how-to-start-page strong,
+.light-mode .legal-page h3,
+.light-mode .legal-page strong,
+.light-mode .earnings-title,
+.light-mode .earnings-field,
+.light-mode .earnings-row-label,
+.light-mode .earnings-row-value,
+.light-mode .worker-stat-value,
+.light-mode .msc-value,
+.light-mode .ss-value,
+.light-mode .secondary-stat .ss-value,
+.light-mode .mnf-title,
+.light-mode .status-headline {
+  color: var(--text);
+}
+
+/* --- 2. Header --- */
+.light-mode .header {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
+.light-mode .header-top {
+  border-bottom-color: var(--border);
+}
+.light-mode .header-nav {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+}
+.light-mode .header-search input {
+  color: var(--text);
+}
+
+/* --- 3. Discord : garder le fond violet --- */
+.light-mode .header-discord {
+  background: #5865F2;
+  color: #fff;
+}
+.light-mode .header-discord:hover {
+  background: #4752C4;
+  color: #fff;
+}
+
+/* --- 4. Language selector --- */
+.light-mode .lang-selector-btn {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: var(--border);
+  color: var(--text);
+}
+.light-mode .lang-selector-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  border-color: var(--accent);
+}
+.light-mode .lang-dropdown {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* --- 5. Boutons CTA gardent le texte blanc (fond orange) --- */
+.light-mode .header-cta,
+.light-mode .coin-card-btn,
+.light-mode .admin-login-btn,
+.light-mode .admin-action-btn,
+.light-mode .header-cta:hover,
+.light-mode .chart-periods button.active {
+  color: #fff;
+}
+
+/* --- 6. Tables header --- */
+.light-mode .leaderboard-table th,
+.light-mode .blocks-table thead,
+.light-mode .miners-table th {
+  background: var(--bg);
+}
+
+/* --- 7. Footer --- */
+.light-mode .footer-minimal {
+  background: var(--card);
+  border-top: 1px solid var(--border);
+}
+
+/* --- 8. Cards : ombres legeres --- */
+.light-mode .modern-stat-card,
+.light-mode .modern-info-card,
+.light-mode .modern-blocks-card,
+.light-mode .chart-container,
+.light-mode .coin-card,
+.light-mode .stat-card-new,
+.light-mode .secondary-stat,
+.light-mode .block-progress-bar,
+.light-mode .how-to-start-page,
+.light-mode .legal-page,
+.light-mode .admin-info-card,
+.light-mode .admin-stat-card,
+.light-mode .admin-table-wrap {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* --- 9. Dropdowns --- */
+.light-mode .style-dropdown {
+  box-shadow: 0 10px 50px rgba(0, 0, 0, 0.15);
+}
+
+/* --- 10. Landing page --- */
+.light-mode .landing-hero h1 {
+  color: var(--text);
+}
+.light-mode .coin-card-disabled {
+  opacity: 0.6;
+}
+
+/* --- 11. Tooltip (fond sombre hardcode) --- */
+.light-mode .tooltip-wrap .tooltip {
+  background: var(--card);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+.light-mode .tooltip-wrap .tooltip::after {
+  border-top-color: var(--card);
+}
+
+/* --- 12. Recharts tooltip --- */
+.light-mode .recharts-default-tooltip {
+  background: var(--card) !important;
+  border-color: var(--border) !important;
+}
+
+/* --- 13. Miner page --- */
+.light-mode .miner-address-bar {
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+
+/* --- 14. Badges --- */
+.light-mode .badge-pending {
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--yellow);
+}
+.light-mode .badge-confirmed {
+  background: rgba(22, 163, 74, 0.15);
+  color: var(--green);
+}
+
+/* --- 15. Progress bars --- */
+.light-mode .block-progress-track-v2 {
+  background: linear-gradient(180deg, #e8e8e8 0%, #d4d4d4 100%);
+  border: 1px solid var(--border);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* --- 16. Bordures subtiles rgba(255,255,255,0.0x) invisibles en clair --- */
+.light-mode .coin-card-detail,
+.light-mode .modern-info-row,
+.light-mode .clean-stat-row,
+.light-mode .dashboard-stat,
+.light-mode .stat-inline {
+  border-bottom-color: var(--border);
+}
+
+/* --- 17. Tables lignes subtiles --- */
+.light-mode [data-table-style="minimal"] .blocks-table td,
+.light-mode [data-table-style="minimal"] .leaderboard-table td,
+.light-mode [data-table-style="minimal"] .payments-table td {
+  border-bottom-color: var(--border);
+}
+.light-mode [data-table-style="striped"] .blocks-table tbody tr:nth-child(odd),
+.light-mode [data-table-style="striped"] .leaderboard-table tbody tr:nth-child(odd),
+.light-mode [data-table-style="striped"] .payments-table tbody tr:nth-child(odd) {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* --- 18. Style selector bouton --- */
+.light-mode .style-selector-btn {
+  background: var(--card);
+}
+
+/* --- 19. Earnings USD et BTC gardent leurs couleurs --- */
+.light-mode .earnings-usd {
+  color: var(--green) !important;
+}
+.light-mode .earnings-btc {
+  color: #f7931a !important;
+}
+
+/* --- 20. Liens --- */
+.light-mode a {
+  color: var(--accent);
 }

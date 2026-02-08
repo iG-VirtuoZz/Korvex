@@ -3,7 +3,7 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import LanguageSelector from "./LanguageSelector";
 import StyleSelector from "./StyleSelector";
-import { PoolLayout, loadSavedLayout, applyLayout } from "../themes/styles";
+import { applyBgTheme, loadSavedBgTheme } from "../themes/styles";
 import { useCoinBasePath } from "../hooks/useMiningMode";
 
 const STORAGE_KEY = "korvex_miner_address";
@@ -43,21 +43,18 @@ const DiscordIcon: React.FC = () => (
 const Header: React.FC = () => {
   const { t } = useTranslation();
   const [searchValue, setSearchValue] = useState("");
-  const [currentLayout, setCurrentLayout] = useState<PoolLayout>(loadSavedLayout());
   const navigate = useNavigate();
   const location = useLocation();
   const basePath = useCoinBasePath();
 
   const isLanding = location.pathname === "/";
-  const isCoinPage = location.pathname.startsWith("/coin/");
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       setSearchValue(saved);
     }
-    applyLayout(currentLayout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    applyBgTheme(loadSavedBgTheme());
   }, []);
 
   const handleSearch = () => {
@@ -97,9 +94,7 @@ const Header: React.FC = () => {
         </div>
 
         <div className="header-actions">
-          {isCoinPage && (
-            <StyleSelector currentLayout={currentLayout} onLayoutChange={setCurrentLayout} />
-          )}
+          <StyleSelector />
           <LanguageSelector />
           <NavLink to="/discord" className="header-discord" title="Join our Discord">
             <DiscordIcon />
