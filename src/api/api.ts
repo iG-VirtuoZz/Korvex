@@ -24,9 +24,9 @@ const CHART_PERIODS: Record<string, { interval: string | null; bucketSeconds: nu
 
 // Periodes autorisees pour le chart miner hashrate (pas de 1y/all car retention 90j max)
 const MINER_CHART_PERIODS: Record<string, { interval: string; bucketSeconds: number }> = {
+  "1h":  { interval: "1 hour",    bucketSeconds: 60 },
   "1d":  { interval: "24 hours",  bucketSeconds: 300 },
   "7d":  { interval: "7 days",    bucketSeconds: 3600 },
-  "30d": { interval: "30 days",   bucketSeconds: 14400 },
 };
 
 // Cache pour blockReward (evite d'appeler le noeud trop souvent)
@@ -778,8 +778,9 @@ export function createApi(
         ? `NOW() - INTERVAL '${conf.interval}'`
         : `(SELECT COALESCE(MIN(ts_minute), NOW() - INTERVAL '24 hours') FROM pool_hashrate_1m)`;
 
-      // Lissage : fenetre 3 pour 1d (buckets 5min = volatile), 1 pour les autres
-      const smoothingWindow = period === "1d" ? 3 : 1;
+      // Lissage : fenetre de moyenne glissante (ROWS BETWEEN N PRECEDING AND N FOLLOWING)
+      // Lissage pool : 1d: 4 (40 min), 7d: 0 (1h brut), autres: 1
+      const smoothingWindow = period === "1d" ? 4 : period === "7d" ? 0 : 1;
 
       // Cap anti-spike AVANT lissage : on calcule le percentile 75 de toute la periode
       // et on cap chaque bucket a cette valeur. Le P75 represente le hashrate "normalement haut"
@@ -852,8 +853,8 @@ export function createApi(
       const conf = MINER_CHART_PERIODS[period] || MINER_CHART_PERIODS["1d"];
       const bucketSeconds = conf.bucketSeconds;
 
-      // Lissage : fenetre plus large pour 1d (buckets 5min = volatile)
-      const smoothingWindow = period === "1d" ? 3 : 1;
+      // Lissage : 1h: 6 (12 min), 1d: 4 (40 min), 7d: 0 (1h brut), autres: 1 (12h)
+      const smoothingWindow = period === "1h" ? 6 : period === "1d" ? 4 : period === "7d" ? 0 : 1;
       const smoothingClause = "AVG(raw_value) OVER (ORDER BY ts ROWS BETWEEN " + smoothingWindow + " PRECEDING AND " + smoothingWindow + " FOLLOWING)";
 
       const result = await database.query(`
@@ -919,7 +920,8 @@ export function createApi(
       const conf = MINER_CHART_PERIODS[period] || MINER_CHART_PERIODS["1d"];
       const bucketSeconds = conf.bucketSeconds;
 
-      const smoothingWindow = period === "1d" ? 3 : 1;
+      // Lissage : 1h: 6 (12 min), 1d: 4 (40 min), 7d: 0 (1h brut), autres: 1 (12h)
+      const smoothingWindow = period === "1h" ? 6 : period === "1d" ? 4 : period === "7d" ? 0 : 1;
       const smoothingClause = "AVG(raw_value) OVER (ORDER BY ts ROWS BETWEEN " + smoothingWindow + " PRECEDING AND " + smoothingWindow + " FOLLOWING)";
 
       const result = await database.query(`

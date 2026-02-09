@@ -3,9 +3,9 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "rec
 import { getChartMinerHashrate, getChartWorkerHashrate, ChartPoint } from "../api";
 
 const PERIODS = [
+  { key: "1h", label: "1H" },
   { key: "1d", label: "1D" },
   { key: "7d", label: "7D" },
-  { key: "30d", label: "1M" },
 ];
 
 const formatHash = (v: number) => {
@@ -18,7 +18,7 @@ const formatHash = (v: number) => {
 
 const formatXAxis = (tsNum: number, period: string) => {
   const d = new Date(tsNum);
-  if (period === "1d") return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  if (period === "1h" || period === "1d") return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
 };
 
@@ -30,7 +30,9 @@ const computeTicks = (data: { tsNum: number }[], period: string): number[] => {
   if (range <= 0) return [minTs];
 
   let intervalMs: number;
-  if (period === "1d") {
+  if (period === "1h") {
+    intervalMs = 10 * 60 * 1000; // tick toutes les 10 minutes
+  } else if (period === "1d") {
     intervalMs = 4 * 3600 * 1000;
   } else if (period === "7d") {
     intervalMs = 24 * 3600 * 1000;
@@ -40,7 +42,13 @@ const computeTicks = (data: { tsNum: number }[], period: string): number[] => {
 
   const ticks: number[] = [];
   let firstTick: number;
-  if (period === "1d") {
+  if (period === "1h") {
+    const d = new Date(minTs);
+    const m = Math.ceil(d.getMinutes() / 10) * 10;
+    d.setMinutes(m, 0, 0);
+    firstTick = d.getTime();
+    if (firstTick < minTs) firstTick += intervalMs;
+  } else if (period === "1d") {
     const d = new Date(minTs);
     const h = Math.ceil(d.getHours() / 4) * 4;
     d.setHours(h, 0, 0, 0);
