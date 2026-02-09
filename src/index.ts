@@ -43,10 +43,13 @@ async function main() {
     stratum = new StratumServer();
     await stratum.start();
 
-    createApi((mode?: string) => ({
-      sessions: stratum!.getSessionCount(mode),
-      miners: stratum!.getAuthorizedMiners(mode),
-    }));
+    createApi(
+      (mode?: string) => ({
+        sessions: stratum!.getSessionCount(mode),
+        miners: stratum!.getAuthorizedMiners(mode),
+      }),
+      () => stratum!.getDiceRolls()
+    );
 
     maintenance.start();
 

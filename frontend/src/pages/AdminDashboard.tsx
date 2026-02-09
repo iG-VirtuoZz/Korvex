@@ -4,8 +4,10 @@ import {
   adminLogin,
   clearAdminToken,
   getAdminDashboard,
+  getAdminDiceRolls,
   triggerPayout,
   AdminDashboardData,
+  DiceRollsData,
 } from "../api";
 
 function formatHashrate(h: number): string {
@@ -93,6 +95,8 @@ const AdminLogin: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
 const AdminDashboard: React.FC = () => {
   const [loggedIn, setLoggedIn] = useState(isAdminLoggedIn());
   const [data, setData] = useState<AdminDashboardData | null>(null);
+  const [diceData, setDiceData] = useState<DiceRollsData | null>(null);
+  const [activeTab, setActiveTab] = useState<"dashboard" | "dice">("dashboard");
   const [error, setError] = useState("");
   const [payoutLoading, setPayoutLoading] = useState(false);
   const [payoutResult, setPayoutResult] = useState<string | null>(null);
@@ -111,12 +115,23 @@ const AdminDashboard: React.FC = () => {
     }
   }, []);
 
+  const fetchDice = useCallback(async () => {
+    try {
+      const d = await getAdminDiceRolls();
+      setDiceData(d);
+    } catch {}
+  }, []);
+
   useEffect(() => {
     if (!loggedIn) return;
     fetchData();
-    const interval = setInterval(fetchData, 15000);
+    fetchDice();
+    const interval = setInterval(() => {
+      fetchData();
+      fetchDice();
+    }, 5000);
     return () => clearInterval(interval);
-  }, [loggedIn, fetchData]);
+  }, [loggedIn, fetchData, fetchDice]);
 
   const handleLogout = () => {
     clearAdminToken();
@@ -161,6 +176,20 @@ const AdminDashboard: React.FC = () => {
       <div className="admin-header">
         <h1 className="admin-title">ADMIN DASHBOARD</h1>
         <div className="admin-header-right">
+          <div className="admin-tabs">
+            <button
+              className={"admin-tab" + (activeTab === "dashboard" ? " admin-tab-active" : "")}
+              onClick={() => setActiveTab("dashboard")}
+            >
+              Dashboard
+            </button>
+            <button
+              className={"admin-tab" + (activeTab === "dice" ? " admin-tab-active" : "")}
+              onClick={() => setActiveTab("dice")}
+            >
+              Dice Rolls
+            </button>
+          </div>
           <span className="admin-timestamp">
             {new Date(data.timestamp).toLocaleTimeString()}
           </span>
@@ -178,6 +207,94 @@ const AdminDashboard: React.FC = () => {
       {error && (
         <div className="admin-alert-banner admin-alert-yellow">{error}</div>
       )}
+
+      {/* ========== DICE ROLLS TAB ========== */}
+      {activeTab === "dice" && diceData && (
+        <div className="admin-section">
+          {/* Stats cards */}
+          <div className="admin-stats-grid-4">
+            <div className="admin-stat-card">
+              <div className="admin-stat-label">Best Ratio</div>
+              <div className="admin-stat-value" style={{ color: diceData.bestRatio !== null && diceData.bestRatio < 100 ? "#22c55e" : "#f97316" }}>
+                {diceData.bestRatio !== null ? diceData.bestRatio < 10 ? diceData.bestRatio.toFixed(2) : Math.round(diceData.bestRatio).toLocaleString() : "-"}
+              </div>
+            </div>
+            <div className="admin-stat-card">
+              <div className="admin-stat-label">Total Shares</div>
+              <div className="admin-stat-value">{diceData.totalShares.toLocaleString()}</div>
+            </div>
+            <div className="admin-stat-card">
+              <div className="admin-stat-label">Block Candidates</div>
+              <div className="admin-stat-value" style={{ color: diceData.blockCandidates > 0 ? "#22c55e" : "#a1a1aa" }}>
+                {diceData.blockCandidates}
+              </div>
+            </div>
+            <div className="admin-stat-card">
+              <div className="admin-stat-label">Target</div>
+              <div className="admin-stat-value" style={{ color: "#22c55e" }}>&lt; 1.0</div>
+            </div>
+          </div>
+
+          <h3 className="admin-section-title">Last 100 Dice Rolls (fh / b)</h3>
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Time</th>
+                  <th>Worker</th>
+                  <th>Height</th>
+                  <th>Vardiff</th>
+                  <th>Ratio (fh/b)</th>
+                  <th>Result</th>
+                </tr>
+              </thead>
+              <tbody>
+                {diceData.rolls.map((roll, i) => {
+                  const ratioColor = roll.isBlock ? "#22c55e" :
+                    roll.ratio < 100 ? "#22c55e" :
+                    roll.ratio < 1000 ? "#84cc16" :
+                    roll.ratio < 5000 ? "#facc15" :
+                    roll.ratio < 10000 ? "#f97316" : "#a1a1aa";
+                  return (
+                    <tr key={i} style={roll.isBlock ? { background: "rgba(34,197,94,0.15)" } : undefined}>
+                      <td style={{ color: "#a1a1aa" }}>{i + 1}</td>
+                      <td>{new Date(roll.timestamp).toLocaleTimeString()}</td>
+                      <td style={{ color: "#f97316" }}>{roll.worker}</td>
+                      <td>{roll.height.toLocaleString()}</td>
+                      <td>{roll.vardiff.toLocaleString()}</td>
+                      <td style={{ color: ratioColor, fontWeight: roll.ratio < 1000 ? "bold" : "normal", fontFamily: "monospace" }}>
+                        {roll.ratio < 10 ? roll.ratio.toFixed(2) : Math.round(roll.ratio).toLocaleString()}
+                      </td>
+                      <td>
+                        {roll.isBlock ? (
+                          <span className="admin-badge-green" style={{ fontWeight: "bold" }}>BLOCK!</span>
+                        ) : roll.ratio < 100 ? (
+                          <span style={{ color: "#22c55e" }}>Close!</span>
+                        ) : roll.ratio < 1000 ? (
+                          <span style={{ color: "#84cc16" }}>Near</span>
+                        ) : (
+                          <span style={{ color: "#a1a1aa" }}>Miss</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {diceData.rolls.length === 0 && (
+                  <tr><td colSpan={7} style={{ color: "#a1a1aa", textAlign: "center", padding: "24px" }}>En attente des premieres shares...</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "dice" && !diceData && (
+        <div style={{ color: "#a1a1aa", textAlign: "center", padding: "48px" }}>Chargement des dice rolls...</div>
+      )}
+
+      {/* ========== DASHBOARD TAB ========== */}
+      {activeTab === "dashboard" && <>
 
       {/* Stat cards */}
       <div className="admin-stats-grid-4">
@@ -396,6 +513,8 @@ const AdminDashboard: React.FC = () => {
           )}
         </div>
       </div>
+
+      </>}
     </div>
   );
 };

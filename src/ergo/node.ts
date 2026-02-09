@@ -90,14 +90,19 @@ class ErgoNode {
 
   async submitSolution(solution: any): Promise<boolean> {
     try {
+      const body = JSON.stringify(solution);
+      console.log("[Node] submitSolution POST /mining/solution body=" + body);
       const res = await fetch(this.baseUrl + "/mining/solution", {
         method: "POST",
         headers: this.headers(true),
-        body: JSON.stringify(solution),
+        body,
         signal: AbortSignal.timeout(this.defaultTimeout),
       });
+      const text = await res.text();
+      console.log("[Node] submitSolution response: HTTP " + res.status + " body=" + text);
       return res.ok;
-    } catch {
+    } catch (err: any) {
+      console.error("[Node] submitSolution ERREUR:", err?.message || err);
       return false;
     }
   }

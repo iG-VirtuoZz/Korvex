@@ -143,7 +143,10 @@ function getMiningMode(req: any): string {
   return mode === 'solo' ? 'solo' : 'pplns';
 }
 
-export function createApi(getStratumInfo: (mode?: string) => { sessions: number; miners: string[] }) {
+export function createApi(
+  getStratumInfo: (mode?: string) => { sessions: number; miners: string[] },
+  getDiceRolls: () => { rolls: any[]; bestRatio: number | null; totalShares: number; blockCandidates: number }
+) {
   const app = express();
 
   // Fix trust proxy pour express-rate-limit derriere Nginx
@@ -1252,6 +1255,16 @@ export function createApi(getStratumInfo: (mode?: string) => { sessions: number;
       });
     } catch (err) {
       console.error("[Admin] Erreur dashboard:", err);
+      res.status(500).json({ error: "Erreur interne" });
+    }
+  });
+
+  // Dice Rolls — les 100 dernieres shares avec leur ratio fh/b (style casino)
+  app.get("/api/admin/dice-rolls", requireAdmin, async (_req, res) => {
+    try {
+      res.json(getDiceRolls());
+    } catch (err) {
+      console.error("[Admin] Erreur dice-rolls:", err);
       res.status(500).json({ error: "Erreur interne" });
     }
   });

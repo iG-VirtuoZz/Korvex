@@ -3507,6 +3507,35 @@ a:hover { color: var(--accent-hover); }
   gap: 16px;
 }
 
+.admin-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.admin-tab {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 6px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.admin-tab:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.admin-tab-active {
+  background: var(--accent);
+  color: #000;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
 .admin-timestamp {
   color: var(--text-dim);
   font-size: 0.85rem;

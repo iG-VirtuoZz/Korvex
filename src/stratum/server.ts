@@ -37,6 +37,22 @@ export class StratumServer {
   private idleSweepTimer: NodeJS.Timeout | null = null;
   private lastNetworkDifficulty: number = 0;
 
+  // Diagnostic : tracker le meilleur ratio fh/b pour voir a quel point on s'approche des blocs
+  private bestShareRatio: number = Infinity; // Plus petit = plus proche d'un bloc
+  private totalSharesProcessed: number = 0;
+  private blockCandidatesDetected: number = 0;
+
+  // Dice Rolls : les 100 dernieres shares avec leur ratio fh/b (style casino)
+  private diceRolls: Array<{
+    timestamp: string;
+    worker: string;
+    address: string;
+    ratio: number;
+    isBlock: boolean;
+    height: number;
+    vardiff: number;
+  }> = [];
+
   private connectionCounts: Map<string, number> = new Map();
   private maxConnectionsPerIP: number = 10;
   private invalidShareCounts: Map<string, InvalidShareEntry> = new Map();
@@ -336,6 +352,26 @@ export class StratumServer {
 
       // Share VALIDE
       session.recordShare();
+      this.totalSharesProcessed++;
+
+      // Diagnostic : ratio fh/bNetwork — plus petit = plus proche d'un bloc (< 1.0 = bloc !)
+      const shareRatio = Number(result.fh) / Number(job.bNetwork);
+      if (shareRatio < this.bestShareRatio) {
+        this.bestShareRatio = shareRatio;
+        console.log("[Stratum] BEST SHARE: ratio=" + shareRatio.toExponential(4) + " (fh/b, <1.0 = bloc) total=" + this.totalSharesProcessed + " shares");
+      }
+
+      // Dice Roll : stocker pour l'admin panel
+      this.diceRolls.unshift({
+        timestamp: new Date().toISOString(),
+        worker: session.worker,
+        address: session.address,
+        ratio: shareRatio,
+        isBlock: result.meetsNetworkTarget,
+        height,
+        vardiff: session.lastSentDifficulty,
+      });
+      if (this.diceRolls.length > 100) this.diceRolls.length = 100;
 
       // shareDiff = travail absolu prouve par le share
       // Avec multiplyDifficulty: bShare = bNetwork * vardiff, donc le mineur
@@ -348,15 +384,18 @@ export class StratumServer {
 
       // Bloc candidat ?
       if (result.meetsNetworkTarget) {
-        console.log("[Stratum] !!! BLOC TROUVE !!! Hauteur: " + height + " par " + session.address + "." + session.worker);
+        this.blockCandidatesDetected++;
+        console.log("[Stratum] !!! BLOC TROUVE !!! Hauteur: " + height + " par " + session.address + "." + session.worker + " (candidat #" + this.blockCandidatesDetected + ", ratio fh/b=" + shareRatio.toExponential(6) + ")");
         try {
           const solution = {
             pk: job.candidate.pk,
-            w: "0350e25cee8562697d55275c96bb01b34228f9bd68fd9933f2a25ff195526864f5",
+            w: "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
             n: fullNonceHex,
             d: 0,
           };
+          console.log("[Stratum] Soumission solution: pk=" + solution.pk.substring(0, 16) + "... n=" + solution.n + " d=" + solution.d);
           const submitted = await ergoNode.submitSolution(solution);
+          console.log("[Stratum] Reponse noeud submitSolution: " + submitted);
           if (submitted) {
             console.log("[Stratum] Bloc soumis au noeud avec succes !");
 
@@ -548,6 +587,15 @@ export class StratumServer {
       }
     }
     return Array.from(miners);
+  }
+
+  getDiceRolls() {
+    return {
+      rolls: this.diceRolls,
+      bestRatio: this.bestShareRatio === Infinity ? null : this.bestShareRatio,
+      totalShares: this.totalSharesProcessed,
+      blockCandidates: this.blockCandidatesDetected,
+    };
   }
 }
 

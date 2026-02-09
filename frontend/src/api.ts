@@ -216,5 +216,25 @@ export interface AdminDashboardData {
 export const getAdminDashboard = (): Promise<AdminDashboardData> =>
   fetchJsonAdmin("admin/dashboard");
 
+export interface DiceRoll {
+  timestamp: string;
+  worker: string;
+  address: string;
+  ratio: number;
+  isBlock: boolean;
+  height: number;
+  vardiff: number;
+}
+
+export interface DiceRollsData {
+  rolls: DiceRoll[];
+  bestRatio: number | null;
+  totalShares: number;
+  blockCandidates: number;
+}
+
+export const getAdminDiceRolls = (): Promise<DiceRollsData> =>
+  fetchJsonAdmin("admin/dice-rolls");
+
 export const triggerPayout = (): Promise<any> =>
   fetchJsonAdmin("admin/trigger-payout", { method: "POST" });
