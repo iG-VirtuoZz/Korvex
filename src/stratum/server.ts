@@ -28,7 +28,7 @@ export class StratumServer {
   private server: net.Server;
   private soloServer: net.Server;
   private sessions: Map<string, MinerSession> = new Map();
-  private extraNonceCounter: number = 0;
+  private extraNonceCounter: number = 1;
   private currentJob: JobEntry | null = null;
   private currentJobId: number = 0;
   private validJobs: Map<string, JobEntry> = new Map();
@@ -44,7 +44,7 @@ export class StratumServer {
   private invalidShareTTL: number = 3600_000; // 1 heure
   private maxValidJobs: number = 10;
 
-  private extraNonce2Size: number = 4;
+  private extraNonce2Size: number = 6;
 
   // Cache de la derniere diff par worker (address.worker -> {vardiff, lastSeen})
   // Permet de restaurer la diff a la reconnexion au lieu de repartir a 10000
@@ -123,28 +123,14 @@ export class StratumServer {
   }
 
   /**
-   * Idle Sweep : pour chaque session autorisee sans share depuis > 30s,
-   * augmenter le vardiff de 50% (rendre plus facile) pour debloquer le worker.
+   * Idle Sweep desactive.
+   * L'ancien code augmentait le vardiff pour les workers idle, mais avec multiplyDifficulty
+   * (bShare = bNetwork * vardiff), un vardiff trop eleve rend le b tellement grand que
+   * lolMiner ne peut plus trouver de solution et se deconnecte en boucle.
+   * Le vardiff normal suffit a s'adapter via les timestamps de shares.
    */
   private idleSweep() {
-    const now = Date.now();
-    for (const session of this.sessions.values()) {
-      if (!session.authorized) continue;
-      const lastShare = session.getLastShareTimestamp();
-      // Pas de share du tout : le worker vient peut-etre de se connecter, ignorer
-      if (lastShare === 0) continue;
-      const idleMs = now - lastShare;
-      if (idleMs > IDLE_THRESHOLD_MS) {
-        // Augmenter le vardiff (= baisser la difficulte effective pour le mineur)
-        const newDiff = Math.round(session.difficulty * IDLE_DIFF_BUMP);
-        if (newDiff !== session.difficulty) {
-          console.log("[IdleSweep] " + session.address.substring(0, 12) + "..." + session.worker +
-            " idle " + (idleMs / 1000).toFixed(0) + "s, vardiff " + session.difficulty + " -> " + newDiff);
-          session.setDifficulty(newDiff);
-          session.resetShareTimestamps();
-        }
-      }
-    }
+    // Desactive - le vardiff standard gere deja les ajustements
   }
 
   private getInvalidCount(ip: string): number {
@@ -172,7 +158,7 @@ export class StratumServer {
       return;
     }
 
-    const extraNonce = (this.extraNonceCounter++ % 0xFFFFFFFF).toString(16).padStart(8, "0");
+    const extraNonce = (this.extraNonceCounter++ % 0xFFFF).toString(16).padStart(4, "0");
     const session = new MinerSession(socket, extraNonce);
     session.miningMode = miningMode;
     const sessionId = session.subscriptionId;
@@ -271,17 +257,11 @@ export class StratumServer {
     session.authorized = true;
     session.sendResult(id, true);
 
-    // Restaurer la derniere diff connue pour ce worker (evite le burst post-restart)
-    const workerKey = session.address + "." + session.worker;
-    const lastDiffEntry = this.workerLastDiff.get(workerKey);
-    if (lastDiffEntry && lastDiffEntry.diff >= 100) {
-      session.setDifficulty(lastDiffEntry.diff);
-      session.markBootstrapped(); // Worker connu : pas besoin de bootstrap
-      console.log("[Stratum] Mineur autorise: " + session.address.substring(0, 12) + "..." + session.worker + " (vardiff restaure: " + lastDiffEntry.diff + ")");
-    } else {
-      session.markAuthorized(); // Nouveau worker : activer le bootstrap
-      console.log("[Stratum] Mineur autorise: " + session.address.substring(0, 12) + "..." + session.worker + " (vardiff initial: " + session.difficulty + ", bootstrap actif)");
-    }
+    // Toujours utiliser le bootstrap — la restauration du vardiff cache causait des
+    // bShare trop grands avec des vardiff gonfles, rendant les mineurs incapables
+    // de trouver des solutions (reconnexions en boucle lolMiner/TeamRedMiner)
+    session.markAuthorized();
+    console.log("[Stratum] Mineur autorise: " + session.address.substring(0, 12) + "..." + session.worker + " (vardiff: " + session.difficulty + ")");
 
     if (this.currentJob) {
       this.sendJob(session);
@@ -342,8 +322,9 @@ export class StratumServer {
     const height = job.candidate.h;
 
     try {
-      // bShareTarget = bNetwork * vardiff (pre-multiplie, identique a ce que le mineur a recu)
-      const bShareTarget = job.bNetwork * BigInt(session.difficulty);
+      // bShareTarget = bNetwork * vardiff envoye au mineur (pas le vardiff interne qui peut avoir change)
+      // Le mineur mine avec le bShare recu dans mining.notify, on doit valider avec le meme
+      const bShareTarget = job.bNetwork * BigInt(session.lastSentDifficulty);
       const result = validateShare(msg, nonce, height, bShareTarget, job.bNetwork);
 
       if (!result.valid) {
@@ -359,10 +340,10 @@ export class StratumServer {
       // shareDiff = travail absolu prouve par le share
       // Avec multiplyDifficulty: bShare = bNetwork * vardiff, donc le mineur
       // mine a une target vardiff fois plus facile que le reseau.
-      // Le travail absolu = networkDiff / vardiff
-      const shareDiff = Math.round(this.lastNetworkDifficulty / session.difficulty);
+      // Le travail absolu = networkDiff / vardiff (utiliser le vardiff envoye)
+      const shareDiff = Math.round(this.lastNetworkDifficulty / session.lastSentDifficulty);
       await database.recordShare(session.address, session.worker, shareDiff, this.lastNetworkDifficulty, height, true, session.miningMode);
-      console.log("[Stratum] Share OK: " + session.address.substring(0, 12) + "..." + session.worker + " shareDiff=" + shareDiff + " vardiff=" + session.difficulty + " netDiff=" + this.lastNetworkDifficulty);
+      console.log("[Stratum] Share OK: " + session.address.substring(0, 12) + "..." + session.worker + " shareDiff=" + shareDiff + " vardiff=" + session.lastSentDifficulty + " netDiff=" + this.lastNetworkDifficulty);
       session.sendResult(id, true);
 
       // Bloc candidat ?
@@ -497,7 +478,7 @@ export class StratumServer {
         }
 
         console.log("[Stratum] Nouveau job #" + this.currentJobId + " hauteur=" + candidate.h + (heightChanged ? " (NEW BLOCK)" : ""));
-        this.broadcastJob(heightChanged);
+        this.broadcastJob(false);
       }
     } catch (err) {
       console.error("[Stratum] Erreur pollWork:", err);
@@ -518,6 +499,10 @@ export class StratumServer {
     // Tous les mineurs: envoyer bShare pre-multiplie (bNetwork * vardiff)
     // C'est le comportement standard qui fonctionne avec lolMiner/TeamRedMiner
     const bShare = this.currentJob.bNetwork * BigInt(session.difficulty);
+
+    // Sauvegarder le vardiff envoye — pour la validation des shares
+    // Le mineur mine avec CE bShare, pas celui d'un vardiff qui aurait change entre-temps
+    session.lastSentDifficulty = session.difficulty;
 
     // clean_jobs = true quand la hauteur change (nouveau bloc reseau)
     // Les mineurs doivent abandonner leurs travaux en cours sur l'ancien bloc

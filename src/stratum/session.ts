@@ -41,6 +41,10 @@ export class MinerSession {
   public minerType: MinerType = "unknown";
   public userAgent: string = "";
 
+  // Vardiff envoye au mineur avec le dernier mining.notify
+  // Utilise pour la validation des shares (le mineur mine avec CE bShare)
+  public lastSentDifficulty: number = DEFAULT_INITIAL_DIFF;
+
   // Callback appele quand le vardiff change, pour que le serveur re-envoie le job
   public onDifficultyChanged: (() => void) | null = null;
 
@@ -68,10 +72,17 @@ export class MinerSession {
       this.difficulty = Math.min(startDifficulty, VARDIFF_CONFIG.maxDiff);
     }
 
+    // TCP keepalive : detecte les connexions mortes (mineur crash sans FIN)
+    socket.setKeepAlive(true, 30000);
+
     socket.setEncoding("utf8");
     socket.on("data", (data: string) => this.handleData(data));
-    socket.on("error", () => this.disconnect());
-    socket.on("close", () => {
+    socket.on("error", (err) => {
+      console.log("[Session] Socket error " + (this.address ? this.address.substring(0, 12) + "..." + this.worker : socket.remoteAddress) + ": " + (err?.message || err));
+      this.disconnect();
+    });
+    socket.on("close", (hadError) => {
+      console.log("[Session] Socket close " + (this.address ? this.address.substring(0, 12) + "..." + this.worker : "unknown") + (hadError ? " (avec erreur)" : ""));
       if (this.onDisconnect) this.onDisconnect();
     });
 
@@ -112,8 +123,11 @@ export class MinerSession {
 
   send(data: any) {
     try {
-      this.socket.write(JSON.stringify(data) + "\n");
-    } catch {
+      if (this.socket.destroyed) return;
+      const json = JSON.stringify(data);
+      this.socket.write(json + "\n");
+    } catch (err: any) {
+      console.log("[Session] Write error " + (this.address || "unknown") + ": " + (err?.message || err));
       this.disconnect();
     }
   }
@@ -128,10 +142,9 @@ export class MinerSession {
 
   setDifficulty(diff: number) {
     this.difficulty = Math.max(VARDIFF_CONFIG.minDiff, Math.min(VARDIFF_CONFIG.maxDiff, Math.round(diff)));
-    // Toujours envoyer 1: tous les mineurs utilisent le b pre-multiplie de mining.notify
-    this.sendNotify("mining.set_difficulty", [1]);
-    // Informer le serveur pour qu'il re-envoie le job avec le nouveau b
-    if (this.onDifficultyChanged) this.onDifficultyChanged();
+    // Le nouveau bShare sera applique au prochain job naturel (nouveau bloc ou poll)
+    // NE PAS renvoyer le job ici — renvoyer un mining.notify avec le meme jobId
+    // mais un bShare different confond lolMiner et cause des deconnexions silencieuses
   }
 
   recordShare() {
@@ -141,23 +154,10 @@ export class MinerSession {
       this.shareTimestamps = this.shareTimestamps.slice(-20);
     }
 
-    // Bootstrap : estimation rapide du vardiff sur la 1ere share d'un nouveau worker
-    if (!this.hasBootstrapped && this.authorizedAt > 0) {
-      this.hasBootstrapped = true;
-      const elapsed = (now - this.authorizedAt) / 1000;
-      // Seulement si le temps est raisonnable (2s a 300s)
-      if (elapsed >= 2 && elapsed <= 300) {
-        const ratio = elapsed / VARDIFF_CONFIG.targetShareTime;
-        const newDiff = this.difficulty * ratio;
-        const clampedDiff = Math.max(VARDIFF_CONFIG.minDiff, Math.min(VARDIFF_CONFIG.maxDiff, Math.round(newDiff)));
-        if (clampedDiff !== this.difficulty) {
-          console.log("[Vardiff] Bootstrap " + this.address.substring(0, 12) + "..." + this.worker +
-            " : 1ere share en " + elapsed.toFixed(1) + "s, vardiff " + this.difficulty + " -> " + clampedDiff);
-          this.setDifficulty(clampedDiff);
-          this.shareTimestamps = [Date.now()];
-        }
-      }
-    }
+    // Bootstrap desactive — le vardiff standard (retarget toutes les 90s) suffit.
+    // Le bootstrap causait des vardiff aberrants (ex: 272507) quand le temps entre
+    // autorisation et 1ere share etait long (sessions fantomes, reconnexions), ce qui
+    // rendait le prochain job impossible a resoudre pour le mineur.
   }
 
   private retargetDifficulty() {
