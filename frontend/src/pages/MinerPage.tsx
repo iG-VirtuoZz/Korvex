@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n/i18n";
 import { getMiner, getStats, PoolStats } from "../api";
 import { useMiningMode } from "../hooks/useMiningMode";
 import EarningsCalculator from "../components/EarningsCalculator";
@@ -24,17 +26,18 @@ const formatErg = (nanoStr: string | undefined | null) => {
 };
 
 // Fonction statique pour calculer le temps ecoule
+// Utilise i18n.t() car elle est en dehors du composant React
 const calcTimeAgo = (dateStr: string | null | undefined) => {
   if (!dateStr) return "\u2014";
   const diff = Date.now() - new Date(dateStr).getTime();
   const sec = Math.floor(diff / 1000);
-  if (sec < 1) return "Now";
-  if (sec < 60) return sec + "s ago";
+  if (sec < 1) return i18n.t('time.now');
+  if (sec < 60) return i18n.t('time.s_ago', { count: sec });
   const min = Math.floor(sec / 60);
-  if (min < 60) return min + " min ago";
+  if (min < 60) return i18n.t('time.min_ago', { count: min });
   const hr = Math.floor(min / 60);
-  if (hr < 24) return hr + "h ago";
-  return Math.floor(hr / 24) + "d ago";
+  if (hr < 24) return i18n.t('time.h_ago', { count: hr });
+  return i18n.t('time.d_ago', { count: Math.floor(hr / 24) });
 };
 
 // Composant LiveTimeAgo - mise a jour adaptative avec sync precise
@@ -92,7 +95,7 @@ const effortColor = (effort: number | null) => {
 // Composant barre de progression du bloc reseau
 // Style avec rayures diagonales animees et fleche
 const BLOCK_TARGET_TIME = 120; // 2 minutes en secondes
-const NetworkBlockProgress: React.FC<{ lastBlockTimestamp: number }> = ({ lastBlockTimestamp }) => {
+const NetworkBlockProgress: React.FC<{ lastBlockTimestamp: number; label: string }> = ({ lastBlockTimestamp, label }) => {
   const [percent, setPercent] = useState(0);
 
   useEffect(() => {
@@ -131,7 +134,7 @@ const NetworkBlockProgress: React.FC<{ lastBlockTimestamp: number }> = ({ lastBl
   return (
     <div className="block-progress-bar">
       <div className="block-progress-label">
-        <span>Network Block Progress</span>
+        <span>{label}</span>
         <span className="block-progress-percent" style={{ color: getCurrentColor() }}>
           {percent.toFixed(1)}%
         </span>
@@ -162,7 +165,7 @@ const NetworkBlockProgress: React.FC<{ lastBlockTimestamp: number }> = ({ lastBl
 
 // Composant barre d'effort de la pool
 // Affiche le % d'effort actuel de la pool pour trouver un bloc
-const PoolEffortProgress: React.FC<{ effort: number | null; label?: string }> = ({ effort, label }) => {
+const PoolEffortProgress: React.FC<{ effort: number | null; label: string }> = ({ effort, label }) => {
   const percent = effort ?? 0;
 
   // Position du remplissage (max 100% de la barre = 250% effort)
@@ -188,7 +191,7 @@ const PoolEffortProgress: React.FC<{ effort: number | null; label?: string }> = 
   return (
     <div className="block-progress-bar">
       <div className="block-progress-label">
-        <span>{label || "Pool Effort"}</span>
+        <span>{label}</span>
         <span className="block-progress-percent" style={{ color: getCurrentColor() }}>
           {percent.toFixed(1)}%
         </span>
@@ -242,6 +245,7 @@ const setHiddenWorkers = (address: string, workers: string[]) => {
 
 const MinerPage: React.FC = () => {
   const { address: paramAddress } = useParams<{ address: string }>();
+  const { t } = useTranslation();
   const mode = useMiningMode();
   const [miner, setMiner] = useState<any>(null);
   const [poolStats, setPoolStats] = useState<PoolStats | null>(null);
@@ -268,10 +272,10 @@ const MinerPage: React.FC = () => {
       })
       .catch(() => {
         setMiner(null);
-        setError("Miner not found. Check the address.");
+        setError(t('miner.not_found_text'));
       })
       .finally(() => setLoading(false));
-  }, [mode]);
+  }, [mode, t]);
 
   useEffect(() => {
     if (paramAddress) {
@@ -283,11 +287,11 @@ const MinerPage: React.FC = () => {
 
   useEffect(() => {
     if (!paramAddress) return;
-    const t = setInterval(() => {
+    const interval = setInterval(() => {
       loadMiner(paramAddress);
       getStats(mode).then(setPoolStats).catch(() => {});
     }, 15000); // Refresh toutes les 15 secondes (evite surcharge DB/API)
-    return () => clearInterval(t);
+    return () => clearInterval(interval);
   }, [paramAddress, loadMiner, mode]);
 
   // Masquer un worker (ajouter a la liste)
@@ -364,11 +368,11 @@ const MinerPage: React.FC = () => {
     return (
       <div className="layout-modern">
         <div className="modern-header">
-          <h1>MINER STATS</h1>
-          <p>Use the search bar above to look up a wallet address</p>
+          <h1>{t('miner.title')}</h1>
+          <p>{t('miner.search_prompt')}</p>
         </div>
         <div className="modern-info-card" style={{ textAlign: "center", padding: 40, color: "var(--text-dim)" }}>
-          Enter a wallet address in the header search bar to view miner statistics.
+          {t('miner.search_detail')}
         </div>
       </div>
     );
@@ -378,19 +382,19 @@ const MinerPage: React.FC = () => {
     <div className="layout-modern">
       {/* Header */}
       <div className="modern-header">
-        <h1>{mode === 'solo' ? 'SOLO MINER STATS' : 'MINER STATS'}</h1>
-        <p>{mode === 'solo' ? 'Solo mining statistics' : 'Detailed statistics for a single miner'}</p>
+        <h1>{mode === 'solo' ? t('miner.title_solo') : t('miner.title')}</h1>
+        <p>{mode === 'solo' ? t('miner.subtitle_solo') : t('miner.subtitle')}</p>
       </div>
 
       {loading && !miner && (
-        <div className="modern-info-card" style={{ textAlign: "center", color: "var(--text-dim)", padding: 32 }}>Loading...</div>
+        <div className="modern-info-card" style={{ textAlign: "center", color: "var(--text-dim)", padding: 32 }}>{t('miner.loading')}</div>
       )}
       {error && (
         <div className="modern-info-card miner-not-found">
           <div className="mnf-icon">&#128269;</div>
-          <div className="mnf-title">No data yet</div>
+          <div className="mnf-title">{t('miner.not_found_title')}</div>
           <div className="mnf-addr">{paramAddress}</div>
-          <div className="mnf-text">This address has not been seen on KORVEX Pool, or has no recent activity.</div>
+          <div className="mnf-text">{t('miner.not_found_text')}</div>
         </div>
       )}
 
@@ -398,75 +402,75 @@ const MinerPage: React.FC = () => {
         <>
           {/* Adresse du mineur */}
           <div className="miner-address-bar">
-            <span className="miner-address-label">Address</span>
+            <span className="miner-address-label">{t('miner.address')}</span>
             <span className="miner-address-value">{miner.address}</span>
             <button
               className="miner-address-copy"
               onClick={() => navigator.clipboard.writeText(miner.address)}
-              title="Copy address"
+              title={t('miner.copy_address')}
             >
               &#x2398;
             </button>
           </div>
 
           {/* Section Earnings - 3 stats */}
-          <div className="miner-section-title">Earnings</div>
+          <div className="miner-section-title">{t('miner.earnings')}</div>
           <div className="modern-stats-grid">
             {mode === 'solo' ? (
               <div className="modern-stat-card modern-stat-accent">
                 <div className="msc-icon">&#9874;</div>
-                <div className="msc-label">Solo Blocks Found</div>
+                <div className="msc-label">{t('miner.solo_blocks_found')}</div>
                 <div className="msc-value">{miner.soloBlocksFound || 0}</div>
-                <div className="msc-sub">100% reward to you (minus 1.5% fee)</div>
+                <div className="msc-sub">{t('miner.solo_sub')}</div>
               </div>
             ) : (
               <div className="modern-stat-card modern-stat-accent">
                 <div className="msc-icon">&#9203;</div>
-                <div className="msc-label">Unpaid (Pending)</div>
+                <div className="msc-label">{t('miner.unpaid_pending')}</div>
                 <div className="msc-value">{formatErg(miner.pending_balance)}</div>
-                <div className="msc-sub">PPLNS rewards awaiting confirmation</div>
+                <div className="msc-sub">{t('miner.pplns_sub')}</div>
               </div>
             )}
             <div className="modern-stat-card modern-stat-accent">
               <div className="msc-icon">&#128176;</div>
-              <div className="msc-label">Confirmed Balance</div>
+              <div className="msc-label">{t('miner.confirmed_balance')}</div>
               <div className="msc-value">{formatErg(miner.balance)}</div>
-              <div className="msc-sub">Ready for payout (&ge; 1 ERG)</div>
+              <div className="msc-sub">{t('miner.confirmed_sub')}</div>
             </div>
             <div className="modern-stat-card modern-stat-accent">
               <div className="msc-icon">&#128184;</div>
-              <div className="msc-label">Total Paid</div>
+              <div className="msc-label">{t('miner.total_paid')}</div>
               <div className="msc-value">{formatErg(miner.total_paid_nano)}</div>
-              <div className="msc-sub">Lifetime earnings sent</div>
+              <div className="msc-sub">{t('miner.total_paid_sub')}</div>
             </div>
           </div>
 
           {/* Section Performance - 5 stats */}
-          <div className="miner-section-title">Performance</div>
+          <div className="miner-section-title">{t('miner.performance')}</div>
           <div className="modern-stats-grid modern-stats-grid-5">
             <div className="modern-stat-card">
               <div className="msc-icon">&#9889;</div>
-              <div className="msc-label">Hashrate 15m</div>
+              <div className="msc-label">{t('miner.hashrate_15m')}</div>
               <div className="msc-value">{formatHash(miner.hashrate_15m)}</div>
             </div>
             <div className="modern-stat-card">
               <div className="msc-icon">&#9889;</div>
-              <div className="msc-label">Hashrate 1h</div>
+              <div className="msc-label">{t('miner.hashrate_1h')}</div>
               <div className="msc-value">{formatHash(miner.hashrate_1h)}</div>
             </div>
             <div className="modern-stat-card">
               <div className="msc-icon">&#128296;</div>
-              <div className="msc-label">Workers</div>
+              <div className="msc-label">{t('miner.workers')}</div>
               <div className="msc-value">{visibleWorkers.length || 0}</div>
             </div>
             <div className="modern-stat-card">
               <div className="msc-icon">&#128200;</div>
-              <div className="msc-label">Total Shares</div>
+              <div className="msc-label">{t('miner.total_shares')}</div>
               <div className="msc-value">{miner.total_shares ? Number(miner.total_shares).toLocaleString() : "0"}</div>
             </div>
             <div className="modern-stat-card">
               <div className="msc-icon">&#128338;</div>
-              <div className="msc-label">Last Share</div>
+              <div className="msc-label">{t('miner.last_share')}</div>
               <div className="msc-value"><LiveTimeAgo dateStr={lastShareAt} /></div>
             </div>
           </div>
@@ -479,26 +483,26 @@ const MinerPage: React.FC = () => {
           {/* Barres de progression */}
           <div className="progress-bars-container">
             {poolStats && poolStats.lastNetworkBlockTimestamp && (
-              <NetworkBlockProgress lastBlockTimestamp={poolStats.lastNetworkBlockTimestamp} />
+              <NetworkBlockProgress lastBlockTimestamp={poolStats.lastNetworkBlockTimestamp} label={t('miner.network_block_progress')} />
             )}
             {mode === 'solo' ? (
               miner.soloEffortPercent != null && (
-                <PoolEffortProgress effort={miner.soloEffortPercent} label="Personal Effort" />
+                <PoolEffortProgress effort={miner.soloEffortPercent} label={t('miner.personal_effort')} />
               )
             ) : (
               poolStats && (
-                <PoolEffortProgress effort={poolStats.currentEffort} />
+                <PoolEffortProgress effort={poolStats.currentEffort} label={t('miner.pool_effort')} />
               )
             )}
           </div>
 
-          {/* Workers Table - gardé tel quel */}
+          {/* Workers Table - garde tel quel */}
           <div className="modern-info-card">
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <div className="modern-info-title" style={{ marginBottom: 0 }}>Active Workers</div>
+              <div className="modern-info-title" style={{ marginBottom: 0 }}>{t('miner.active_workers')}</div>
               {hasOfflineWorkers && (
                 <button className="worker-remove-all" onClick={hideAllOffline}>
-                  Remove all offline workers
+                  {t('miner.remove_all_offline')}
                 </button>
               )}
             </div>
@@ -507,13 +511,13 @@ const MinerPage: React.FC = () => {
                 <table className="blocks-table">
                   <thead>
                     <tr>
-                      <th style={{ width: 60 }}>Status</th>
-                      <th>Worker</th>
-                      <th>Hashrate 15m</th>
-                      <th>Hashrate 1h</th>
-                      <th>Effort</th>
-                      <th>Blocks</th>
-                      <th>Last Share</th>
+                      <th style={{ width: 60 }}>{t('miner.worker_status')}</th>
+                      <th>{t('miner.worker_name')}</th>
+                      <th>{t('miner.hashrate_15m')}</th>
+                      <th>{t('miner.hashrate_1h')}</th>
+                      <th>{t('miner.worker_effort')}</th>
+                      <th>{t('miner.worker_blocks')}</th>
+                      <th>{t('miner.last_share')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -529,10 +533,10 @@ const MinerPage: React.FC = () => {
                               }}
                               title={
                                 status === "online"
-                                  ? "Online"
+                                  ? t('miner.worker_online')
                                   : status === "warning"
-                                  ? "Idle — click to hide"
-                                  : "Offline — click to hide"
+                                  ? t('miner.worker_idle')
+                                  : t('miner.worker_offline')
                               }
                               style={{ cursor: status === "online" ? "default" : "pointer" }}
                             >
@@ -581,12 +585,12 @@ const MinerPage: React.FC = () => {
                   <div className="worker-detail-panel">
                     <div className="worker-detail-header">
                       <h4 className="worker-detail-title">
-                        {selectedWorker} — Hashrate History
+                        {selectedWorker} — {t('miner.worker_hashrate_history')}
                       </h4>
                       <button
                         className="worker-detail-close"
                         onClick={() => setSelectedWorker(null)}
-                        title="Close"
+                        title={t('miner.close')}
                       >
                         &#x2715;
                       </button>
@@ -597,11 +601,11 @@ const MinerPage: React.FC = () => {
                 )}
               </>
             ) : (
-              <div style={{ color: "var(--text-dim)", padding: "12px 0" }}>No active workers in the last 24 hours.</div>
+              <div style={{ color: "var(--text-dim)", padding: "12px 0" }}>{t('miner.no_active_workers')}</div>
             )}
           </div>
 
-          {/* Estimated Earnings - gardé tel quel */}
+          {/* Estimated Earnings - garde tel quel */}
           {poolStats && networkDifficulty > 0 && (
             <div className="modern-info-card">
               <EarningsCalculator
@@ -615,17 +619,17 @@ const MinerPage: React.FC = () => {
             </div>
           )}
 
-          {/* Payments - gardé tel quel */}
+          {/* Payments - garde tel quel */}
           <div className="modern-info-card">
-            <div className="modern-info-title">Recent Payments</div>
+            <div className="modern-info-title">{t('miner.recent_payments')}</div>
             {miner.payments && miner.payments.length > 0 ? (
               <table className="payments-table">
                 <thead>
                   <tr>
-                    <th>Amount</th>
-                    <th>TX Hash</th>
-                    <th>Status</th>
-                    <th>Date</th>
+                    <th>{t('miner.amount')}</th>
+                    <th>{t('miner.tx_hash')}</th>
+                    <th>{t('miner.payment_status')}</th>
+                    <th>{t('miner.date')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -656,7 +660,7 @@ const MinerPage: React.FC = () => {
                 </tbody>
               </table>
             ) : (
-              <div style={{ color: "var(--text-dim)", padding: "12px 0" }}>No payments yet.</div>
+              <div style={{ color: "var(--text-dim)", padding: "12px 0" }}>{t('miner.no_payments')}</div>
             )}
           </div>
         </>

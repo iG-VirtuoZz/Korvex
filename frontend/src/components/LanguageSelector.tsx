@@ -9,6 +9,8 @@ interface Language {
 const languages: Language[] = [
   { code: "en", name: "English" },
   { code: "fr", name: "Français" },
+  { code: "ru", name: "Русский" },
+  { code: "zh", name: "中文" },
 ];
 
 const FlagEN: React.FC = () => (
@@ -29,9 +31,40 @@ const FlagFR: React.FC = () => (
   </svg>
 );
 
+const FlagRU: React.FC = () => (
+  <svg width="24" height="16" viewBox="0 0 60 40" xmlns="http://www.w3.org/2000/svg">
+    <rect width="60" height="13.33" fill="#fff"/>
+    <rect y="13.33" width="60" height="13.33" fill="#0039A6"/>
+    <rect y="26.66" width="60" height="13.34" fill="#D52B1E"/>
+  </svg>
+);
+
+const FlagZH: React.FC = () => (
+  <svg width="24" height="16" viewBox="0 0 60 40" xmlns="http://www.w3.org/2000/svg">
+    <rect width="60" height="40" fill="#DE2910"/>
+    <g fill="#FFDE00" transform="translate(10,8)">
+      <polygon points="0,-6 1.76,-1.85 6.47,-1.85 2.35,1.06 3.8,5.26 0,2.35 -3.8,5.26 -2.35,1.06 -6.47,-1.85 -1.76,-1.85"/>
+    </g>
+    <g fill="#FFDE00" transform="translate(20,3)">
+      <polygon points="0,-2.5 0.73,-0.77 2.7,-0.77 0.98,0.44 1.58,2.19 0,0.98 -1.58,2.19 -0.98,0.44 -2.7,-0.77 -0.73,-0.77"/>
+    </g>
+    <g fill="#FFDE00" transform="translate(23,7)">
+      <polygon points="0,-2.5 0.73,-0.77 2.7,-0.77 0.98,0.44 1.58,2.19 0,0.98 -1.58,2.19 -0.98,0.44 -2.7,-0.77 -0.73,-0.77"/>
+    </g>
+    <g fill="#FFDE00" transform="translate(23,13)">
+      <polygon points="0,-2.5 0.73,-0.77 2.7,-0.77 0.98,0.44 1.58,2.19 0,0.98 -1.58,2.19 -0.98,0.44 -2.7,-0.77 -0.73,-0.77"/>
+    </g>
+    <g fill="#FFDE00" transform="translate(20,17)">
+      <polygon points="0,-2.5 0.73,-0.77 2.7,-0.77 0.98,0.44 1.58,2.19 0,0.98 -1.58,2.19 -0.98,0.44 -2.7,-0.77 -0.73,-0.77"/>
+    </g>
+  </svg>
+);
+
 const flags: Record<string, React.FC> = {
   en: FlagEN,
   fr: FlagFR,
+  ru: FlagRU,
+  zh: FlagZH,
 };
 
 const LanguageSelector: React.FC = () => {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 interface EarningsCalculatorProps {
   minerHashrate: number;
@@ -31,6 +32,7 @@ const EarningsCalculator: React.FC<EarningsCalculatorProps> = ({
   ergPriceUsd,
   ergPriceBtc,
 }) => {
+  const { t } = useTranslation();
   const initialUnit = bestUnit(minerHashrate);
   const [unit, setUnit] = useState<HashUnit>(initialUnit);
   const initialValue = minerHashrate > 0 ? (minerHashrate / UNIT_MULTIPLIERS[initialUnit]).toFixed(2) : "";
@@ -75,9 +77,9 @@ const EarningsCalculator: React.FC<EarningsCalculatorProps> = ({
 
   return (
     <div className="earnings-calc">
-      <h3 className="earnings-title">Estimate Mining Profits</h3>
+      <h3 className="earnings-title">{t('calculator.title')}</h3>
       <p className="earnings-subtitle">
-        Please note that final rewards may vary based on the pool's luck, your average speed, and the network difficulty.
+        {t('calculator.subtitle')}
       </p>
 
       <div className="earnings-inputs">
@@ -118,19 +120,19 @@ const EarningsCalculator: React.FC<EarningsCalculatorProps> = ({
         </thead>
         <tbody>
           <tr>
-            <td className="earnings-row-label">Daily</td>
+            <td className="earnings-row-label">{t('calculator.daily')}</td>
             <td className="earnings-row-value">{formatErg(dailyErg)} ERG</td>
             <td className="earnings-row-value earnings-usd">{formatUsd(dailyErg)}</td>
             <td className="earnings-row-value earnings-btc">{formatBtc(dailyErg)} BTC</td>
           </tr>
           <tr>
-            <td className="earnings-row-label">Weekly</td>
+            <td className="earnings-row-label">{t('calculator.weekly')}</td>
             <td className="earnings-row-value">{formatErg(weeklyErg)} ERG</td>
             <td className="earnings-row-value earnings-usd">{formatUsd(weeklyErg)}</td>
             <td className="earnings-row-value earnings-btc">{formatBtc(weeklyErg)} BTC</td>
           </tr>
           <tr>
-            <td className="earnings-row-label">Monthly</td>
+            <td className="earnings-row-label">{t('calculator.monthly')}</td>
             <td className="earnings-row-value">{formatErg(monthlyErg)} ERG</td>
             <td className="earnings-row-value earnings-usd">{formatUsd(monthlyErg)}</td>
             <td className="earnings-row-value earnings-btc">{formatBtc(monthlyErg)} BTC</td>

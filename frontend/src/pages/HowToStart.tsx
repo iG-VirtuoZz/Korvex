@@ -1,184 +1,150 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
-const HowToStart: React.FC = () => (
-  <div className="how-to-start-page">
+const HowToStart: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <div className="how-to-start-page">
 
-    {/* ===================== 1. INTRODUCTION ===================== */}
-    <h2>How to Start Mining on KORVEX Pool</h2>
-    <p>
-      KORVEX is an independent mining pool for <strong>ERGO</strong> (ERG), a proof-of-work blockchain
-      based on the <strong>Autolykos2</strong> algorithm. The pool is open to everyone, GPU-mineable,
-      and designed for reliability and transparency.
-    </p>
-    <p>
-      This guide will help you set up your miner and start earning ERG in a few minutes.
-    </p>
+      {/* ===================== 1. INTRODUCTION ===================== */}
+      <h2>{t('howto.title')}</h2>
+      <p dangerouslySetInnerHTML={{ __html: t('howto.intro_p1') }} />
+      <p>{t('howto.intro_p2')}</p>
 
-    <hr />
+      <hr />
 
-    {/* ===================== 2. SERVER ===================== */}
-    <h3>1. Choose a Server</h3>
-    <p>
-      Connect to the server closest to your location for the best latency and fewer stale shares.
-    </p>
-    <table>
-      <thead>
-        <tr><th>Region</th><th>Server</th><th>Port</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>Europe (France)</td><td>korvexpool.com</td><td>3416</td></tr>
-      </tbody>
-    </table>
-    <p className="text-muted">
-      Additional regions (US, Asia) may be added in the future based on demand.
-    </p>
+      {/* ===================== 2. SERVER ===================== */}
+      <h3>{t('howto.server_title')}</h3>
+      <p>{t('howto.server_desc')}</p>
+      <table>
+        <thead>
+          <tr><th>{t('howto.server_region')}</th><th>{t('howto.server_server')}</th><th>{t('howto.server_port')}</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>{t('howto.server_europe')}</td><td>korvexpool.com</td><td>3416</td></tr>
+        </tbody>
+      </table>
+      <p className="text-muted">
+        {t('howto.server_note')}
+      </p>
 
-    <hr />
+      <hr />
 
-    {/* ===================== 3. WALLET ===================== */}
-    <h3>2. Get a Wallet</h3>
-    <p>
-      You need an ERGO wallet address to receive your mining rewards.
-      Your wallet address is also your mining username — no account registration is needed.
-    </p>
-    <p><strong>Recommended wallets:</strong></p>
-    <ul>
-      <li><strong>Nautilus Wallet</strong> — browser extension, easy to use (recommended)</li>
-      <li><strong>Ergo Wallet</strong> — official mobile wallet (Android / iOS)</li>
-    </ul>
-    <p className="text-muted">
-      You can also use an exchange deposit address, but this is not recommended.
-      Exchanges may change your deposit address without notice, which could cause lost payments.
-      Always prefer a personal wallet you control.
-    </p>
+      {/* ===================== 3. WALLET ===================== */}
+      <h3>{t('howto.wallet_title')}</h3>
+      <p>{t('howto.wallet_desc')}</p>
+      <p dangerouslySetInnerHTML={{ __html: t('howto.wallet_recommended') }} />
+      <ul>
+        <li dangerouslySetInnerHTML={{ __html: t('howto.wallet_nautilus') }} />
+        <li dangerouslySetInnerHTML={{ __html: t('howto.wallet_ergo') }} />
+      </ul>
+      <p className="text-muted">
+        {t('howto.wallet_warning')}
+      </p>
 
-    <hr />
+      <hr />
 
-    {/* ===================== 4. MINING SOFTWARE ===================== */}
-    <h3>3. Mining Software</h3>
-    <p>
-      Autolykos2 is GPU-mineable. Below are the most popular miners with ready-to-use commands.
-      Replace <code>YOUR_WALLET</code> with your ERG address and <code>RIG_NAME</code> with a name for your machine.
-    </p>
+      {/* ===================== 4. MINING SOFTWARE ===================== */}
+      <h3>{t('howto.software_title')}</h3>
+      <p dangerouslySetInnerHTML={{ __html: t('howto.software_desc') }} />
 
-    <div className="miner-recommendation">
-      <h4>✅ Recommended Miners</h4>
-      <p className="text-muted">These miners have 100% compatibility with KORVEX pool stratum implementation.</p>
+      <div className="miner-recommendation">
+        <h4>&#x2705; {t('howto.software_recommended_title')}</h4>
+        <p className="text-muted">{t('howto.software_recommended_desc')}</p>
+      </div>
+
+      <h4>lolMiner <span className="badge-recommended">Recommended</span></h4>
+      <p className="text-muted">{t('howto.lolminer_desc')}</p>
+      <pre><code>lolMiner --algo AUTOLYKOS2 --pool korvexpool.com:3416 --user YOUR_WALLET.RIG_NAME</code></pre>
+
+      <h4>TeamRedMiner <span className="badge-recommended">Recommended</span></h4>
+      <p className="text-muted">{t('howto.teamredminer_desc')}</p>
+      <pre><code>teamredminer -a autolykos2 -o stratum+tcp://korvexpool.com:3416 -u YOUR_WALLET.RIG_NAME -p x</code></pre>
+
+      <h4>Rigel <span className="badge-recommended">Recommended</span></h4>
+      <p className="text-muted">{t('howto.rigel_desc')}</p>
+      <pre><code>rigel -a autolykos2 -o stratum+tcp://korvexpool.com:3416 -u YOUR_WALLET.RIG_NAME</code></pre>
+
+      <div className="miner-recommendation miner-supported">
+        <h4>&#x26A0;&#xFE0F; {t('howto.software_also_supported_title')}</h4>
+        <p className="text-muted">{t('howto.software_also_supported_desc')}</p>
+      </div>
+
+      <h4>SRBMiner-MULTI</h4>
+      <p className="text-muted">{t('howto.srbminer_desc')}</p>
+      <pre><code>SRBMiner-MULTI --disable-cpu --algorithm autolykos2 --pool korvexpool.com:3416 --wallet YOUR_WALLET.RIG_NAME</code></pre>
+
+      <p className="text-muted" dangerouslySetInnerHTML={{ __html: t('howto.vram_note') }} />
+
+      <hr />
+
+      {/* ===================== 5. POOL PARAMETERS ===================== */}
+      <h3>{t('howto.params_title')}</h3>
+      <table>
+        <tbody>
+          <tr><td><strong>{t('howto.params_coin')}</strong></td><td>ERGO (ERG)</td></tr>
+          <tr><td><strong>{t('howto.params_algorithm')}</strong></td><td>Autolykos2</td></tr>
+          <tr><td><strong>{t('howto.params_fee')}</strong></td><td>1%</td></tr>
+          <tr><td><strong>{t('howto.params_reward')}</strong></td><td>PPLNS</td></tr>
+          <tr><td><strong>{t('howto.params_min_payout')}</strong></td><td>1 ERG</td></tr>
+          <tr><td><strong>{t('howto.params_confirmations')}</strong></td><td>{t('howto.params_confirmations_value')}</td></tr>
+          <tr><td><strong>{t('howto.params_payouts')}</strong></td><td>{t('howto.params_payouts_value')}</td></tr>
+          <tr><td><strong>{t('howto.params_port')}</strong></td><td>3416</td></tr>
+        </tbody>
+      </table>
+
+      <hr />
+
+      {/* ===================== 6. PPLNS ===================== */}
+      <h3>{t('howto.pplns_title')}</h3>
+      <p dangerouslySetInnerHTML={{ __html: t('howto.pplns_desc') }} />
+      <p>{t('howto.pplns_window')}</p>
+      <p dangerouslySetInnerHTML={{ __html: t('howto.pplns_key_points') }} />
+      <ul>
+        {(t('howto.pplns_points', { returnObjects: true }) as string[]).map((item, i) => (
+          <li key={i} dangerouslySetInnerHTML={{ __html: item }} />
+        ))}
+      </ul>
+
+      <hr />
+
+      {/* ===================== 7. PAYMENTS ===================== */}
+      <h3>{t('howto.payments_title')}</h3>
+      <p dangerouslySetInnerHTML={{ __html: t('howto.payments_desc') }} />
+      <ul>
+        {(t('howto.payments_points', { returnObjects: true }) as string[]).map((item, i) => (
+          <li key={i} dangerouslySetInnerHTML={{ __html: item }} />
+        ))}
+      </ul>
+
+      <hr />
+
+      {/* ===================== 8. STATS ===================== */}
+      <h3>{t('howto.stats_title')}</h3>
+      <p dangerouslySetInnerHTML={{ __html: t('howto.stats_desc') }} />
+      <ul>
+        {(t('howto.stats_points', { returnObjects: true }) as string[]).map((item, i) => (
+          <li key={i} dangerouslySetInnerHTML={{ __html: item }} />
+        ))}
+      </ul>
+      <p className="text-muted">
+        {t('howto.stats_note')}
+      </p>
+
+      <hr />
+
+      {/* ===================== 9. SUPPORT ===================== */}
+      <h3>{t('howto.support_title')}</h3>
+      <p>{t('howto.support_desc')}</p>
+      <ul>
+        <li dangerouslySetInnerHTML={{ __html: t('howto.support_discord') }} />
+        <li dangerouslySetInnerHTML={{ __html: t('howto.support_telegram') }} />
+        <li dangerouslySetInnerHTML={{ __html: t('howto.support_email') }} />
+      </ul>
+      <p className="text-muted" dangerouslySetInnerHTML={{ __html: t('howto.support_note') }} />
+
     </div>
-
-    <h4>lolMiner <span className="badge-recommended">Recommended</span></h4>
-    <p className="text-muted">NVIDIA &amp; AMD — Best overall compatibility</p>
-    <pre><code>lolMiner --algo AUTOLYKOS2 --pool korvexpool.com:3416 --user YOUR_WALLET.RIG_NAME</code></pre>
-
-    <h4>TeamRedMiner <span className="badge-recommended">Recommended</span></h4>
-    <p className="text-muted">AMD — Excellent performance and stability</p>
-    <pre><code>teamredminer -a autolykos2 -o stratum+tcp://korvexpool.com:3416 -u YOUR_WALLET.RIG_NAME -p x</code></pre>
-
-    <h4>Rigel <span className="badge-recommended">Recommended</span></h4>
-    <p className="text-muted">NVIDIA — Modern and efficient</p>
-    <pre><code>rigel -a autolykos2 -o stratum+tcp://korvexpool.com:3416 -u YOUR_WALLET.RIG_NAME</code></pre>
-
-    <div className="miner-recommendation miner-supported">
-      <h4>⚠️ Also Supported</h4>
-      <p className="text-muted">These miners work but may have minor compatibility variations.</p>
-    </div>
-
-    <h4>SRBMiner-MULTI</h4>
-    <p className="text-muted">AMD &amp; NVIDIA — Some users may experience sporadic client-side share rejections due to stratum protocol interpretation differences. Consider using lolMiner or TeamRedMiner for optimal results.</p>
-    <pre><code>SRBMiner-MULTI --disable-cpu --algorithm autolykos2 --pool korvexpool.com:3416 --wallet YOUR_WALLET.RIG_NAME</code></pre>
-
-    <p className="text-muted">
-      <strong>Note:</strong> GPUs with less than 8 GB of VRAM cannot mine Autolykos2 anymore (the dataset no longer fits in memory).
-    </p>
-
-    <hr />
-
-    {/* ===================== 5. POOL PARAMETERS ===================== */}
-    <h3>4. Pool Parameters</h3>
-    <table>
-      <tbody>
-        <tr><td><strong>Coin</strong></td><td>ERGO (ERG)</td></tr>
-        <tr><td><strong>Algorithm</strong></td><td>Autolykos2</td></tr>
-        <tr><td><strong>Pool fee</strong></td><td>1%</td></tr>
-        <tr><td><strong>Reward method</strong></td><td>PPLNS</td></tr>
-        <tr><td><strong>Minimum payout</strong></td><td>1 ERG</td></tr>
-        <tr><td><strong>Confirmations</strong></td><td>720 blocks (~24 hours)</td></tr>
-        <tr><td><strong>Payouts</strong></td><td>Automatic</td></tr>
-        <tr><td><strong>Stratum port</strong></td><td>3416</td></tr>
-      </tbody>
-    </table>
-
-    <hr />
-
-    {/* ===================== 6. PPLNS ===================== */}
-    <h3>5. How PPLNS Works</h3>
-    <p>
-      KORVEX uses the <strong>PPLNS</strong> (Pay Per Last N Shares) reward method.
-      When the pool finds a block, the reward is distributed among miners who contributed
-      shares during a recent window of work.
-    </p>
-    <p>
-      The window is proportional to the network difficulty: the more you mine consistently,
-      the bigger your share of each block. Miners who connect only briefly and disconnect
-      will earn less, because their shares may fall outside the window.
-    </p>
-    <p><strong>Key points:</strong></p>
-    <ul>
-      <li>Rewards are based on the difficulty of your submitted shares, not just their count</li>
-      <li>Mining regularly gives you the best results</li>
-      <li>The 1% pool fee is deducted before distribution</li>
-      <li>There are no hidden penalties or charges</li>
-    </ul>
-
-    <hr />
-
-    {/* ===================== 7. PAYMENTS ===================== */}
-    <h3>6. Payments</h3>
-    <p>
-      Payments are <strong>fully automatic</strong>. Once your confirmed balance reaches 1 ERG,
-      the pool sends your earnings to your wallet address.
-    </p>
-    <ul>
-      <li>After a block is found, the pool waits for <strong>720 confirmations</strong> (~24 hours) before crediting your balance. This ensures the block is permanently on the blockchain.</li>
-      <li>If a block becomes <strong>orphaned</strong> (removed from the chain), no rewards are credited. This is standard behavior for all mining pools.</li>
-      <li>Network transaction fees (0.001 ERG per payment) are covered by the pool, not deducted from your balance.</li>
-    </ul>
-
-    <hr />
-
-    {/* ===================== 8. STATS ===================== */}
-    <h3>7. Monitor Your Stats</h3>
-    <p>
-      Go to the <strong>Miner</strong> page and enter your wallet address. You will see:
-    </p>
-    <ul>
-      <li><strong>Hashrate</strong> — real-time, 15 min, and 1 hour averages</li>
-      <li><strong>Workers</strong> — list of connected rigs</li>
-      <li><strong>Balance</strong> — confirmed (ready for payout) and pending (waiting for confirmations)</li>
-      <li><strong>Payments</strong> — history of all sent payments with transaction hashes</li>
-    </ul>
-    <p className="text-muted">
-      Stats are updated every minute. It may take a few minutes after your miner connects
-      for the first data to appear.
-    </p>
-
-    <hr />
-
-    {/* ===================== 9. SUPPORT ===================== */}
-    <h3>8. Support</h3>
-    <p>
-      If you have questions or need help, you can reach us through the following channels:
-    </p>
-    <ul>
-      <li><strong>Discord</strong> — coming soon</li>
-      <li><strong>Telegram</strong> — coming soon</li>
-      <li><strong>Email</strong> — guillaumesastre34@gmail.com</li>
-    </ul>
-    <p className="text-muted">
-      Please also check the <a href="/legal">Legal &amp; Terms</a> page for our terms of service and privacy policy.
-    </p>
-
-  </div>
-);
+  );
+};
 
 export default HowToStart;

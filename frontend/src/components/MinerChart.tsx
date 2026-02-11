@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { getChartMinerHashrate, getChartWorkerHashrate, ChartPoint } from "../api";
 
@@ -83,6 +84,7 @@ interface MinerChartProps {
 }
 
 const MinerChart: React.FC<MinerChartProps> = ({ address, worker, hideTitle = false, mode }) => {
+  const { t } = useTranslation();
   const [period, setPeriod] = useState("1d");
   const [rawData, setRawData] = useState<ChartPoint[]>([]);
   const [colors, setColors] = useState({ accent: "#f97316", card: "#18181b", border: "#27272a", text: "#a1a1aa" });
@@ -152,7 +154,7 @@ const MinerChart: React.FC<MinerChartProps> = ({ address, worker, hideTitle = fa
 
       {data.length === 0 ? (
         <div style={{ textAlign: "center", padding: "40px", color: colors.text }}>
-          No hashrate data available for this period
+          {t('chart.no_hashrate_data')}
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={280}>
@@ -187,7 +189,7 @@ const MinerChart: React.FC<MinerChartProps> = ({ address, worker, hideTitle = fa
                 color: colors.text,
               }}
               labelFormatter={(tsNum) => new Date(tsNum).toLocaleString("fr-FR")}
-              formatter={(v: any) => [formatHash(v), "Hashrate"]}
+              formatter={(v: any) => [formatHash(v), t('chart.hashrate')]}
             />
             <Area
               type="monotone"

@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n/i18n";
 import { getHealth, getStats, getBlocks, HealthData, PoolStats } from "../api";
 import PoolChart from "../components/PoolChart";
 import { useMiningMode } from "../hooks/useMiningMode";
@@ -24,12 +26,12 @@ const formatDiff = (d: number) => {
 const timeAgo = (dateStr: string) => {
   const diff = Date.now() - new Date(dateStr).getTime();
   const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return minutes + "m ago";
+  if (minutes < 1) return i18n.t('time.just_now');
+  if (minutes < 60) return i18n.t('time.m_ago', { count: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return hours + "h ago";
+  if (hours < 24) return i18n.t('time.h_ago', { count: hours });
   const days = Math.floor(hours / 24);
-  return days + "d ago";
+  return i18n.t('time.d_ago', { count: days });
 };
 
 const effortColor = (effort: number | null | undefined): string => {
@@ -49,10 +51,17 @@ const effortLabel = (effort: number | null | undefined): string => {
 // ==================== BLOCKS TABLE ====================
 
 const BlocksTable: React.FC<{ blocks: any[] }> = ({ blocks }) => {
+  const { t } = useTranslation();
   const badgeClass = (status: string) => {
     if (status === "confirmed") return "badge badge-confirmed";
     if (status === "orphan") return "badge badge-orphan";
     return "badge badge-pending";
+  };
+
+  const statusLabel = (status: string) => {
+    if (status === "confirmed") return t('common.confirmed');
+    if (status === "orphan") return t('common.orphan');
+    return t('common.pending');
   };
 
   if (blocks.length === 0) return null;
@@ -61,11 +70,11 @@ const BlocksTable: React.FC<{ blocks: any[] }> = ({ blocks }) => {
     <table className="blocks-table">
       <thead>
         <tr>
-          <th>Height</th>
-          <th>Miner</th>
-          <th>Effort</th>
-          <th>Status</th>
-          <th>Found</th>
+          <th>{t('home.height')}</th>
+          <th>{t('home.miner')}</th>
+          <th>{t('home.effort')}</th>
+          <th>{t('home.status')}</th>
+          <th>{t('home.found')}</th>
         </tr>
       </thead>
       <tbody>
@@ -80,7 +89,7 @@ const BlocksTable: React.FC<{ blocks: any[] }> = ({ blocks }) => {
                 {effortLabel(b.effort_percent)}
               </span>
             </td>
-            <td><span className={badgeClass(b.status)}>{b.status}</span></td>
+            <td><span className={badgeClass(b.status)}>{statusLabel(b.status)}</span></td>
             <td style={{ color: "var(--text-dim)" }}>
               {new Date(b.created_at).toLocaleString("fr-FR")}
             </td>
@@ -94,31 +103,32 @@ const BlocksTable: React.FC<{ blocks: any[] }> = ({ blocks }) => {
 // ==================== LAYOUT ====================
 
 const HomeLayout: React.FC<{ stats: PoolStats | null; health: HealthData | null; blocks: any[]; mode: string }> = ({ stats, health, blocks, mode }) => {
+  const { t } = useTranslation();
   const networkDiff = health?.node?.difficulty || 0;
   const networkHr = parseInt(stats?.nodes?.[0]?.networkhashps || "0");
   const poolHr = stats?.hashrate || 0;
-  const lastBlockTime = blocks.length > 0 ? timeAgo(blocks[0].created_at) : "N/A";
+  const lastBlockTime = blocks.length > 0 ? timeAgo(blocks[0].created_at) : t('common.na');
 
   return (
     <div className="layout-modern">
       {/* Header */}
       <div className="modern-header">
-        <h1>KORVEX POOL</h1>
-        <p>{mode === 'solo' ? 'Solo Mining - 100% Block Reward' : 'Ergo Mining Pool for Everyone'}</p>
+        <h1>{t('home.title')}</h1>
+        <p>{mode === 'solo' ? t('home.subtitle_solo') : t('home.subtitle_pplns')}</p>
       </div>
 
       {/* Stats en grille 3 colonnes */}
       <div className="modern-stats-grid">
         <div className="modern-stat-card">
-          <div className="msc-label">{mode === 'solo' ? 'Solo Hashrate' : 'Pool Hashrate'}</div>
+          <div className="msc-label">{mode === 'solo' ? t('home.solo_hashrate') : t('home.pool_hashrate')}</div>
           <div className="msc-value">{formatHash(poolHr)}</div>
         </div>
         <div className="modern-stat-card">
-          <div className="msc-label">Miners / Workers</div>
+          <div className="msc-label">{t('home.miners_workers')}</div>
           <div className="msc-value">{stats?.minersTotal || 0} / {stats?.workersTotal || 0}</div>
         </div>
         <div className="modern-stat-card">
-          <div className="msc-label">{mode === 'solo' ? 'Blocks Found' : 'Current Effort'}</div>
+          <div className="msc-label">{mode === 'solo' ? t('home.blocks_found') : t('home.current_effort')}</div>
           <div className="msc-value" style={mode === 'solo' ? {} : { color: effortColor(stats?.currentEffort) }}>
             {mode === 'solo' ? (stats?.maturedTotal || 0) : effortLabel(stats?.currentEffort)}
           </div>
@@ -133,46 +143,46 @@ const HomeLayout: React.FC<{ stats: PoolStats | null; health: HealthData | null;
       {/* 2 cards info cote a cote */}
       <div className="modern-info-row-grid">
         <div className="modern-info-card">
-          <div className="modern-info-title">Network</div>
+          <div className="modern-info-title">{t('home.network')}</div>
           <div className="modern-info-row">
-            <span>Hashrate</span>
+            <span>{t('home.hashrate')}</span>
             <span>{formatHash(networkHr)}</span>
           </div>
           <div className="modern-info-row">
-            <span>Difficulty</span>
+            <span>{t('home.difficulty')}</span>
             <span>{formatDiff(networkDiff)}</span>
           </div>
           <div className="modern-info-row">
-            <span>ERG Price</span>
-            <span>${stats?.ergPriceUsd?.toFixed(4) || "—"}</span>
+            <span>{t('home.erg_price')}</span>
+            <span>${stats?.ergPriceUsd?.toFixed(4) || "\u2014"}</span>
           </div>
           <div className="modern-info-row">
-            <span>Block Reward</span>
+            <span>{t('home.block_reward')}</span>
             <span>{stats?.blockReward || 6} ERG</span>
           </div>
         </div>
 
         <div className="modern-info-card">
-          <div className="modern-info-title">Pool Info</div>
+          <div className="modern-info-title">{t('home.pool_info')}</div>
           <div className="modern-info-row">
-            <span>Last Block Found</span>
+            <span>{t('home.last_block_found')}</span>
             <span>{lastBlockTime}</span>
           </div>
           <div className="modern-info-row">
-            <span>Pool Fee</span>
+            <span>{t('home.pool_fee')}</span>
             <span>{mode === 'solo' ? '1.5%' : '1%'}</span>
           </div>
           <div className="modern-info-row">
-            <span>Min Payout</span>
+            <span>{t('home.min_payout')}</span>
             <span>1 ERG</span>
           </div>
           <div className="modern-info-row">
-            <span>Mode</span>
+            <span>{t('home.mode')}</span>
             <span>{mode === 'solo' ? 'SOLO' : 'PPLNS'}</span>
           </div>
           <div className="modern-info-row">
-            <span>Confirmations</span>
-            <span>720 blocks</span>
+            <span>{t('home.confirmations')}</span>
+            <span>{t('home.confirmations_value')}</span>
           </div>
         </div>
       </div>
@@ -180,7 +190,7 @@ const HomeLayout: React.FC<{ stats: PoolStats | null; health: HealthData | null;
       {/* Table des blocs si disponible */}
       {blocks.length > 0 && (
         <div className="modern-blocks-card modern-blocks-full">
-          <div className="modern-info-title">Recent Blocks</div>
+          <div className="modern-info-title">{t('home.recent_blocks')}</div>
           <BlocksTable blocks={blocks} />
         </div>
       )}

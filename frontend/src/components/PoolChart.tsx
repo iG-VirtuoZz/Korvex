@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { getChartPoolHashrate, getChartNetworkDifficulty, ChartPoint } from "../api";
 
@@ -85,6 +86,7 @@ interface PoolChartProps {
 }
 
 const PoolChart: React.FC<PoolChartProps> = ({ mode }) => {
+  const { t } = useTranslation();
   const [tab, setTab] = useState("hashrate");
   const [period, setPeriod] = useState("1d");
   const [rawData, setRawData] = useState<ChartPoint[]>([]);
@@ -163,10 +165,10 @@ const PoolChart: React.FC<PoolChartProps> = ({ mode }) => {
       <div className="chart-header">
         <div className="chart-tabs">
           <button className={tab === "hashrate" ? "active" : ""} onClick={() => setTab("hashrate")}>
-            Pool Hashrate
+            {t('chart.pool_hashrate')}
           </button>
           <button className={tab === "difficulty" ? "active" : ""} onClick={() => setTab("difficulty")}>
-            Network Difficulty
+            {t('chart.network_difficulty')}
           </button>
         </div>
         <div className="chart-periods">
@@ -180,7 +182,7 @@ const PoolChart: React.FC<PoolChartProps> = ({ mode }) => {
 
       {data.length === 0 ? (
         <div style={{ textAlign: "center", padding: "40px", color: colors.text }}>
-          No data available for this period
+          {t('chart.no_data')}
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={320}>
@@ -215,7 +217,7 @@ const PoolChart: React.FC<PoolChartProps> = ({ mode }) => {
                 color: colors.text,
               }}
               labelFormatter={(tsNum) => new Date(tsNum).toLocaleString("fr-FR")}
-              formatter={(v: any) => [formatValue(v, tab), tab === "hashrate" ? "Hashrate" : "Difficulty"]}
+              formatter={(v: any) => [formatValue(v, tab), tab === "hashrate" ? t('chart.hashrate') : t('chart.difficulty')]}
             />
             <Area type={curveType} dataKey="value" stroke={color} fill={"url(#grad-" + tab + ")"} strokeWidth={2} />
           </AreaChart>

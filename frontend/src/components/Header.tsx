@@ -86,7 +86,7 @@ const Header: React.FC = () => {
             <button
               className="header-search-clear"
               onClick={() => { setSearchValue(""); localStorage.removeItem(STORAGE_KEY); }}
-              title="Clear"
+              title={t('header.clear')}
             >
               &times;
             </button>
@@ -96,7 +96,7 @@ const Header: React.FC = () => {
         <div className="header-actions">
           <StyleSelector />
           <LanguageSelector />
-          <NavLink to="/discord" className="header-discord" title="Join our Discord">
+          <NavLink to="/discord" className="header-discord" title={t('header.join_discord')}>
             <DiscordIcon />
           </NavLink>
           <NavLink to="/how-to-start" className="header-cta">

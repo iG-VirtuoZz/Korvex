@@ -242,7 +242,7 @@ export function createApi(
                  ELSE b.value END as hr
           FROM all_buckets b CROSS JOIN cap c
           ORDER BY b.ts DESC
-          LIMIT 6
+          LIMIT 12
         )
         SELECT COALESCE(AVG(hr), 0) as avg_hr FROM recent_capped`,
         [mode]
