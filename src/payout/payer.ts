@@ -103,8 +103,9 @@ async function sendBatchSafe(batch: PayableEntry[]): Promise<{ sent: number; fai
     value: Number(p.amount),
   }));
 
-  const txFee = 1_000_000;
-  const payload = { requests, fee: txFee };
+  // L'API Ergo /wallet/payment/send attend un ARRAY de PaymentRequest
+  // Format : [{ address, value }, ...] — PAS un objet { requests, fee }
+  const payload = requests;
 
   const totalErg = prepared.reduce((sum, p) => sum + Number(p.amount), 0) / 1e9;
   console.log("[Payer] Envoi batch: " + prepared.length + " destinataire(s), total " + totalErg.toFixed(4) + " ERG");
