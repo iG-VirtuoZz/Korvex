@@ -188,7 +188,7 @@ const MinerChart: React.FC<MinerChartProps> = ({ address, worker, hideTitle = fa
                 borderRadius: 8,
                 color: colors.text,
               }}
-              labelFormatter={(tsNum) => new Date(tsNum).toLocaleString("fr-FR")}
+              labelFormatter={(tsNum) => new Date(tsNum).toLocaleString()}
               formatter={(v: any) => [formatHash(v), t('chart.hashrate')]}
             />
             <Area

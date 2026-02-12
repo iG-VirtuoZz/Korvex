@@ -91,7 +91,7 @@ const BlocksTable: React.FC<{ blocks: any[] }> = ({ blocks }) => {
             </td>
             <td><span className={badgeClass(b.status)}>{statusLabel(b.status)}</span></td>
             <td style={{ color: "var(--text-dim)" }}>
-              {new Date(b.created_at).toLocaleString("fr-FR")}
+              {new Date(b.created_at).toLocaleString()}
             </td>
           </tr>
         ))}

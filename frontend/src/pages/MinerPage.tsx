@@ -140,16 +140,18 @@ const NetworkBlockProgress: React.FC<{ lastBlockTimestamp: number; label: string
         </span>
       </div>
       <div className="block-progress-track-v2">
-        <div
-          className="block-progress-fill-v2"
-          style={{
-            width: `${fillPercent}%`,
-            background: getGradient()
-          }}
-        >
-          <div className="block-progress-stripes"></div>
-          <div className="block-progress-arrow" style={{ borderLeftColor: getCurrentColor() }}></div>
-        </div>
+        {fillPercent > 0.5 && (
+          <div
+            className="block-progress-fill-v2"
+            style={{
+              width: `${fillPercent}%`,
+              background: getGradient()
+            }}
+          >
+            <div className="block-progress-stripes"></div>
+            <div className="block-progress-arrow" style={{ borderLeftColor: getCurrentColor() }}></div>
+          </div>
+        )}
       </div>
       <div className="block-progress-markers-v2">
         <span>0%</span>
@@ -197,16 +199,18 @@ const PoolEffortProgress: React.FC<{ effort: number | null; label: string }> = (
         </span>
       </div>
       <div className="block-progress-track-v2">
-        <div
-          className="block-progress-fill-v2"
-          style={{
-            width: `${fillPercent}%`,
-            background: getGradient()
-          }}
-        >
-          <div className="block-progress-stripes"></div>
-          <div className="block-progress-arrow" style={{ borderLeftColor: getCurrentColor() }}></div>
-        </div>
+        {fillPercent > 0.5 && (
+          <div
+            className="block-progress-fill-v2"
+            style={{
+              width: `${fillPercent}%`,
+              background: getGradient()
+            }}
+          >
+            <div className="block-progress-stripes"></div>
+            <div className="block-progress-arrow" style={{ borderLeftColor: getCurrentColor() }}></div>
+          </div>
+        )}
       </div>
       <div className="block-progress-markers-v2">
         <span>0%</span>
@@ -653,7 +657,7 @@ const MinerPage: React.FC = () => {
                         </span>
                       </td>
                       <td style={{ color: "var(--text-dim)" }}>
-                        {p.sent_at ? new Date(p.sent_at).toLocaleString("fr-FR") : new Date(p.created_at).toLocaleString("fr-FR")}
+                        {p.sent_at ? new Date(p.sent_at).toLocaleString() : new Date(p.created_at).toLocaleString()}
                       </td>
                     </tr>
                   ))}

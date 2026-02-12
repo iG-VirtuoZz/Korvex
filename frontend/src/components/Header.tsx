@@ -111,6 +111,7 @@ const Header: React.FC = () => {
             <NavLink to={basePath} end>{t('header.dashboard')}</NavLink>
             <NavLink to={basePath + "/miners"}>{t('header.miners')}</NavLink>
             <NavLink to="/how-to-start">{t('header.how_to_start')}</NavLink>
+            <NavLink to="/faq">FAQ</NavLink>
           </div>
         </nav>
       )}

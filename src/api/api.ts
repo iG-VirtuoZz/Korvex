@@ -57,7 +57,7 @@ async function getBlockRewardCached(): Promise<number> {
 let cachedErgPriceUsd: number = 0;
 let cachedErgPriceBtc: number = 0;
 let ergPriceCacheTime: number = 0;
-const ERG_PRICE_CACHE_TTL = 30_000; // 30 secondes
+const ERG_PRICE_CACHE_TTL = 300_000; // 5 minutes (evite HTTP 429 CoinGecko)
 
 async function fetchErgPrice(): Promise<{ usd: number; btc: number }> {
   const url = "https://api.coingecko.com/api/v3/simple/price?ids=ergo&vs_currencies=usd,btc";
@@ -169,6 +169,9 @@ export function createApi(
   // Health check (enrichi Phase 3)
   app.get("/api/health", async (_req, res) => {
     try {
+      // Healthcheck DB
+      await database.query("SELECT 1");
+
       const info = await ergoNode.getInfo();
       const synced = await ergoNode.isSynced();
 

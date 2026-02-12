@@ -71,6 +71,16 @@ export async function runPayer(): Promise<{ sent: number; failed: number; unknow
     console.log("[Payer] Resultat: " + sent + " envoye(s), " + failed + " echoue(s), " + unknown + " unknown(s)");
   }
 
+  // Nettoyage auto : garder max 5 failed par adresse + supprimer vieilles shares
+  try {
+    const cleaned = await database.cleanOldFailedPayments();
+    if (cleaned > 0) console.log("[Payer] Nettoyage: " + cleaned + " ancien(s) paiement(s) failed supprime(s)");
+    const sharesDeleted = await database.cleanOldShares();
+    if (sharesDeleted > 0) console.log("[Payer] Nettoyage: " + sharesDeleted + " share(s) > 7 jours supprimee(s)");
+  } catch (err) {
+    console.error("[Payer] Erreur nettoyage auto:", err);
+  }
+
   return { sent, failed, unknown };
 }
 

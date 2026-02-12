@@ -216,7 +216,7 @@ const PoolChart: React.FC<PoolChartProps> = ({ mode }) => {
                 borderRadius: 8,
                 color: colors.text,
               }}
-              labelFormatter={(tsNum) => new Date(tsNum).toLocaleString("fr-FR")}
+              labelFormatter={(tsNum) => new Date(tsNum).toLocaleString()}
               formatter={(v: any) => [formatValue(v, tab), tab === "hashrate" ? t('chart.hashrate') : t('chart.difficulty')]}
             />
             <Area type={curveType} dataKey="value" stroke={color} fill={"url(#grad-" + tab + ")"} strokeWidth={2} />

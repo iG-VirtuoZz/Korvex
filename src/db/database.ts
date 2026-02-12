@@ -489,6 +489,31 @@ class Database {
     );
     return result.rows;
   }
+
+  // Nettoyage auto : garder max 5 paiements 'failed' par adresse
+  async cleanOldFailedPayments(): Promise<number> {
+    const result = await this.query(
+      `DELETE FROM payments
+       WHERE status = 'failed'
+         AND id NOT IN (
+           SELECT id FROM (
+             SELECT id, ROW_NUMBER() OVER (PARTITION BY address ORDER BY created_at DESC) as rn
+             FROM payments
+             WHERE status = 'failed'
+           ) sub
+           WHERE rn <= 5
+         )`
+    );
+    return result.rowCount || 0;
+  }
+
+  // Nettoyage auto : supprimer les shares de plus de 7 jours
+  async cleanOldShares(): Promise<number> {
+    const result = await this.query(
+      "DELETE FROM shares WHERE created_at < NOW() - INTERVAL '7 days'"
+    );
+    return result.rowCount || 0;
+  }
 }
 
 export const database = new Database();
