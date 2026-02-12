@@ -313,6 +313,7 @@ export function createApi(
         ergPriceUsd: ergPrice.usd,
         ergPriceBtc: ergPrice.btc,
         lastNetworkBlockTimestamp,
+        minPayout: 1,
       });
     } catch (err) {
       console.error("[API] Erreur /api/stats:", err);
