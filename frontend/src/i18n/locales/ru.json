@@ -179,7 +179,7 @@
     "stats_note": "Статистика обновляется каждую минуту. Первые данные могут появиться через несколько минут после подключения вашего майнера.",
     "support_title": "Поддержка",
     "support_desc": "Если у вас есть вопросы или вам нужна помощь, вы можете связаться с нами через следующие каналы:",
-    "support_discord": "<strong>Discord</strong> \u2014 <a href=\"https://discord.gg/nVvTdwN7ya\" target=\"_blank\">Присоединиться к серверу</a>",
+    "support_discord": "<strong>Discord</strong> \u2014 <a href=\"https://discord.gg/nVvTdwN7ya\" target=\"_blank\">Присоединиться к серверу</a><br/><span style=\"font-size:12px;color:#a1a1aa\">Ссылка: discord.gg/nVvTdwN7ya</span>",
     "support_email": "<strong>Email</strong> \u2014 guillaumesastre34@gmail.com",
     "support_note": "Также ознакомьтесь со страницей <a href=\"/legal\">Правовая информация</a> для ознакомления с условиями использования и политикой конфиденциальности."
   },

@@ -88,6 +88,9 @@ const HowToStart: React.FC = () => {
             <p className="howto-miner-desc">{t('howto.teamredminer_desc')}</p>
             <pre><code>teamredminer -a autolykos2 -o stratum+tcp://korvexpool.com:3416 -u YOUR_WALLET.RIG_NAME -p x</code></pre>
           </div>
+        </div>
+
+        <div className="howto-miners-grid">
           <div className="howto-miner-card">
             <div className="howto-miner-header">
               <span className="howto-miner-name">Rigel</span>
@@ -96,12 +99,6 @@ const HowToStart: React.FC = () => {
             <p className="howto-miner-desc">{t('howto.rigel_desc')}</p>
             <pre><code>rigel -a autolykos2 -o stratum+tcp://korvexpool.com:3416 -u YOUR_WALLET.RIG_NAME</code></pre>
           </div>
-        </div>
-
-        <h4 className="howto-section-label howto-label-yellow">{t('howto.software_also_supported_title')}</h4>
-        <p className="howto-note">{t('howto.software_also_supported_desc')}</p>
-
-        <div className="howto-miners-grid">
           <div className="howto-miner-card">
             <div className="howto-miner-header">
               <span className="howto-miner-name">SRBMiner-MULTI</span>
@@ -116,7 +113,7 @@ const HowToStart: React.FC = () => {
         </div>
       </div>
 
-      {/* ===================== PPLNS + PAYMENTS (2 colonnes) ===================== */}
+      {/* ===================== PPLNS + SUPPORT (2 colonnes) ===================== */}
       <div className="howto-two-col">
         <div className="modern-info-card">
           <h3>{t('howto.pplns_title')}</h3>
@@ -130,6 +127,19 @@ const HowToStart: React.FC = () => {
           </ul>
         </div>
         <div className="modern-info-card">
+          <h3>{t('howto.support_title')}</h3>
+          <p>{t('howto.support_desc')}</p>
+          <ul>
+            <li dangerouslySetInnerHTML={{ __html: t('howto.support_discord') }} />
+            <li dangerouslySetInnerHTML={{ __html: t('howto.support_email') }} />
+          </ul>
+          <p className="howto-note" dangerouslySetInnerHTML={{ __html: t('howto.support_note') }} />
+        </div>
+      </div>
+
+      {/* ===================== PAYMENTS + STATS (2 colonnes) ===================== */}
+      <div className="howto-two-col">
+        <div className="modern-info-card">
           <h3>{t('howto.payments_title')}</h3>
           <p dangerouslySetInnerHTML={{ __html: t('howto.payments_desc') }} />
           <ul>
@@ -138,10 +148,6 @@ const HowToStart: React.FC = () => {
             ))}
           </ul>
         </div>
-      </div>
-
-      {/* ===================== STATS + SUPPORT (2 colonnes) ===================== */}
-      <div className="howto-two-col">
         <div className="modern-info-card">
           <h3>{t('howto.stats_title')}</h3>
           <p dangerouslySetInnerHTML={{ __html: t('howto.stats_desc') }} />
@@ -151,15 +157,6 @@ const HowToStart: React.FC = () => {
             ))}
           </ul>
           <p className="howto-note">{t('howto.stats_note')}</p>
-        </div>
-        <div className="modern-info-card">
-          <h3>{t('howto.support_title')}</h3>
-          <p>{t('howto.support_desc')}</p>
-          <ul>
-            <li dangerouslySetInnerHTML={{ __html: t('howto.support_discord') }} />
-            <li dangerouslySetInnerHTML={{ __html: t('howto.support_email') }} />
-          </ul>
-          <p className="howto-note" dangerouslySetInnerHTML={{ __html: t('howto.support_note') }} />
         </div>
       </div>
 

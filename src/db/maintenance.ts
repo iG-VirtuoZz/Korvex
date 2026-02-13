@@ -136,9 +136,16 @@ class Maintenance {
         console.log("[Maintenance] Confirmations: " + confirmResult.confirmed + " confirme(s), " + confirmResult.orphaned + " orphan(s)");
       }
 
-      const payResult = await runPayer();
-      if (payResult.sent > 0 || payResult.failed > 0) {
-        console.log("[Maintenance] Paiements: " + payResult.sent + " envoye(s), " + payResult.failed + " echoue(s)");
+      // Si un bloc vient d'etre confirme dans ce cycle, skip le payer
+      // Le wallet du noeud a besoin de quelques minutes pour rendre les UTXOs disponibles
+      // Le paiement passera au prochain cycle (10 min)
+      if (confirmResult.confirmed > 0) {
+        console.log("[Maintenance] Bloc confirme dans ce cycle, paiement reporte au prochain cycle (UTXOs pas encore disponibles)");
+      } else {
+        const payResult = await runPayer();
+        if (payResult.sent > 0 || payResult.failed > 0) {
+          console.log("[Maintenance] Paiements: " + payResult.sent + " envoye(s), " + payResult.failed + " echoue(s)");
+        }
       }
     } catch (err) {
       console.error("[Maintenance] Erreur cycle payout:", err);

@@ -301,6 +301,7 @@ a:hover { color: var(--accent-hover); }
   max-width: 1200px;
   margin: 40px auto;
   padding: 0 28px;
+  overflow-x: hidden;
 }
 
 /* ==================== CARDS ==================== */
@@ -769,7 +770,7 @@ a:hover { color: var(--accent-hover); }
 .howto-miner-card pre code {
   color: var(--green);
   font-size: 12px;
-  white-space: pre;
+  white-space: pre-wrap;
   word-break: break-all;
 }
 
@@ -777,7 +778,7 @@ a:hover { color: var(--accent-hover); }
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 24px;
-  margin-bottom: 0;
+  margin-bottom: 24px;
 }
 
 @media (max-width: 768px) {

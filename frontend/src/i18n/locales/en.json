@@ -179,7 +179,7 @@
     "stats_note": "Stats are updated every minute. It may take a few minutes after your miner connects for the first data to appear.",
     "support_title": "Support",
     "support_desc": "If you have questions or need help, you can reach us through the following channels:",
-    "support_discord": "<strong>Discord</strong> \u2014 <a href=\"https://discord.gg/nVvTdwN7ya\" target=\"_blank\">Join our server</a>",
+    "support_discord": "<strong>Discord</strong> \u2014 <a href=\"https://discord.gg/nVvTdwN7ya\" target=\"_blank\">Join our server</a><br/><span style=\"font-size:12px;color:#a1a1aa\">Link: discord.gg/nVvTdwN7ya</span>",
     "support_email": "<strong>Email</strong> \u2014 guillaumesastre34@gmail.com",
     "support_note": "Please also check the <a href=\"/legal\">Legal & Terms</a> page for our terms of service and privacy policy."
   },

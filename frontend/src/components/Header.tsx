@@ -96,9 +96,9 @@ const Header: React.FC = () => {
         <div className="header-actions">
           <StyleSelector />
           <LanguageSelector />
-          <NavLink to="/discord" className="header-discord" title={t('header.join_discord')}>
+          <a href="https://discord.gg/nVvTdwN7ya" target="_blank" rel="noopener noreferrer" className="header-discord" title={t('header.join_discord')}>
             <DiscordIcon />
-          </NavLink>
+          </a>
           <NavLink to="/how-to-start" className="header-cta">
             {t('header.start_mining')} &rarr;
           </NavLink>

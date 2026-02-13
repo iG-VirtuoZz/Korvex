@@ -179,7 +179,7 @@
     "stats_note": "统计数据每分钟更新一次。矿机连接后，首次数据可能需要几分钟才会显示。",
     "support_title": "技术支持",
     "support_desc": "如有任何问题或需要帮助，可通过以下方式联系我们：",
-    "support_discord": "<strong>Discord</strong> \u2014 <a href=\"https://discord.gg/nVvTdwN7ya\" target=\"_blank\">加入我们的服务器</a>",
+    "support_discord": "<strong>Discord</strong> \u2014 <a href=\"https://discord.gg/nVvTdwN7ya\" target=\"_blank\">加入我们的服务器</a><br/><span style=\"font-size:12px;color:#a1a1aa\">链接: discord.gg/nVvTdwN7ya</span>",
     "support_email": "<strong>邮箱</strong> \u2014 guillaumesastre34@gmail.com",
     "support_note": "请同时查阅<a href=\"/legal\">法律与条款</a>页面，了解我们的服务条款和隐私政策。"
   },

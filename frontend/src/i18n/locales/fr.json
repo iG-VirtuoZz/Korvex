@@ -179,7 +179,7 @@
     "stats_note": "Les statistiques sont mises a jour chaque minute. Les premieres donnees peuvent mettre quelques minutes a apparaitre apres la connexion de votre mineur.",
     "support_title": "Support",
     "support_desc": "Si vous avez des questions ou besoin d'aide, contactez-nous via :",
-    "support_discord": "<strong>Discord</strong> \u2014 <a href=\"https://discord.gg/nVvTdwN7ya\" target=\"_blank\">Rejoindre notre serveur</a>",
+    "support_discord": "<strong>Discord</strong> \u2014 <a href=\"https://discord.gg/nVvTdwN7ya\" target=\"_blank\">Rejoindre notre serveur</a><br/><span style=\"font-size:12px;color:#a1a1aa\">Lien : discord.gg/nVvTdwN7ya</span>",
     "support_email": "<strong>Email</strong> \u2014 guillaumesastre34@gmail.com",
     "support_note": "Consultez aussi la page <a href=\"/legal\">Mentions legales</a> pour nos conditions d'utilisation et politique de confidentialite."
   },
