@@ -140,18 +140,15 @@ const NetworkBlockProgress: React.FC<{ lastBlockTimestamp: number; label: string
         </span>
       </div>
       <div className="block-progress-track-v2">
-        {fillPercent > 0.5 && (
-          <div
-            className="block-progress-fill-v2"
-            style={{
-              width: `${fillPercent}%`,
-              background: getGradient()
-            }}
-          >
-            <div className="block-progress-stripes"></div>
-            <div className="block-progress-arrow" style={{ borderLeftColor: getCurrentColor() }}></div>
-          </div>
-        )}
+        <div
+          className="block-progress-fill-v2"
+          style={{
+            width: `${Math.max(fillPercent, 0.5)}%`,
+            background: getGradient()
+          }}
+        >
+          <div className="block-progress-stripes"></div>
+        </div>
       </div>
       <div className="block-progress-markers-v2">
         <span>0%</span>
@@ -199,18 +196,15 @@ const PoolEffortProgress: React.FC<{ effort: number | null; label: string }> = (
         </span>
       </div>
       <div className="block-progress-track-v2">
-        {fillPercent > 0.5 && (
-          <div
-            className="block-progress-fill-v2"
-            style={{
-              width: `${fillPercent}%`,
-              background: getGradient()
-            }}
-          >
-            <div className="block-progress-stripes"></div>
-            <div className="block-progress-arrow" style={{ borderLeftColor: getCurrentColor() }}></div>
-          </div>
-        )}
+        <div
+          className="block-progress-fill-v2"
+          style={{
+            width: `${Math.max(fillPercent, 0.5)}%`,
+            background: getGradient()
+          }}
+        >
+          <div className="block-progress-stripes"></div>
+        </div>
       </div>
       <div className="block-progress-markers-v2">
         <span>0%</span>
@@ -544,7 +538,8 @@ const MinerPage: React.FC = () => {
                               }
                               style={{ cursor: status === "online" ? "default" : "pointer" }}
                             >
-                              {"\u23FB"}
+                              <span className="power-icon-desktop">{"\u23FB"}</span>
+                              <svg className="power-icon-mobile" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2v6"/><path d="M18.36 6.64A9 9 0 1 1 5.64 6.64"/></svg>
                             </button>
                           </td>
                           <td>
