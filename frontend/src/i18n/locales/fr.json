@@ -367,6 +367,40 @@
     "solo_fee": "1.5%",
     "description": "100% de la récompense du bloc (moins la fee pool)"
   },
+  "howtoSolo": {
+    "title": "Comment commencer le minage solo",
+    "subtitle": "Guide complet pour configurer le minage solo sur KORVEX Pool",
+    "stat_fee": "Frais Solo",
+    "stat_port": "Port Solo",
+    "intro_p1": "Le minage solo signifie que vous minez de manière indépendante. Quand <strong>vous</strong> trouvez un bloc, vous gardez <strong>100% de la récompense</strong> (moins 1.5% de frais pool). Cependant, les blocs sont trouvés moins fréquemment qu'avec le minage en pool.",
+    "intro_p2": "Ce guide vous aidera à configurer votre mineur en mode solo sur KORVEX Pool.",
+    "tab_pplns": "PPLNS",
+    "tab_solo": "SOLO",
+    "server_port_value": "3417",
+    "comparison_title": "Solo vs PPLNS",
+    "comparison_desc": "Le choix entre solo et PPLNS dépend de votre hashrate et de votre tolérance au risque.",
+    "comparison_headers": ["", "SOLO", "PPLNS"],
+    "comparison_rows": [
+      ["Modèle de récompense", "100% de la récompense au trouveur", "Récompense partagée entre tous les mineurs"],
+      ["Frais Pool", "1.5%", "1%"],
+      ["Port Stratum", "3417", "3416"],
+      ["Revenus", "Élevés mais peu fréquents", "Faibles mais réguliers"],
+      ["Risque", "Haute variance (dépend de la chance)", "Faible variance (revenus stables)"],
+      ["Recommandé pour", "Hashrate élevé (1+ GH/s)", "Tout hashrate"]
+    ],
+    "recommendation_title": "Quel mode choisir ?",
+    "recommendation_text": "Si vous avez moins de <strong>1 GH/s</strong>, nous recommandons fortement le <strong>PPLNS</strong> pour des revenus réguliers et prévisibles. Le minage solo est idéal pour les mineurs avec un hashrate significatif, prêts à accepter de longues périodes sans récompense en échange de gains potentiellement plus élevés.",
+    "software_desc": "Autolykos2 est mineable par GPU. Voici les mineurs les plus populaires avec des commandes prêtes à l'emploi pour le <strong>mode solo (port 3417)</strong>. Remplacez <code>YOUR_WALLET</code> par votre adresse ERG et <code>RIG_NAME</code> par un nom pour votre machine.",
+    "pplns_title": "Récompenses Solo",
+    "pplns_desc": "En mode solo, quand <strong>vous</strong> trouvez un bloc, vous recevez la <strong>totalité de la récompense</strong> moins 1.5% de frais pool. Aucune share n'est suivie ni distribuée à d'autres mineurs.",
+    "pplns_key_points": "Points clés :",
+    "pplns_points": [
+      "Vous ne gagnez que lorsque VOTRE mineur trouve un bloc",
+      "Les frais de 1.5% sont prélevés sur la récompense du bloc",
+      "Pas de hashrate minimum, mais plus de hashrate = blocs plus fréquents",
+      "La pool gère la soumission, la confirmation et le paiement automatiquement"
+    ]
+  },
   "common": {
     "confirmed": "Confirmé",
     "pending": "En attente",

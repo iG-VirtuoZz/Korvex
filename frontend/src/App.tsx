@@ -82,6 +82,7 @@ const App: React.FC = () => (
         <Route path="/status" element={<Status />} />
         <Route path="/legal" element={<Legal />} />
         <Route path="/how-to-start" element={<HowToStart />} />
+        <Route path="/how-to-start-solo" element={<HowToStart />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/discord" element={<DiscordPage />} />
         <Route path="/admin" element={<Navigate to="/coin/ergo/admin" replace />} />

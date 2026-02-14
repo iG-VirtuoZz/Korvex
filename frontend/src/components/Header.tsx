@@ -48,6 +48,8 @@ const Header: React.FC = () => {
   const basePath = useCoinBasePath();
 
   const isLanding = location.pathname === "/";
+  const isSoloSection = location.pathname.includes("ergo-solo");
+  const howToStartLink = isSoloSection ? "/how-to-start-solo" : "/how-to-start";
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -99,7 +101,7 @@ const Header: React.FC = () => {
           <a href="https://discord.gg/nVvTdwN7ya" target="_blank" rel="noopener noreferrer" className="header-discord" title={t('header.join_discord')}>
             <DiscordIcon />
           </a>
-          <NavLink to="/how-to-start" className="header-cta">
+          <NavLink to={howToStartLink} className="header-cta">
             {t('header.start_mining')} &rarr;
           </NavLink>
         </div>
@@ -110,7 +112,7 @@ const Header: React.FC = () => {
           <div className="header-nav-inner">
             <NavLink to={basePath} end>{t('header.dashboard')}</NavLink>
             <NavLink to={basePath + "/miners"}>{t('header.miners')}</NavLink>
-            <NavLink to="/how-to-start">{t('header.how_to_start')}</NavLink>
+            <NavLink to={howToStartLink}>{t('header.how_to_start')}</NavLink>
             <NavLink to="/faq">FAQ</NavLink>
           </div>
         </nav>

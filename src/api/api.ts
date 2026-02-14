@@ -1,6 +1,8 @@
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import crypto from "crypto";
+import os from "os";
+import { execSync } from "child_process";
 import rateLimit from "express-rate-limit";
 import { config } from "../config";
 import { database } from "../db/database";
@@ -1271,6 +1273,152 @@ export function createApi(
       res.json(getDiceRolls());
     } catch (err) {
       console.error("[Admin] Erreur dice-rolls:", err);
+      res.status(500).json({ error: "Erreur interne" });
+    }
+  });
+
+  // Financial stats — total mine, paye, revenus pool, gains/paiements par jour (30j)
+  app.get("/api/admin/financial-stats", requireAdmin, async (_req, res) => {
+    try {
+      // Total ERG mine (somme des reward_nano de tous les blocs confirmes)
+      const minedResult = await database.query(`
+        SELECT COALESCE(SUM(reward_nano), 0) as total_mined
+        FROM blocks WHERE reward_distributed = true
+      `);
+      const totalMinedNano = BigInt(minedResult.rows[0].total_mined || "0");
+      const totalMinedErg = Number(totalMinedNano) / 1e9;
+
+      // Total ERG paye (somme des paiements envoyes)
+      const paidResult = await database.query(`
+        SELECT COALESCE(SUM(amount_nano), 0) as total_paid
+        FROM payments WHERE status = 'sent'
+      `);
+      const totalPaidNano = BigInt(paidResult.rows[0].total_paid || "0");
+      const totalPaidErg = Number(totalPaidNano) / 1e9;
+
+      // Revenus pool (fees collectees) = totalMined * fee
+      const poolRevenueErg = totalMinedErg * config.pool.fee;
+
+      // Gains par jour (blocs confirmes, 30 derniers jours)
+      const dailyMined = await database.query(`
+        SELECT
+          DATE(found_at) as day,
+          COALESCE(SUM(reward_nano), 0) as mined_nano,
+          COUNT(*) as blocks_count
+        FROM blocks
+        WHERE reward_distributed = true
+          AND found_at > NOW() - INTERVAL '30 days'
+        GROUP BY DATE(found_at)
+        ORDER BY day ASC
+      `);
+
+      // Paiements par jour (30 derniers jours)
+      const dailyPaid = await database.query(`
+        SELECT
+          DATE(sent_at) as day,
+          COALESCE(SUM(amount_nano), 0) as paid_nano,
+          COUNT(*) as payments_count
+        FROM payments
+        WHERE status = 'sent'
+          AND sent_at > NOW() - INTERVAL '30 days'
+        GROUP BY DATE(sent_at)
+        ORDER BY day ASC
+      `);
+
+      res.json({
+        totalMinedErg: parseFloat(totalMinedErg.toFixed(4)),
+        totalPaidErg: parseFloat(totalPaidErg.toFixed(4)),
+        poolRevenueErg: parseFloat(poolRevenueErg.toFixed(4)),
+        poolFeePercent: config.pool.fee * 100,
+        dailyMined: dailyMined.rows.map((r: any) => ({
+          day: r.day,
+          erg: Number(BigInt(r.mined_nano || "0")) / 1e9,
+          blocks: parseInt(r.blocks_count) || 0,
+        })),
+        dailyPaid: dailyPaid.rows.map((r: any) => ({
+          day: r.day,
+          erg: Number(BigInt(r.paid_nano || "0")) / 1e9,
+          payments: parseInt(r.payments_count) || 0,
+        })),
+      });
+    } catch (err) {
+      console.error("[Admin] Erreur financial-stats:", err);
+      res.status(500).json({ error: "Erreur interne" });
+    }
+  });
+
+  // System stats — CPU, RAM, disque, noeud Ergo, uptime pool
+  app.get("/api/admin/system-stats", requireAdmin, async (_req, res) => {
+    try {
+      // CPU
+      const loadAvg = os.loadavg(); // [1min, 5min, 15min]
+      const cpuCount = os.cpus().length;
+
+      // RAM
+      const totalMem = os.totalmem();
+      const freeMem = os.freemem();
+      const usedMem = totalMem - freeMem;
+
+      // Disque (via df)
+      let diskTotal = 0;
+      let diskUsed = 0;
+      let diskFree = 0;
+      try {
+        const dfOutput = execSync("df -B1 / | tail -1", { timeout: 5000 }).toString().trim();
+        const parts = dfOutput.split(/\s+/);
+        if (parts.length >= 4) {
+          diskTotal = parseInt(parts[1]) || 0;
+          diskUsed = parseInt(parts[2]) || 0;
+          diskFree = parseInt(parts[3]) || 0;
+        }
+      } catch {}
+
+      // Noeud Ergo
+      let nodeInfo = { synced: false, fullHeight: 0, headersHeight: 0, peersCount: 0, latencyMs: 0 };
+      try {
+        const start = Date.now();
+        const info = await ergoNode.getInfo();
+        const latency = Date.now() - start;
+        const synced = await ergoNode.isSynced();
+        nodeInfo = {
+          synced,
+          fullHeight: info.fullHeight || 0,
+          headersHeight: info.headersHeight || 0,
+          peersCount: info.peersCount || 0,
+          latencyMs: latency,
+        };
+      } catch {}
+
+      // Pool uptime
+      const uptimeSeconds = process.uptime();
+
+      res.json({
+        cpu: {
+          loadAvg1m: parseFloat(loadAvg[0].toFixed(2)),
+          loadAvg5m: parseFloat(loadAvg[1].toFixed(2)),
+          loadAvg15m: parseFloat(loadAvg[2].toFixed(2)),
+          cores: cpuCount,
+          usagePercent: parseFloat(((loadAvg[0] / cpuCount) * 100).toFixed(1)),
+        },
+        memory: {
+          totalBytes: totalMem,
+          usedBytes: usedMem,
+          freeBytes: freeMem,
+          usagePercent: parseFloat(((usedMem / totalMem) * 100).toFixed(1)),
+        },
+        disk: {
+          totalBytes: diskTotal,
+          usedBytes: diskUsed,
+          freeBytes: diskFree,
+          usagePercent: diskTotal > 0 ? parseFloat(((diskUsed / diskTotal) * 100).toFixed(1)) : 0,
+        },
+        node: nodeInfo,
+        pool: {
+          uptimeSeconds: Math.floor(uptimeSeconds),
+        },
+      });
+    } catch (err) {
+      console.error("[Admin] Erreur system-stats:", err);
       res.status(500).json({ error: "Erreur interne" });
     }
   });

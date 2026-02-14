@@ -11,6 +11,8 @@ const languages: Language[] = [
   { code: "fr", name: "Français" },
   { code: "ru", name: "Русский" },
   { code: "zh", name: "中文" },
+  { code: "es", name: "Español" },
+  { code: "de", name: "Deutsch" },
 ];
 
 const FlagEN: React.FC = () => (
@@ -60,11 +62,29 @@ const FlagZH: React.FC = () => (
   </svg>
 );
 
+const FlagES: React.FC = () => (
+  <svg width="24" height="16" viewBox="0 0 60 40" xmlns="http://www.w3.org/2000/svg">
+    <rect width="60" height="10" fill="#AA151B"/>
+    <rect y="10" width="60" height="20" fill="#F1BF00"/>
+    <rect y="30" width="60" height="10" fill="#AA151B"/>
+  </svg>
+);
+
+const FlagDE: React.FC = () => (
+  <svg width="24" height="16" viewBox="0 0 60 40" xmlns="http://www.w3.org/2000/svg">
+    <rect width="60" height="13.33" fill="#000"/>
+    <rect y="13.33" width="60" height="13.33" fill="#DD0000"/>
+    <rect y="26.66" width="60" height="13.34" fill="#FFCC00"/>
+  </svg>
+);
+
 const flags: Record<string, React.FC> = {
   en: FlagEN,
   fr: FlagFR,
   ru: FlagRU,
   zh: FlagZH,
+  es: FlagES,
+  de: FlagDE,
 };
 
 const LanguageSelector: React.FC = () => {

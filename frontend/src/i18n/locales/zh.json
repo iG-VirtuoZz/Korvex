@@ -367,6 +367,40 @@
     "solo_fee": "1.5%",
     "description": "100% 区块奖励归您所有（扣除矿池费率）"
   },
+  "howtoSolo": {
+    "title": "如何开始单人挖矿",
+    "subtitle": "在 KORVEX 矿池上设置单人挖矿的完整指南",
+    "stat_fee": "单人费率",
+    "stat_port": "单人端口",
+    "intro_p1": "单人挖矿意味着您独立挖矿。当<strong>您</strong>找到一个区块时，您将获得<strong>100% 的奖励</strong>（扣除 1.5% 矿池费率）。但是，区块的发现频率低于矿池挖矿。",
+    "intro_p2": "本指南将帮助您在 KORVEX 矿池上配置单人挖矿模式。",
+    "tab_pplns": "PPLNS",
+    "tab_solo": "单人",
+    "server_port_value": "3417",
+    "comparison_title": "单人 vs PPLNS",
+    "comparison_desc": "选择单人还是 PPLNS 取决于您的算力和风险承受能力。",
+    "comparison_headers": ["", "单人", "PPLNS"],
+    "comparison_rows": [
+      ["奖励模式", "100% 区块奖励归发现者", "奖励在所有矿工间分配"],
+      ["矿池费率", "1.5%", "1%"],
+      ["Stratum 端口", "3417", "3416"],
+      ["收入", "金额大但不频繁", "金额小但稳定"],
+      ["风险", "高波动（取决于运气）", "低波动（稳定收入）"],
+      ["适合", "高算力（1+ GH/s）", "任何算力"]
+    ],
+    "recommendation_title": "应该选择哪种模式？",
+    "recommendation_text": "如果您的算力低于 <strong>1 GH/s</strong>，我们强烈建议使用 <strong>PPLNS</strong> 以获得稳定、可预测的收入。单人挖矿更适合拥有较高算力的矿工，他们愿意接受长时间没有奖励以换取潜在的更大收益。",
+    "software_desc": "Autolykos2 支持 GPU 挖矿。以下是最常用的挖矿软件及<strong>单人模式（端口 3417）</strong>的命令。将 <code>YOUR_WALLET</code> 替换为您的 ERG 地址，将 <code>RIG_NAME</code> 替换为矿机名称。",
+    "pplns_title": "单人奖励",
+    "pplns_desc": "在单人模式下，当<strong>您</strong>找到一个区块时，您将获得<strong>全部区块奖励</strong>减去 1.5% 矿池费率。不会跟踪或分配份额给其他矿工。",
+    "pplns_key_points": "要点：",
+    "pplns_points": [
+      "只有当您的矿机找到区块时才能获得收益",
+      "1.5% 的矿池费率从区块奖励中扣除",
+      "没有最低算力要求，但更高的算力 = 更频繁的区块",
+      "矿池自动处理区块提交、确认和支付"
+    ]
+  },
   "common": {
     "confirmed": "已确认",
     "pending": "待确认",

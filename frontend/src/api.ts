@@ -238,3 +238,52 @@ export const getAdminDiceRolls = (): Promise<DiceRollsData> =>
 
 export const triggerPayout = (): Promise<any> =>
   fetchJsonAdmin("admin/trigger-payout", { method: "POST" });
+
+// ========== ADMIN FINANCIAL + SYSTEM STATS ==========
+
+export interface FinancialStats {
+  totalMinedErg: number;
+  totalPaidErg: number;
+  poolRevenueErg: number;
+  poolFeePercent: number;
+  dailyMined: Array<{ day: string; erg: number; blocks: number }>;
+  dailyPaid: Array<{ day: string; erg: number; payments: number }>;
+}
+
+export interface SystemStats {
+  cpu: {
+    loadAvg1m: number;
+    loadAvg5m: number;
+    loadAvg15m: number;
+    cores: number;
+    usagePercent: number;
+  };
+  memory: {
+    totalBytes: number;
+    usedBytes: number;
+    freeBytes: number;
+    usagePercent: number;
+  };
+  disk: {
+    totalBytes: number;
+    usedBytes: number;
+    freeBytes: number;
+    usagePercent: number;
+  };
+  node: {
+    synced: boolean;
+    fullHeight: number;
+    headersHeight: number;
+    peersCount: number;
+    latencyMs: number;
+  };
+  pool: {
+    uptimeSeconds: number;
+  };
+}
+
+export const getAdminFinancialStats = (): Promise<FinancialStats> =>
+  fetchJsonAdmin("admin/financial-stats");
+
+export const getAdminSystemStats = (): Promise<SystemStats> =>
+  fetchJsonAdmin("admin/system-stats");

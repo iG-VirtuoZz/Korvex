@@ -367,6 +367,40 @@
     "solo_fee": "1.5%",
     "description": "100% block reward to you (minus pool fee)"
   },
+  "howtoSolo": {
+    "title": "How to Start Solo Mining",
+    "subtitle": "Complete guide to set up solo mining on KORVEX Pool",
+    "stat_fee": "Solo Fee",
+    "stat_port": "Solo Port",
+    "intro_p1": "Solo mining means you mine independently. When <strong>you</strong> find a block, you keep <strong>100% of the reward</strong> (minus the 1.5% pool fee). However, blocks are found less frequently than with pool mining.",
+    "intro_p2": "This guide will help you configure your miner for solo mode on KORVEX Pool.",
+    "tab_pplns": "PPLNS",
+    "tab_solo": "SOLO",
+    "server_port_value": "3417",
+    "comparison_title": "Solo vs PPLNS",
+    "comparison_desc": "Choosing between solo and PPLNS depends on your hashrate and risk tolerance.",
+    "comparison_headers": ["", "SOLO", "PPLNS"],
+    "comparison_rows": [
+      ["Reward Model", "100% of block reward to finder", "Reward shared among all miners"],
+      ["Pool Fee", "1.5%", "1%"],
+      ["Stratum Port", "3417", "3416"],
+      ["Income", "Large but infrequent", "Small but regular"],
+      ["Risk", "High variance (luck-dependent)", "Low variance (steady income)"],
+      ["Recommended For", "High hashrate (1+ GH/s)", "Any hashrate"]
+    ],
+    "recommendation_title": "Which mode should I choose?",
+    "recommendation_text": "If you have less than <strong>1 GH/s</strong>, we strongly recommend <strong>PPLNS</strong> for steady, predictable income. Solo mining is best suited for miners with significant hashrate who are willing to accept long periods without rewards in exchange for potentially larger payouts.",
+    "software_desc": "Autolykos2 is GPU-mineable. Below are the most popular miners with ready-to-use commands for <strong>solo mode (port 3417)</strong>. Replace <code>YOUR_WALLET</code> with your ERG address and <code>RIG_NAME</code> with a name for your machine.",
+    "pplns_title": "Solo Rewards",
+    "pplns_desc": "In solo mode, when <strong>you</strong> find a block, you receive the <strong>entire block reward</strong> minus the 1.5% pool fee. No shares are tracked or distributed to other miners.",
+    "pplns_key_points": "Key points:",
+    "pplns_points": [
+      "You only earn when YOUR miner finds a block",
+      "The 1.5% pool fee is deducted from the block reward",
+      "No minimum hashrate, but higher hashrate = more frequent blocks",
+      "Pool handles block submission, confirmation, and payment automatically"
+    ]
+  },
   "common": {
     "confirmed": "Confirmed",
     "pending": "Pending",

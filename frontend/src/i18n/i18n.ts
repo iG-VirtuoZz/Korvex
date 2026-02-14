@@ -5,6 +5,8 @@ import en from './locales/en.json';
 import fr from './locales/fr.json';
 import ru from './locales/ru.json';
 import zh from './locales/zh.json';
+import es from './locales/es.json';
+import de from './locales/de.json';
 
 const savedLang = localStorage.getItem('korvex_lang') || 'en';
 
@@ -16,6 +18,8 @@ i18n
       fr: { translation: fr },
       ru: { translation: ru },
       zh: { translation: zh },
+      es: { translation: es },
+      de: { translation: de },
     },
     lng: savedLang,
     fallbackLng: 'en',

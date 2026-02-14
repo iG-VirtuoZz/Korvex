@@ -1,13 +1,20 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+} from "recharts";
+import {
   isAdminLoggedIn,
   adminLogin,
   clearAdminToken,
   getAdminDashboard,
   getAdminDiceRolls,
+  getAdminFinancialStats,
+  getAdminSystemStats,
   triggerPayout,
   AdminDashboardData,
   DiceRollsData,
+  FinancialStats,
+  SystemStats,
 } from "../api";
 
 function formatHashrate(h: number): string {
@@ -40,6 +47,40 @@ function formatDifficulty(d: number): string {
   if (d >= 1e6) return (d / 1e6).toFixed(2) + " MH";
   return d.toFixed(0);
 }
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1e12) return (bytes / 1e12).toFixed(1) + " TB";
+  if (bytes >= 1e9) return (bytes / 1e9).toFixed(1) + " GB";
+  if (bytes >= 1e6) return (bytes / 1e6).toFixed(1) + " MB";
+  return (bytes / 1e3).toFixed(0) + " KB";
+}
+
+function formatUptime(seconds: number): string {
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h ${m}m`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+function formatDay(dayStr: string): string {
+  const d = new Date(dayStr);
+  return `${d.getDate()}/${d.getMonth() + 1}`;
+}
+
+// ========== RESOURCE BAR ==========
+const ResourceBar: React.FC<{ percent: number; color: string }> = ({ percent, color }) => (
+  <div className="admin-resource-bar">
+    <div
+      className="admin-resource-bar-fill"
+      style={{
+        width: `${Math.min(percent, 100)}%`,
+        background: color,
+      }}
+    />
+  </div>
+);
 
 // ========== LOGIN ==========
 const AdminLogin: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
@@ -96,7 +137,9 @@ const AdminDashboard: React.FC = () => {
   const [loggedIn, setLoggedIn] = useState(isAdminLoggedIn());
   const [data, setData] = useState<AdminDashboardData | null>(null);
   const [diceData, setDiceData] = useState<DiceRollsData | null>(null);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "dice">("dashboard");
+  const [financialData, setFinancialData] = useState<FinancialStats | null>(null);
+  const [systemData, setSystemData] = useState<SystemStats | null>(null);
+  const [activeTab, setActiveTab] = useState<"dashboard" | "dice" | "financial" | "vps">("dashboard");
   const [error, setError] = useState("");
   const [payoutLoading, setPayoutLoading] = useState(false);
   const [payoutResult, setPayoutResult] = useState<string | null>(null);
@@ -122,16 +165,41 @@ const AdminDashboard: React.FC = () => {
     } catch {}
   }, []);
 
+  const fetchFinancial = useCallback(async () => {
+    try {
+      const d = await getAdminFinancialStats();
+      setFinancialData(d);
+    } catch {}
+  }, []);
+
+  const fetchSystem = useCallback(async () => {
+    try {
+      const d = await getAdminSystemStats();
+      setSystemData(d);
+    } catch {}
+  }, []);
+
   useEffect(() => {
     if (!loggedIn) return;
     fetchData();
     fetchDice();
-    const interval = setInterval(() => {
+    fetchFinancial();
+    fetchSystem();
+
+    const mainInterval = setInterval(() => {
       fetchData();
       fetchDice();
     }, 5000);
-    return () => clearInterval(interval);
-  }, [loggedIn, fetchData, fetchDice]);
+
+    const financialInterval = setInterval(fetchFinancial, 30000);
+    const systemInterval = setInterval(fetchSystem, 10000);
+
+    return () => {
+      clearInterval(mainInterval);
+      clearInterval(financialInterval);
+      clearInterval(systemInterval);
+    };
+  }, [loggedIn, fetchData, fetchDice, fetchFinancial, fetchSystem]);
 
   const handleLogout = () => {
     clearAdminToken();
@@ -189,6 +257,18 @@ const AdminDashboard: React.FC = () => {
             >
               Dice Rolls
             </button>
+            <button
+              className={"admin-tab" + (activeTab === "financial" ? " admin-tab-active" : "")}
+              onClick={() => setActiveTab("financial")}
+            >
+              Financial
+            </button>
+            <button
+              className={"admin-tab" + (activeTab === "vps" ? " admin-tab-active" : "")}
+              onClick={() => setActiveTab("vps")}
+            >
+              VPS Monitor
+            </button>
           </div>
           <span className="admin-timestamp">
             {new Date(data.timestamp).toLocaleTimeString()}
@@ -206,6 +286,186 @@ const AdminDashboard: React.FC = () => {
 
       {error && (
         <div className="admin-alert-banner admin-alert-yellow">{error}</div>
+      )}
+
+      {/* ========== FINANCIAL TAB ========== */}
+      {activeTab === "financial" && financialData && (
+        <div className="admin-section">
+          {/* Stat cards */}
+          <div className="admin-stats-grid-4">
+            <div className="admin-stat-card">
+              <div className="admin-stat-label">Total ERG Miné</div>
+              <div className="admin-stat-value" style={{ color: "#22c55e" }}>
+                {financialData.totalMinedErg.toFixed(4)} ERG
+              </div>
+            </div>
+            <div className="admin-stat-card">
+              <div className="admin-stat-label">Total Payé</div>
+              <div className="admin-stat-value">
+                {financialData.totalPaidErg.toFixed(4)} ERG
+              </div>
+            </div>
+            <div className="admin-stat-card">
+              <div className="admin-stat-label">Revenus Pool (Fee {financialData.poolFeePercent}%)</div>
+              <div className="admin-stat-value" style={{ color: "#f97316" }}>
+                {financialData.poolRevenueErg.toFixed(4)} ERG
+              </div>
+            </div>
+            <div className="admin-stat-card">
+              <div className="admin-stat-label">Non distribué</div>
+              <div className="admin-stat-value" style={{ color: "#fbbf24" }}>
+                {(financialData.totalMinedErg - financialData.totalPaidErg - financialData.poolRevenueErg).toFixed(4)} ERG
+              </div>
+            </div>
+          </div>
+
+          {/* Graphique gains par jour */}
+          {financialData.dailyMined.length > 0 && (
+            <div className="admin-info-card">
+              <h3 className="admin-card-title">Gains par jour (30j)</h3>
+              <div className="admin-chart-container">
+                <ResponsiveContainer width="100%" height={250}>
+                  <AreaChart data={financialData.dailyMined}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                    <XAxis dataKey="day" tickFormatter={formatDay} stroke="#a1a1aa" fontSize={11} />
+                    <YAxis stroke="#a1a1aa" fontSize={11} tickFormatter={(v: number) => v.toFixed(1)} />
+                    <Tooltip
+                      contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8 }}
+                      labelFormatter={(l: any) => new Date(l).toLocaleDateString()}
+                      formatter={(value: any) => [Number(value).toFixed(4) + " ERG", "Miné"]}
+                    />
+                    <Area type="monotone" dataKey="erg" stroke="#22c55e" fill="rgba(34,197,94,0.15)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {/* Graphique paiements par jour */}
+          {financialData.dailyPaid.length > 0 && (
+            <div className="admin-info-card">
+              <h3 className="admin-card-title">Paiements par jour (30j)</h3>
+              <div className="admin-chart-container">
+                <ResponsiveContainer width="100%" height={250}>
+                  <AreaChart data={financialData.dailyPaid}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                    <XAxis dataKey="day" tickFormatter={formatDay} stroke="#a1a1aa" fontSize={11} />
+                    <YAxis stroke="#a1a1aa" fontSize={11} tickFormatter={(v: number) => v.toFixed(1)} />
+                    <Tooltip
+                      contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8 }}
+                      labelFormatter={(l: any) => new Date(l).toLocaleDateString()}
+                      formatter={(value: any) => [Number(value).toFixed(4) + " ERG", "Payé"]}
+                    />
+                    <Area type="monotone" dataKey="erg" stroke="#f97316" fill="rgba(249,115,22,0.15)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {financialData.dailyMined.length === 0 && financialData.dailyPaid.length === 0 && (
+            <div style={{ color: "#a1a1aa", textAlign: "center", padding: "48px" }}>
+              Aucune donnée financière sur les 30 derniers jours
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === "financial" && !financialData && (
+        <div style={{ color: "#a1a1aa", textAlign: "center", padding: "48px" }}>Chargement des données financières...</div>
+      )}
+
+      {/* ========== VPS MONITOR TAB ========== */}
+      {activeTab === "vps" && systemData && (
+        <div className="admin-section">
+          <div className="admin-stats-grid-4">
+            {/* CPU */}
+            <div className="admin-stat-card">
+              <div className="admin-stat-label">CPU ({systemData.cpu.cores} cores)</div>
+              <div className="admin-stat-value" style={{ color: systemData.cpu.usagePercent > 80 ? "#ef4444" : systemData.cpu.usagePercent > 50 ? "#fbbf24" : "#22c55e" }}>
+                {systemData.cpu.usagePercent}%
+              </div>
+              <ResourceBar
+                percent={systemData.cpu.usagePercent}
+                color={systemData.cpu.usagePercent > 80 ? "#ef4444" : systemData.cpu.usagePercent > 50 ? "#fbbf24" : "#22c55e"}
+              />
+              <div className="admin-stat-sub">Load: {systemData.cpu.loadAvg1m} / {systemData.cpu.loadAvg5m} / {systemData.cpu.loadAvg15m}</div>
+            </div>
+
+            {/* RAM */}
+            <div className="admin-stat-card">
+              <div className="admin-stat-label">RAM</div>
+              <div className="admin-stat-value" style={{ color: systemData.memory.usagePercent > 85 ? "#ef4444" : systemData.memory.usagePercent > 60 ? "#fbbf24" : "#22c55e" }}>
+                {systemData.memory.usagePercent}%
+              </div>
+              <ResourceBar
+                percent={systemData.memory.usagePercent}
+                color={systemData.memory.usagePercent > 85 ? "#ef4444" : systemData.memory.usagePercent > 60 ? "#fbbf24" : "#22c55e"}
+              />
+              <div className="admin-stat-sub">{formatBytes(systemData.memory.usedBytes)} / {formatBytes(systemData.memory.totalBytes)}</div>
+            </div>
+
+            {/* Disque */}
+            <div className="admin-stat-card">
+              <div className="admin-stat-label">Disque</div>
+              <div className="admin-stat-value" style={{ color: systemData.disk.usagePercent > 90 ? "#ef4444" : systemData.disk.usagePercent > 70 ? "#fbbf24" : "#22c55e" }}>
+                {systemData.disk.usagePercent}%
+              </div>
+              <ResourceBar
+                percent={systemData.disk.usagePercent}
+                color={systemData.disk.usagePercent > 90 ? "#ef4444" : systemData.disk.usagePercent > 70 ? "#fbbf24" : "#22c55e"}
+              />
+              <div className="admin-stat-sub">{formatBytes(systemData.disk.usedBytes)} / {formatBytes(systemData.disk.totalBytes)}</div>
+            </div>
+
+            {/* Uptime */}
+            <div className="admin-stat-card">
+              <div className="admin-stat-label">Pool Uptime</div>
+              <div className="admin-stat-value" style={{ color: "#22c55e" }}>
+                {formatUptime(systemData.pool.uptimeSeconds)}
+              </div>
+            </div>
+          </div>
+
+          {/* Noeud Ergo */}
+          <div className="admin-info-card">
+            <h3 className="admin-card-title">Nœud Ergo</h3>
+            <div className="admin-info-grid-2" style={{ margin: 0 }}>
+              <div>
+                <div className="admin-info-row">
+                  <span>Statut</span>
+                  <span className={systemData.node.synced ? "admin-badge-green" : "admin-badge-red"}>
+                    {systemData.node.synced ? "Synced" : "Syncing"}
+                  </span>
+                </div>
+                <div className="admin-info-row">
+                  <span>Hauteur</span>
+                  <span>{systemData.node.fullHeight.toLocaleString()}</span>
+                </div>
+                <div className="admin-info-row">
+                  <span>Headers</span>
+                  <span>{systemData.node.headersHeight.toLocaleString()}</span>
+                </div>
+              </div>
+              <div>
+                <div className="admin-info-row">
+                  <span>Pairs</span>
+                  <span>{systemData.node.peersCount}</span>
+                </div>
+                <div className="admin-info-row">
+                  <span>Latence API</span>
+                  <span style={{ color: systemData.node.latencyMs > 500 ? "#ef4444" : systemData.node.latencyMs > 200 ? "#fbbf24" : "#22c55e" }}>
+                    {systemData.node.latencyMs} ms
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "vps" && !systemData && (
+        <div style={{ color: "#a1a1aa", textAlign: "center", padding: "48px" }}>Chargement des données VPS...</div>
       )}
 
       {/* ========== DICE ROLLS TAB ========== */}
