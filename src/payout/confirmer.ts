@@ -53,13 +53,13 @@ export async function runConfirmer(): Promise<{ confirmed: number; orphaned: num
         }
       }
 
-      // Verifier si les block_rewards existent (protection crash entre recordBlock et distribution)
+      // Check if block_rewards exist (crash protection between recordBlock and distribution)
       const rewards = await database.getBlockRewards(blockHeight);
       if (rewards.length === 0) {
         console.warn(`[Confirmer] !!! Bloc ${blockHeight} sans block_rewards — re-distribution necessaire !!!`);
         try {
           await redistributeBlock(blockHeight);
-          // Verifier que la distribution a fonctionne
+          // Verify that the distribution worked
           const recheck = await database.getBlockRewards(blockHeight);
           if (recheck.length === 0) {
             console.error(`[Confirmer] Re-distribution echouee pour bloc ${blockHeight}, skip`);
@@ -93,10 +93,10 @@ export async function runConfirmer(): Promise<{ confirmed: number; orphaned: num
   return { confirmed, orphaned };
 }
 
-// Re-distribuer un bloc dont les block_rewards sont manquants
-// (crash entre recordBlock et distributePPLNS/distributeSolo)
+// Re-distribute a block whose block_rewards are missing
+// (crash between recordBlock and distributePPLNS/distributeSolo)
 async function redistributeBlock(blockHeight: number): Promise<void> {
-  // Recuperer les infos du bloc
+  // Retrieve block info
   const blockResult = await database.query(
     "SELECT height, difficulty, finder_address, mining_mode FROM blocks WHERE height = $1",
     [blockHeight]

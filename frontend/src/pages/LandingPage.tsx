@@ -13,7 +13,7 @@ const formatHash = (h: number) => {
   return h + " H/s";
 };
 
-/* Logos des cryptos via CoinGecko CDN (images officielles) */
+/* Crypto logos via CoinGecko CDN (official images) */
 const coinLogoUrls: Record<string, string> = {
   ergo: "https://assets.coingecko.com/coins/images/2484/standard/Ergo.png",
   kaspa: "https://assets.coingecko.com/coins/images/25751/standard/kaspa-icon-exchanges.png",
@@ -114,7 +114,7 @@ const LandingPage: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  /* Filtrer les coins qui ont le mode selectionne */
+  /* Filter coins that have the selected mode */
   const filtered = coins
     .map((coin) => {
       const mode = coin.modes.find((m) => m.id === tab);
@@ -129,7 +129,7 @@ const LandingPage: React.FC = () => {
         <p>{t("landing.subtitle")}</p>
       </div>
 
-      {/* Onglets PPLNS / Solo */}
+      {/* PPLNS / Solo tabs */}
       <div className="landing-tabs">
         <button
           className={`landing-tab ${tab === "pool" ? "landing-tab-active" : ""}`}

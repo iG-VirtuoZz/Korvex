@@ -69,9 +69,9 @@ class Database {
   // ============================================
 
   /**
-   * Effort lisse : chaque share est pesee par la difficulte reseau AU MOMENT ou elle a ete soumise.
-   * Retourne le nombre de "fractions de bloc" accumule (1.0 = 100% effort).
-   * Avantage : l'effort monte regulierement, pas de sauts quand la diff reseau change.
+   * Smoothed effort: each share is weighted by the network difficulty AT THE TIME it was submitted.
+   * Returns the number of accumulated "block fractions" (1.0 = 100% effort).
+   * Advantage: effort rises steadily, no jumps when network diff changes.
    */
   async getEffortSinceLastBlock(miningMode: string = 'pplns'): Promise<number> {
     const lastBlock = await this.query(
@@ -220,7 +220,7 @@ class Database {
   }
 
   // ============================================
-  // Phase 3 - Confirmations + Paiements
+  // Phase 3 - Confirmations + Payments
   // ============================================
 
   async getPendingBlocks(): Promise<Array<{ height: number; hash: string; reward_nano: string; created_at: string }>> {
@@ -285,7 +285,7 @@ class Database {
   }
 
   async getPayableBalances(minPayoutNano: bigint, excludeAddress?: string): Promise<Array<{ address: string; amount: bigint }>> {
-    // Exclure l'adresse de la pool pour ne pas s'envoyer un paiement a soi-meme
+    // Exclude the pool address to avoid sending a payment to itself
     const query = excludeAddress
       ? "SELECT address, amount FROM balances WHERE amount >= $1 AND address != $2 ORDER BY amount DESC"
       : "SELECT address, amount FROM balances WHERE amount >= $1 ORDER BY amount DESC";
@@ -300,11 +300,11 @@ class Database {
   }
 
   // ============================================
-  // Paiements safe — prepare + finalize
+  // Safe payments — prepare + finalize
   // ============================================
 
-  // Phase 1 : reserve les fonds et cree les payments en 'pending' (1 transaction atomique)
-  // Retourne les payments crees avec leur adresse et montant (pour construire le payload tx)
+  // Phase 1: reserves funds and creates payments as 'pending' (1 atomic transaction)
+  // Returns created payments with their address and amount (to build the tx payload)
   async prepareBatchPayments(
     entries: Array<{ address: string; amount: bigint }>
   ): Promise<Array<{ id: number; address: string; amount: bigint }>> {
@@ -315,7 +315,7 @@ class Database {
       const prepared: Array<{ id: number; address: string; amount: bigint }> = [];
 
       for (const entry of entries) {
-        // Debiter la balance avec lock (FOR UPDATE implicite via WHERE amount >= ...)
+        // Debit balance with lock (implicit FOR UPDATE via WHERE amount >= ...)
         const debit = await client.query(
           `UPDATE balances SET amount = amount - $1
            WHERE address = $2 AND amount >= $1
@@ -324,12 +324,12 @@ class Database {
         );
 
         if (debit.rows.length === 0) {
-          // Solde insuffisant pour cette adresse, skip (ne bloque pas le batch)
+          // Insufficient balance for this address, skip (doesn't block the batch)
           console.error("[DB] prepareBatch: solde insuffisant pour " + entry.address + ", skip");
           continue;
         }
 
-        // Creer le payment en status 'pending'
+        // Create the payment with 'pending' status
         const payment = await client.query(
           `INSERT INTO payments (address, amount, amount_nano, status, created_at)
            VALUES ($1, $2, $3, 'pending', NOW())
@@ -359,7 +359,7 @@ class Database {
     }
   }
 
-  // Phase 2a : marquer les payments comme 'sent' avec le txHash
+  // Phase 2a: mark payments as 'sent' with the txHash
   async finalizeBatchPayments(paymentIds: number[], txHash: string): Promise<void> {
     if (paymentIds.length === 0) return;
     const client = await this.getClient();
@@ -373,7 +373,7 @@ class Database {
         );
       }
 
-      // Mettre a jour total_paid dans miners
+      // Update total_paid in miners
       const payments = await client.query(
         `SELECT address, amount_nano FROM payments WHERE id = ANY($1)`,
         [paymentIds]
@@ -394,8 +394,8 @@ class Database {
     }
   }
 
-  // Phase 2b : marquer les payments comme 'unknown' (send echoue/timeout)
-  // Transactionnel pour eviter des payments "fantomes" en status pending si crash au milieu
+  // Phase 2b: mark payments as 'unknown' (send failed/timeout)
+  // Transactional to avoid "phantom" payments stuck in pending status if crash mid-way
   async markBatchPaymentsUnknown(paymentIds: number[], errorMsg: string): Promise<void> {
     if (paymentIds.length === 0) return;
     const client = await this.getClient();
@@ -416,7 +416,7 @@ class Database {
     }
   }
 
-  // Verifier s'il y a des payments unknown non resolus (bloque les paiements auto)
+  // Check if there are unresolved unknown payments (blocks automatic payouts)
   async hasUnresolvedPayments(): Promise<boolean> {
     const result = await this.query(
       "SELECT COUNT(*) as count FROM payments WHERE status = 'unknown'"
@@ -424,7 +424,7 @@ class Database {
     return parseInt(result.rows[0].count) > 0;
   }
 
-  // Ancienne fonction conservee pour compatibilite API (getRecentPayments, etc.)
+  // Legacy function kept for API compatibility (getRecentPayments, etc.)
   async debitBalanceAndRecordPayment(
     address: string,
     amountNano: bigint,
@@ -490,7 +490,7 @@ class Database {
     return result.rows;
   }
 
-  // Nettoyage auto : garder max 5 paiements 'failed' par adresse
+  // Auto cleanup: keep max 5 'failed' payments per address
   async cleanOldFailedPayments(): Promise<number> {
     const result = await this.query(
       `DELETE FROM payments
@@ -507,7 +507,7 @@ class Database {
     return result.rowCount || 0;
   }
 
-  // Nettoyage auto : supprimer les shares de plus de 7 jours
+  // Auto cleanup: delete shares older than 7 days
   async cleanOldShares(): Promise<number> {
     const result = await this.query(
       "DELETE FROM shares WHERE created_at < NOW() - INTERVAL '7 days'"

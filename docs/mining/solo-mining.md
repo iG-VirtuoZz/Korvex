@@ -1,244 +1,244 @@
-# SOLO Mining - Tout ou Rien
+# SOLO Mining - All or Nothing
 
-## C'est quoi le SOLO mining ?
+## What is SOLO Mining?
 
-En SOLO mining, quand un mineur trouve un bloc, il recoit **100% du reward** (moins la fee pool). Les autres mineurs ne recoivent rien pour ce bloc. C'est du "tout ou rien".
+In SOLO mining, when a miner finds a block, they receive **100% of the reward** (minus the pool fee). Other miners receive nothing for that block. It's "all or nothing".
 
-C'est l'oppose du PPLNS ou tout le monde partage. En SOLO, tu prends tout le risque mais aussi tout le gain.
+It's the opposite of PPLNS where everyone shares. In SOLO, you take all the risk but also all the reward.
 
-## PPLNS vs SOLO - Comparaison complete
+## PPLNS vs SOLO - Full Comparison
 
-### 1. Ce qui est IDENTIQUE (protocole et infrastructure)
+### 1. What is IDENTICAL (protocol and infrastructure)
 
-| Composant | PPLNS | SOLO | Identique ? |
-|-----------|-------|------|:-----------:|
-| Protocole Stratum | `mining.subscribe/authorize/notify/submit` | Identique | OUI |
-| Vardiff | Ajustement cible 15s | Identique | OUI |
-| Validation shares (Autolykos2) | `validateShare()` | Identique | OUI |
-| Soumission bloc au noeud | `submitSolution()` | Identique | OUI |
-| Logiciel mineur | lolMiner / TeamRedMiner | Identique | OUI |
-| Calcul hashrate | `SUM(share_diff) * 1.08 / temps` | Identique | OUI |
-| Workers tracking | Par `adresse.worker` | Identique | OUI |
-| Shares stockage | Table `shares` | Identique | OUI |
-| Confirmations | 720 blocs (~24h) | Identique | OUI |
-| Paiement mecanisme | balance → tx groupee | Identique | OUI |
-| pk dans le bloc | Cle publique de la pool | Identique | OUI |
+| Component | PPLNS | SOLO | Identical? |
+|-----------|-------|------|:----------:|
+| Stratum Protocol | `mining.subscribe/authorize/notify/submit` | Identical | YES |
+| Vardiff | 15s target adjustment | Identical | YES |
+| Share validation (Autolykos2) | `validateShare()` | Identical | YES |
+| Block submission to node | `submitSolution()` | Identical | YES |
+| Mining software | lolMiner / TeamRedMiner | Identical | YES |
+| Hashrate calculation | `SUM(share_diff) * 1.08 / time` | Identical | YES |
+| Workers tracking | By `address.worker` | Identical | YES |
+| Shares storage | `shares` table | Identical | YES |
+| Confirmations | 720 blocks (~24h) | Identical | YES |
+| Payment mechanism | balance -> grouped tx | Identical | YES |
+| pk in the block | Pool's public key | Identical | YES |
 
-**En resume** : le mineur utilise le **meme logiciel**, la **meme configuration**, le **meme protocole**. La seule difference visible pour lui est le **port de connexion** (ex: 3416 PPLNS, 3417 SOLO).
+**In summary**: the miner uses the **same software**, the **same configuration**, the **same protocol**. The only visible difference is the **connection port** (e.g., 3416 PPLNS, 3417 SOLO).
 
-### 2. Ce qui est DIFFERENT (distribution et metriques)
+### 2. What is DIFFERENT (distribution and metrics)
 
-| Composant | PPLNS | SOLO | Identique ? |
-|-----------|-------|------|:-----------:|
-| Shares → paiement | Proportionnel dans la fenetre PPLNS | INUTILE (shares ne servent pas au payout) | NON |
-| Distribution reward | Partage entre N mineurs (fenetre PPLNS) | 100% au finder - fee | NON |
-| Fee pool | 1% | 1.5% | NON |
-| Effort calcul | Travail de TOUTE la pool vs diff reseau | Travail de CE MINEUR seul vs diff reseau | NON |
-| Blocs affiches | Blocs de la pool | Blocs de CE mineur uniquement | NON |
-| Frequence paiement | Chaque bloc pool (souvent, petits montants) | Chaque bloc du mineur (rare, gros montant) | NON |
-| Temps estime pour un bloc | Pool entiere (rapide) | Par mineur (beaucoup plus long) | NOUVEAU |
-| Effort mineur personnel | Non affiche | `% effort personnel vs reseau` | NOUVEAU |
+| Component | PPLNS | SOLO | Identical? |
+|-----------|-------|------|:----------:|
+| Shares -> payment | Proportional within PPLNS window | NOT USED (shares don't contribute to payout) | NO |
+| Reward distribution | Shared among N miners (PPLNS window) | 100% to the finder - fee | NO |
+| Pool fee | 1% | 1.5% | NO |
+| Effort calculation | Work of the ENTIRE pool vs network diff | Work of THIS MINER alone vs network diff | NO |
+| Blocks displayed | Pool blocks | THIS miner's blocks only | NO |
+| Payment frequency | Each pool block (frequent, small amounts) | Each miner's block (rare, large amount) | NO |
+| Estimated time for a block | Entire pool (fast) | Per miner (much longer) | NEW |
+| Personal miner effort | Not displayed | `% personal effort vs network` | NEW |
 
-## Comment ca marche dans Korvex ?
+## How Does It Work in Korvex?
 
-### Le flux complet
-
-```
-1. Le mineur se connecte en Stratum sur le port SOLO (3417)
-   → La pool lui attribue miningMode = "solo" sur sa session
-
-2. Le mineur soumet des shares normalement
-   → Stockees dans la table shares avec mining_mode = "solo"
-   → Servent au calcul du hashrate et de l'effort (pas au paiement)
-
-3. Un share se revele etre un bloc valide !
-   → La pool identifie le gagnant via session.address
-   → Au lieu d'appeler distributePPLNS(), elle appelle distributeSolo()
-
-4. Distribution SOLO :
-   → Reward total : 3 ERG
-   → Fee pool (1.5%) : 0.045 ERG
-   → Credit au mineur gagnant : 2.955 ERG
-
-5. Attente 720 confirmations (~24h)
-   → Apres confirmation, la balance est creditee
-   → Paiement automatique quand balance >= seuil
-```
-
-### Pourquoi la pool est intermediaire ?
-
-Le noeud Ergo genere le bloc candidat avec **sa propre cle publique** (celle configuree dans `ergo.conf`). C'est le noeud qui decide quelle adresse recoit le reward on-chain.
+### The Complete Flow
 
 ```
-Noeud Ergo → genere candidat avec pk = cle de la pool
-Mineur     → resout le puzzle
-Bloc mine  → reward arrive a l'adresse de la POOL (pas du mineur)
-Pool       → attend 720 blocs, puis envoie reward - fee au mineur gagnant
+1. The miner connects via Stratum on the SOLO port (3417)
+   -> The pool assigns miningMode = "solo" to their session
+
+2. The miner submits shares normally
+   -> Stored in the shares table with mining_mode = "solo"
+   -> Used for hashrate and effort calculation (not for payment)
+
+3. A share turns out to be a valid block!
+   -> The pool identifies the winner via session.address
+   -> Instead of calling distributePPLNS(), it calls distributeSolo()
+
+4. SOLO distribution:
+   -> Total reward: 3 ERG
+   -> Pool fee (1.5%): 0.045 ERG
+   -> Credit to the winning miner: 2.955 ERG
+
+5. Waiting for 720 confirmations (~24h)
+   -> After confirmation, the balance is credited
+   -> Automatic payment when balance >= threshold
 ```
 
-C'est la meme chose en PPLNS et en SOLO. La seule difference est **a qui** la pool envoie les ERG apres maturation.
+### Why is the Pool an Intermediary?
 
-### Identification du gagnant
+The Ergo node generates the block candidate with **its own public key** (the one configured in `ergo.conf`). It's the node that decides which address receives the on-chain reward.
 
-Quand un bloc est trouve, la pool sait **immediatement** qui l'a trouve grace a la session TCP :
+```
+Ergo Node  -> generates candidate with pk = pool's key
+Miner      -> solves the puzzle
+Mined block -> reward goes to the POOL's address (not the miner's)
+Pool       -> waits 720 blocks, then sends reward - fee to the winning miner
+```
+
+This is the same in both PPLNS and SOLO. The only difference is **who** the pool sends the ERG to after maturation.
+
+### Winner Identification
+
+When a block is found, the pool knows **immediately** who found it thanks to the TCP session:
 
 ```typescript
 if (result.meetsNetworkTarget) {
-    // session.address = adresse Ergo du mineur gagnant
-    // session.worker = nom du worker
-    console.log("BLOC TROUVE par " + session.address + "." + session.worker);
+    // session.address = winning miner's Ergo address
+    // session.worker = worker name
+    console.log("BLOCK FOUND by " + session.address + "." + session.worker);
 }
 ```
 
-Chaque mineur a sa propre connexion TCP persistante avec la pool. L'adresse et le worker sont enregistres lors du `mining.authorize`.
+Each miner has their own persistent TCP connection with the pool. The address and worker are registered during `mining.authorize`.
 
-## Exemple concret : PPLNS vs SOLO
+## Concrete Example: PPLNS vs SOLO
 
 ### Scenario
 
 ```
-Hashrate reseau : 30 TH/s
+Network hashrate: 30 TH/s
 Pool hashrate   : 2 GH/s (PPLNS) + 500 MH/s (SOLO)
-Temps moyen entre blocs reseau : ~2 minutes
-Reward par bloc : 3 ERG
+Average time between network blocks: ~2 minutes
+Reward per block: 3 ERG
 ```
 
-### En PPLNS (2 GH/s pool)
+### In PPLNS (2 GH/s pool)
 
 ```
-Part du reseau    = 2 000 GH/s / 30 000 GH/s = 6.67%
-Blocs par jour    = 720 * 6.67% = ~48 blocs/jour
-Reward pool/jour  = 48 * 3 ERG = ~144 ERG/jour
+Network share     = 2,000 GH/s / 30,000 GH/s = 6.67%
+Blocks per day    = 720 * 6.67% = ~48 blocks/day
+Pool reward/day   = 48 * 3 ERG = ~144 ERG/day
 
-Mineur avec 200 MH/s (10% de la pool) :
-→ Gain/jour = 144 * 10% * 0.99 (fee) = ~14.3 ERG/jour
-→ Paiement regulier, petits montants
+Miner with 200 MH/s (10% of the pool):
+-> Earnings/day = 144 * 10% * 0.99 (fee) = ~14.3 ERG/day
+-> Regular payments, small amounts
 ```
 
-### En SOLO (mineur de 200 MH/s)
+### In SOLO (200 MH/s miner)
 
 ```
-Part du reseau       = 200 MH/s / 30 000 GH/s = 0.00067%
-Blocs par jour       = 720 * 0.00067% = ~0.0048
-Temps moyen un bloc  = 1 / 0.0048 = ~208 jours
+Network share          = 200 MH/s / 30,000 GH/s = 0.00067%
+Blocks per day         = 720 * 0.00067% = ~0.0048
+Average time per block = 1 / 0.0048 = ~208 days
 
-Quand il trouve un bloc :
-→ Gain = 3 ERG * 0.985 (fee 1.5%) = 2.955 ERG
-→ Mais en moyenne, il attend ~208 jours entre chaque bloc !
+When they find a block:
+-> Earnings = 3 ERG * 0.985 (1.5% fee) = 2.955 ERG
+-> But on average, they wait ~208 days between each block!
 ```
 
-### Comparaison gains
+### Earnings Comparison
 
-| Periode | PPLNS (200 MH/s) | SOLO (200 MH/s) |
-|---------|-------------------|------------------|
-| 1 jour | ~14.3 ERG | 0 ERG (probablement) |
-| 1 semaine | ~100 ERG | 0 ERG (probablement) |
-| 1 mois | ~429 ERG | Peut-etre 1 bloc (2.955 ERG) ou 0 |
-| 6 mois | ~2 574 ERG | Peut-etre 1 bloc (2.955 ERG) |
-| 1 an | ~5 220 ERG | ~1.75 blocs = ~5.17 ERG |
+| Period | PPLNS (200 MH/s) | SOLO (200 MH/s) |
+|--------|-------------------|------------------|
+| 1 day | ~14.3 ERG | 0 ERG (most likely) |
+| 1 week | ~100 ERG | 0 ERG (most likely) |
+| 1 month | ~429 ERG | Maybe 1 block (2.955 ERG) or 0 |
+| 6 months | ~2,574 ERG | Maybe 1 block (2.955 ERG) |
+| 1 year | ~5,220 ERG | ~1.75 blocks = ~5.17 ERG |
 
-**Conclusion** : sur le long terme, les gains sont quasi-identiques (en theorie). La difference est la **variance** : PPLNS = revenus reguliers, SOLO = longue attente puis gros gain.
+**Conclusion**: over the long term, earnings are nearly identical (in theory). The difference is **variance**: PPLNS = regular income, SOLO = long wait then large payout.
 
-## A qui s'adresse le SOLO ?
+## Who is SOLO For?
 
-### SOLO est fait pour :
-- **Gros mineurs** (plusieurs GH/s) qui trouvent des blocs regulierement
-- **Joueurs** qui aiment le "tout ou rien"
-- **Mineurs patients** qui preferent garder 100% du reward
+### SOLO is suited for:
+- **Large miners** (several GH/s) who find blocks regularly
+- **Gamblers** who enjoy the "all or nothing" aspect
+- **Patient miners** who prefer keeping 100% of the reward
 
-### SOLO n'est PAS fait pour :
-- **Petits mineurs** (quelques centaines de MH/s) → attente trop longue
-- **Mineurs qui veulent un revenu regulier** → PPLNS est mieux
-- **Debutants** → PPLNS est plus simple a comprendre
+### SOLO is NOT suited for:
+- **Small miners** (a few hundred MH/s) -> too long between blocks
+- **Miners who want regular income** -> PPLNS is better
+- **Beginners** -> PPLNS is easier to understand
 
-### Seuil pratique
+### Practical Threshold
 
-En general, le SOLO devient interessant quand le mineur peut esperer trouver un bloc **au moins une fois par semaine** :
+Generally, SOLO becomes interesting when a miner can expect to find a block **at least once per week**:
 
 ```
-Temps moyen < 7 jours
-→ hashrate_mineur > hashrate_reseau / (720 * 7)
-→ hashrate_mineur > 30 TH/s / 5040
-→ hashrate_mineur > ~6 GH/s (pour Ergo actuellement)
+Average time < 7 days
+-> miner_hashrate > network_hashrate / (720 * 7)
+-> miner_hashrate > 30 TH/s / 5040
+-> miner_hashrate > ~6 GH/s (for Ergo currently)
 ```
 
-Avec moins de 6 GH/s, le SOLO est possible mais **tres aleatoire**.
+With less than 6 GH/s, SOLO is possible but **very unpredictable**.
 
-## Stats Frontend - Quoi afficher
+## Frontend Stats - What to Display
 
-### Dashboard pool (Home)
+### Pool Dashboard (Home)
 
 | Stat | PPLNS | SOLO | Action |
 |------|-------|------|--------|
-| Hashrate pool | Affiche | Affiche separe (SOLO pool hashrate) | Separer par mode |
-| Miners Online | Affiche | Affiche separe | Separer par mode |
-| Effort pool | % effort collectif | Masquer (pas pertinent en SOLO) | Masquer en SOLO |
-| Blocs trouves | Blocs de la pool | Blocs SOLO (avec info finder) | Filtrer par mode |
-| Last Block | Dernier bloc pool | Dernier bloc SOLO | Separer par mode |
+| Pool hashrate | Displayed | Displayed separately (SOLO pool hashrate) | Separate by mode |
+| Miners Online | Displayed | Displayed separately | Separate by mode |
+| Pool effort | % collective effort | Hide (not relevant in SOLO) | Hide in SOLO |
+| Blocks found | Pool blocks | SOLO blocks (with finder info) | Filter by mode |
+| Last Block | Last pool block | Last SOLO block | Separate by mode |
 
-### Page mineur (MinerPage)
+### Miner Page (MinerPage)
 
 | Stat | PPLNS | SOLO | Action |
 |------|-------|------|--------|
-| Hashrate (15m, 1h, 24h) | Affiche | Affiche | Identique |
-| Workers (liste, status) | Affiche | Affiche | Identique |
-| Shares valides/invalides | Affiche | Affiche | Identique |
-| Effort mineur | Non affiche | `% effort personnel` | NOUVEAU en SOLO |
-| Temps estime | Non affiche | "~X jours par bloc" | NOUVEAU en SOLO |
-| PPLNS Window | Affiche | Masquer (pas de window) | Masquer en SOLO |
-| Blocs trouves | Blocs pool | Mes blocs (finder = moi) | Filtrer par mineur |
-| Paiements | Frequents, petits | Rares, gros | Identique en affichage |
-| Reward par bloc | Part proportionnelle | Reward complet - fee | Renommer |
+| Hashrate (15m, 1h, 24h) | Displayed | Displayed | Identical |
+| Workers (list, status) | Displayed | Displayed | Identical |
+| Valid/invalid shares | Displayed | Displayed | Identical |
+| Miner effort | Not displayed | `% personal effort` | NEW in SOLO |
+| Estimated time | Not displayed | "~X days per block" | NEW in SOLO |
+| PPLNS Window | Displayed | Hide (no window) | Hide in SOLO |
+| Blocks found | Pool blocks | My blocks (finder = me) | Filter by miner |
+| Payments | Frequent, small | Rare, large | Identical display |
+| Reward per block | Proportional share | Full reward - fee | Rename |
 
-### Formules des nouvelles metriques SOLO
+### Formulas for New SOLO Metrics
 
-**Effort par mineur** :
+**Per-miner effort**:
 ```
-effort_mineur = SUM(shares du mineur depuis dernier bloc du mineur) / network_difficulty * 100
-```
-
-**Temps estime pour trouver un bloc** :
-```
-temps_estime = (hashrate_reseau / hashrate_mineur) * temps_moyen_bloc_reseau
-             = (30 TH/s / 200 MH/s) * 2 minutes
-             = 150 000 * 2 min
-             = ~208 jours
+miner_effort = SUM(miner's shares since their last block) / network_difficulty * 100
 ```
 
-## Implementation technique (resume)
+**Estimated time to find a block**:
+```
+estimated_time = (network_hashrate / miner_hashrate) * avg_network_block_time
+              = (30 TH/s / 200 MH/s) * 2 minutes
+              = 150,000 * 2 min
+              = ~208 days
+```
 
-### Modifications backend necessaires
+## Technical Implementation (Summary)
 
-| Fichier | Modification |
-|---------|-------------|
-| `server.ts` | Attribut `miningMode` par session (selon le port de connexion) |
-| `server.ts` (handleSubmit) | Si bloc → appel `distributePPLNS()` ou `distributeSolo()` selon mode |
-| **`solo.ts`** (nouveau) | Credite 100% du reward (- fee) au `session.address` |
-| `config.ts` | Nouveau port SOLO (ex: 3417), fee SOLO (1.5%) |
-| DB migrations | Colonne `mining_mode` sur tables `shares`, `blocks`, `balances` |
-| `api.ts` | Endpoints filtres par mode, nouvelles metriques SOLO |
+### Required Backend Changes
 
-### Modifications frontend necessaires
+| File | Modification |
+|------|-------------|
+| `server.ts` | `miningMode` attribute per session (based on connection port) |
+| `server.ts` (handleSubmit) | If block -> call `distributePPLNS()` or `distributeSolo()` based on mode |
+| **`solo.ts`** (new) | Credits 100% of reward (- fee) to `session.address` |
+| `config.ts` | New SOLO port (e.g., 3417), SOLO fee (1.5%) |
+| DB migrations | `mining_mode` column on `shares`, `blocks`, `balances` tables |
+| `api.ts` | Endpoints filtered by mode, new SOLO metrics |
 
-| Fichier | Modification |
-|---------|-------------|
-| `LandingPage.tsx` | Onglet SOLO → route `/coin/ergo-solo` quand actif |
-| `Home.tsx` | Variante SOLO : effort mineur, temps estime, blocs du mineur |
-| `MinerPage.tsx` | Effort personnel, temps estime, blocs du mineur |
-| `coins.ts` | Mode `solo` passe a `active: true` avec route |
-| `api.ts` (frontend) | Parametres `?mode=solo` sur les appels API |
+### Required Frontend Changes
 
-### Ce qui NE change PAS
+| File | Modification |
+|------|-------------|
+| `LandingPage.tsx` | SOLO tab -> route `/coin/ergo-solo` when active |
+| `Home.tsx` | SOLO variant: miner effort, estimated time, miner's blocks |
+| `MinerPage.tsx` | Personal effort, estimated time, miner's blocks |
+| `coins.ts` | `solo` mode set to `active: true` with route |
+| `api.ts` (frontend) | `?mode=solo` parameters on API calls |
 
-- Protocole Stratum (meme code)
-- `autolykos2.ts` (validation identique)
-- Noeud Ergo et sa configuration
-- Mecanisme de confirmation (720 blocs)
-- Systeme de paiement (balance → tx)
+### What Does NOT Change
 
-## Voir aussi
+- Stratum protocol (same code)
+- `autolykos2.ts` (identical validation)
+- Ergo node and its configuration
+- Confirmation mechanism (720 blocks)
+- Payment system (balance -> tx)
 
-- [PPLNS](pplns.md) - Fonctionnement du mode PPLNS actuel
-- [Les Shares](shares.md) - Comprendre shareDiff et validation
-- [Protocole Stratum](stratum-protocol.md) - Identique en PPLNS et SOLO
-- [Blocs et Rewards](../blockchain/blocks-rewards.md) - Confirmations et maturation
+## See Also
+
+- [PPLNS](pplns.md) - How the current PPLNS mode works
+- [Shares](shares.md) - Understanding shareDiff and validation
+- [Stratum Protocol](stratum-protocol.md) - Identical in PPLNS and SOLO
+- [Blocks and Rewards](../blockchain/blocks-rewards.md) - Confirmations and maturation

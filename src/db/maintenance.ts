@@ -28,7 +28,7 @@ class Maintenance {
   private async aggregate(): Promise<void> {
     try {
       for (const mode of ['pplns', 'solo']) {
-        // Pool hashrate par mode
+        // Pool hashrate per mode
         await database.query(
           "INSERT INTO pool_hashrate_1m (ts_minute, mining_mode, diff_sum, share_count) " +
           "SELECT ts_min, $1::varchar, COALESCE(SUM(s.share_diff), 0), COUNT(s.*) " +
@@ -44,7 +44,7 @@ class Maintenance {
           [mode]
         );
 
-        // Miner hashrate par mode
+        // Miner hashrate per mode
         await database.query(
           "INSERT INTO miner_hashrate_1m (ts_minute, address, mining_mode, diff_sum, share_count) " +
           "SELECT ts_min, s.address, $1::varchar, COALESCE(SUM(s.share_diff), 0), COUNT(*) " +
@@ -60,7 +60,7 @@ class Maintenance {
           [mode]
         );
 
-        // Worker hashrate par mode
+        // Worker hashrate per mode
         await database.query(
           "INSERT INTO worker_hashrate_1m (ts_minute, address, worker, mining_mode, diff_sum, share_count) " +
           "SELECT ts_min, s.address, s.worker, $1::varchar, COALESCE(SUM(s.share_diff), 0), COUNT(*) " +
@@ -136,9 +136,9 @@ class Maintenance {
         console.log("[Maintenance] Confirmations: " + confirmResult.confirmed + " confirme(s), " + confirmResult.orphaned + " orphan(s)");
       }
 
-      // Si un bloc vient d'etre confirme dans ce cycle, skip le payer
-      // Le wallet du noeud a besoin de quelques minutes pour rendre les UTXOs disponibles
-      // Le paiement passera au prochain cycle (10 min)
+      // If a block was just confirmed in this cycle, skip the payer
+      // The node wallet needs a few minutes to make the UTXOs available
+      // Payment will go through in the next cycle (10 min)
       if (confirmResult.confirmed > 0) {
         console.log("[Maintenance] Bloc confirme dans ce cycle, paiement reporte au prochain cycle (UTXOs pas encore disponibles)");
       } else {

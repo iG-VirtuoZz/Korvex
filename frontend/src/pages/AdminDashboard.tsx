@@ -319,7 +319,7 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Graphique gains par jour */}
+          {/* Daily earnings chart */}
           {financialData.dailyMined.length > 0 && (
             <div className="admin-info-card">
               <h3 className="admin-card-title">Gains par jour (30j)</h3>
@@ -341,7 +341,7 @@ const AdminDashboard: React.FC = () => {
             </div>
           )}
 
-          {/* Graphique paiements par jour */}
+          {/* Daily payments chart */}
           {financialData.dailyPaid.length > 0 && (
             <div className="admin-info-card">
               <h3 className="admin-card-title">Paiements par jour (30j)</h3>
@@ -405,7 +405,7 @@ const AdminDashboard: React.FC = () => {
               <div className="admin-stat-sub">{formatBytes(systemData.memory.usedBytes)} / {formatBytes(systemData.memory.totalBytes)}</div>
             </div>
 
-            {/* Disque */}
+            {/* Disk */}
             <div className="admin-stat-card">
               <div className="admin-stat-label">Disque</div>
               <div className="admin-stat-value" style={{ color: systemData.disk.usagePercent > 90 ? "#ef4444" : systemData.disk.usagePercent > 70 ? "#fbbf24" : "#22c55e" }}>
@@ -427,7 +427,7 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Noeud Ergo */}
+          {/* Ergo Node */}
           <div className="admin-info-card">
             <h3 className="admin-card-title">Nœud Ergo</h3>
             <div className="admin-info-grid-2" style={{ margin: 0 }}>

@@ -8,7 +8,7 @@ const HowToStart: React.FC = () => {
   const navigate = useNavigate();
   const isSolo = location.pathname.includes("solo");
 
-  // Valeurs dynamiques selon le mode
+  // Dynamic values based on mode
   const fee = isSolo ? "1.5%" : "1%";
   const port = isSolo ? "3417" : "3416";
   const prefix = isSolo ? "howtoSolo" : "howto";
@@ -22,7 +22,7 @@ const HowToStart: React.FC = () => {
         <p className="modern-header-sub">{t(`${prefix}.subtitle`)}</p>
       </div>
 
-      {/* ===================== ONGLETS PPLNS / SOLO ===================== */}
+      {/* ===================== PPLNS / SOLO TABS ===================== */}
       <div className="howto-mode-tabs">
         <button
           className={"howto-mode-tab" + (!isSolo ? " howto-mode-tab-active" : "")}
@@ -175,7 +175,7 @@ const HowToStart: React.FC = () => {
         </div>
       </div>
 
-      {/* ===================== REWARDS + SUPPORT (2 colonnes) ===================== */}
+      {/* ===================== REWARDS + SUPPORT (2 columns) ===================== */}
       <div className="howto-two-col">
         <div className="modern-info-card">
           <h3>{t(`${prefix}.pplns_title`)}</h3>
@@ -199,7 +199,7 @@ const HowToStart: React.FC = () => {
         </div>
       </div>
 
-      {/* ===================== PAYMENTS + STATS (2 colonnes) ===================== */}
+      {/* ===================== PAYMENTS + STATS (2 columns) ===================== */}
       <div className="howto-two-col">
         <div className="modern-info-card">
           <h3>{t('howto.payments_title')}</h3>

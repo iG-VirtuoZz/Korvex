@@ -76,7 +76,7 @@ const App: React.FC = () => (
         <Route path="/coin/ergo-solo" element={<Home />} />
         <Route path="/coin/ergo-solo/miners" element={<MinersPage />} />
         <Route path="/coin/ergo-solo/miner/:address" element={<MinerPage />} />
-        {/* Redirections anciennes URLs */}
+        {/* Legacy URL redirects */}
         <Route path="/miners" element={<Navigate to="/coin/ergo/miners" replace />} />
         <Route path="/miner/:address" element={<RedirectMiner />} />
         <Route path="/status" element={<Status />} />
@@ -94,7 +94,7 @@ const App: React.FC = () => (
   </BrowserRouter>
 );
 
-/* Composant pour rediriger /miner/:address vers /coin/ergo/miner/:address */
+/* Component to redirect /miner/:address to /coin/ergo/miner/:address */
 function RedirectMiner() {
   const path = window.location.pathname;
   const address = path.replace("/miner/", "");

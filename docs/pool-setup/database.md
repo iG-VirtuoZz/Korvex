@@ -1,85 +1,85 @@
-# Structure de la Base de Donnees
+# Database Structure
 
-## Vue d'ensemble
+## Overview
 
-KORVEX utilise **PostgreSQL** pour stocker toutes les donnees de la pool.
+KORVEX uses **PostgreSQL** to store all pool data.
 
 ```
 korvex_pool
-├── shares              # Toutes les shares soumises
-├── blocks              # Blocs trouves par la pool
-├── block_rewards       # Distribution PPLNS par bloc
-├── balances            # Soldes des mineurs
-├── miners              # Stats par mineur
-├── payments            # Historique des paiements
-├── pool_hashrate_1m    # Agregation hashrate pool
-├── miner_hashrate_1m   # Agregation hashrate par mineur
-├── worker_hashrate_1m  # Agregation hashrate par worker
-└── network_snapshots   # Historique difficulte reseau
++-- shares              # All submitted shares
++-- blocks              # Blocks found by the pool
++-- block_rewards       # PPLNS distribution per block
++-- balances            # Miner balances
++-- miners              # Per-miner stats
++-- payments            # Payment history
++-- pool_hashrate_1m    # Pool hashrate aggregation
++-- miner_hashrate_1m   # Per-miner hashrate aggregation
++-- worker_hashrate_1m  # Per-worker hashrate aggregation
++-- network_snapshots   # Network difficulty history
 ```
 
-## Tables principales
+## Main Tables
 
 ### shares
 
-Chaque share soumise par un mineur.
+Every share submitted by a miner.
 
 ```sql
 CREATE TABLE shares (
   id            SERIAL PRIMARY KEY,
-  address       VARCHAR(64) NOT NULL,      -- Adresse du mineur
+  address       VARCHAR(64) NOT NULL,      -- Miner address
   worker        VARCHAR(64) DEFAULT 'default',
-  share_diff    BIGINT NOT NULL,           -- Poids de la share (networkDiff/vardiff)
-  block_diff    BIGINT NOT NULL,           -- Difficulte reseau au moment
-  block_height  INTEGER NOT NULL,          -- Hauteur du bloc
-  is_valid      BOOLEAN NOT NULL,          -- Share acceptee ou rejetee
+  share_diff    BIGINT NOT NULL,           -- Share weight (networkDiff/vardiff)
+  block_diff    BIGINT NOT NULL,           -- Network difficulty at the time
+  block_height  INTEGER NOT NULL,          -- Block height
+  is_valid      BOOLEAN NOT NULL,          -- Share accepted or rejected
   created_at    TIMESTAMP DEFAULT NOW()
 );
 
--- Index pour les requetes frequentes
+-- Indexes for frequent queries
 CREATE INDEX idx_shares_address_created ON shares(address, created_at);
 CREATE INDEX idx_shares_created ON shares(created_at);
 ```
 
-**Retention** : 30 jours (purgees automatiquement)
+**Retention**: 30 days (automatically purged)
 
 ### blocks
 
-Blocs trouves par la pool.
+Blocks found by the pool.
 
 ```sql
 CREATE TABLE blocks (
   id               SERIAL PRIMARY KEY,
   height           INTEGER NOT NULL UNIQUE,
-  hash             VARCHAR(128),            -- BlockId reel du noeud
-  reward           BIGINT DEFAULT 0,        -- (legacy, utiliser reward_nano)
-  reward_nano      BIGINT,                  -- Reward en nanoERG
+  hash             VARCHAR(128),            -- Actual blockId from the node
+  reward           BIGINT DEFAULT 0,        -- (legacy, use reward_nano)
+  reward_nano      BIGINT,                  -- Reward in nanoERG
   difficulty       BIGINT NOT NULL,
   miner_address    VARCHAR(64) NOT NULL,
   worker           VARCHAR(64),
   status           VARCHAR(20) DEFAULT 'pending',  -- pending/confirmed/orphan
   is_orphan        BOOLEAN DEFAULT FALSE,
-  effort_percent   DOUBLE PRECISION,        -- Effort pour trouver ce bloc
-  pplns_shares     INTEGER,                 -- Nombre de shares dans le PPLNS
-  pplns_diff_sum   BIGINT,                  -- Somme des shareDiff PPLNS
-  reward_distributed BOOLEAN DEFAULT FALSE, -- PPLNS calcule ?
-  confirmed_at     TIMESTAMP,               -- Quand confirme
+  effort_percent   DOUBLE PRECISION,        -- Effort to find this block
+  pplns_shares     INTEGER,                 -- Number of shares in the PPLNS window
+  pplns_diff_sum   BIGINT,                  -- Sum of shareDiff in PPLNS window
+  reward_distributed BOOLEAN DEFAULT FALSE, -- PPLNS calculated?
+  confirmed_at     TIMESTAMP,               -- When confirmed
   created_at       TIMESTAMP DEFAULT NOW()
 );
 ```
 
 ### block_rewards
 
-Distribution PPLNS pour chaque bloc.
+PPLNS distribution for each block.
 
 ```sql
 CREATE TABLE block_rewards (
   id           SERIAL PRIMARY KEY,
   block_height INTEGER NOT NULL,
-  address      VARCHAR(64) NOT NULL,       -- Mineur (ou POOL_ADDRESS pour fee)
-  amount       BIGINT NOT NULL,            -- Reward en nanoERG
-  share_count  INTEGER,                    -- Nombre de shares du mineur
-  share_diff_sum BIGINT,                   -- Somme shareDiff du mineur
+  address      VARCHAR(64) NOT NULL,       -- Miner (or POOL_ADDRESS for fee)
+  amount       BIGINT NOT NULL,            -- Reward in nanoERG
+  share_count  INTEGER,                    -- Number of miner's shares
+  share_diff_sum BIGINT,                   -- Sum of miner's shareDiff
   created_at   TIMESTAMP DEFAULT NOW(),
 
   UNIQUE(block_height, address)
@@ -88,19 +88,19 @@ CREATE TABLE block_rewards (
 
 ### balances
 
-Solde de chaque mineur (rewards confirmes).
+Each miner's balance (confirmed rewards).
 
 ```sql
 CREATE TABLE balances (
   address    VARCHAR(64) PRIMARY KEY,
-  balance    BIGINT DEFAULT 0,             -- En nanoERG
+  balance    BIGINT DEFAULT 0,             -- In nanoERG
   updated_at TIMESTAMP DEFAULT NOW()
 );
 ```
 
 ### miners
 
-Statistiques agregees par mineur.
+Aggregated statistics per miner.
 
 ```sql
 CREATE TABLE miners (
@@ -108,7 +108,7 @@ CREATE TABLE miners (
   total_shares  BIGINT DEFAULT 0,
   valid_shares  BIGINT DEFAULT 0,
   invalid_shares BIGINT DEFAULT 0,
-  total_paid    BIGINT DEFAULT 0,          -- Total paye en nanoERG
+  total_paid    BIGINT DEFAULT 0,          -- Total paid in nanoERG
   last_share    TIMESTAMP,
   created_at    TIMESTAMP DEFAULT NOW()
 );
@@ -116,14 +116,14 @@ CREATE TABLE miners (
 
 ### payments
 
-Historique des paiements.
+Payment history.
 
 ```sql
 CREATE TABLE payments (
   id           SERIAL PRIMARY KEY,
   address      VARCHAR(64) NOT NULL,
-  amount_nano  BIGINT NOT NULL,            -- Montant en nanoERG
-  tx_hash      VARCHAR(128),               -- Hash de la transaction
+  amount_nano  BIGINT NOT NULL,            -- Amount in nanoERG
+  tx_hash      VARCHAR(128),               -- Transaction hash
   status       VARCHAR(20) DEFAULT 'pending',  -- pending/sent/failed/unknown
   error_msg    TEXT,
   sent_at      TIMESTAMP,
@@ -131,29 +131,29 @@ CREATE TABLE payments (
 );
 ```
 
-## Tables d'agregation
+## Aggregation Tables
 
 ### pool_hashrate_1m
 
-Hashrate pool agrege par minute.
+Pool hashrate aggregated per minute.
 
 ```sql
 CREATE TABLE pool_hashrate_1m (
   ts_minute   TIMESTAMP PRIMARY KEY,
-  diff_sum    BIGINT NOT NULL,             -- Somme shareDiff sur la minute
+  diff_sum    BIGINT NOT NULL,             -- Sum of shareDiff over the minute
   share_count INTEGER NOT NULL
 );
 ```
 
-**Calcul hashrate** : `hashrate = diff_sum / 60`
+**Hashrate calculation**: `hashrate = diff_sum / 60`
 
 ### miner_hashrate_1m / worker_hashrate_1m
 
-Meme structure, avec `address` et optionnellement `worker`.
+Same structure, with `address` and optionally `worker`.
 
 ### network_snapshots
 
-Historique de la difficulte reseau.
+Network difficulty history.
 
 ```sql
 CREATE TABLE network_snapshots (
@@ -163,29 +163,29 @@ CREATE TABLE network_snapshots (
 );
 ```
 
-## Relations
+## Relationships
 
 ```
-blocks 1──────N block_rewards
-   │
-   └── block_height
+blocks 1------N block_rewards
+   |
+   +-- block_height
 
-miners 1──────N shares
-   │              │
-   └── address    └── address
+miners 1------N shares
+   |              |
+   +-- address    +-- address
 
-miners 1──────N payments
-   │              │
-   └── address    └── address
+miners 1------N payments
+   |              |
+   +-- address    +-- address
 
-miners 1──────1 balances
-   │              │
-   └── address    └── address
+miners 1------1 balances
+   |              |
+   +-- address    +-- address
 ```
 
-## Requetes utiles
+## Useful Queries
 
-### Hashrate pool (30 min)
+### Pool Hashrate (30 min)
 
 ```sql
 SELECT SUM(diff_sum) / 1800 AS hashrate
@@ -193,13 +193,13 @@ FROM pool_hashrate_1m
 WHERE ts_minute > NOW() - INTERVAL '30 minutes';
 ```
 
-### Balance d'un mineur
+### Miner Balance
 
 ```sql
 SELECT balance FROM balances WHERE address = $1;
 ```
 
-### Shares PPLNS pour un bloc
+### PPLNS Shares for a Block
 
 ```sql
 SELECT address, SUM(share_diff) as total_diff
@@ -211,15 +211,15 @@ GROUP BY address;
 
 ## Maintenance
 
-Les taches automatiques (`maintenance.ts`) :
-- **Toutes les 60s** : agreger hashrate (pool, miner, worker)
-- **Toutes les 5min** : snapshot difficulte reseau
-- **Toutes les 10min** : confirmer blocs + payer mineurs
-- **Toutes les heures** : purger shares > 30 jours
-- **Toutes les heures** : purger agregats > 90 jours
+Automatic tasks (`maintenance.ts`):
+- **Every 60s**: aggregate hashrate (pool, miner, worker)
+- **Every 5 min**: network difficulty snapshot
+- **Every 10 min**: confirm blocks + pay miners
+- **Every hour**: purge shares older than 30 days
+- **Every hour**: purge aggregations older than 90 days
 
-## Voir aussi
+## See Also
 
-- [Architecture Pool](architecture.md)
+- [Pool Architecture](architecture.md)
 - [PPLNS](../mining/pplns.md)
-- [Gestion Wallet](../wallet/wallet-management.md)
+- [Wallet Management](../wallet/wallet-management.md)

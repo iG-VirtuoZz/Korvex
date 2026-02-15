@@ -1,75 +1,75 @@
-# Comprendre Ergo et Autolykos2
+# Understanding Ergo and Autolykos2
 
-## C'est quoi Ergo ?
+## What is Ergo?
 
-Ergo est une blockchain Proof-of-Work (PoW) comme Bitcoin, mais avec des differences importantes :
+Ergo is a Proof-of-Work (PoW) blockchain like Bitcoin, but with key differences:
 
-- **Algorithme**: Autolykos2 (resistant aux ASICs, optimise pour GPUs)
-- **Temps de bloc**: ~2 minutes (120 secondes)
-- **Reward actuelle**: ~6 ERG par bloc (diminue avec le temps)
-- **Supply max**: ~97.7 millions ERG
+- **Algorithm**: Autolykos2 (ASIC-resistant, optimized for GPUs)
+- **Block time**: ~2 minutes (120 seconds)
+- **Current reward**: ~6 ERG per block (decreasing over time)
+- **Max supply**: ~97.7 million ERG
 
-## Comment fonctionne le minage ?
+## How Does Mining Work?
 
-### Le principe de base
+### The Basic Principle
 
-1. Le **noeud Ergo** genere un "candidat de bloc" contenant les transactions a valider
-2. Les **mineurs** cherchent un nombre (nonce) qui, combine au candidat, produit un hash valide
-3. Le premier mineur a trouver un hash valide **gagne la reward** du bloc
-4. Le bloc est ajoute a la blockchain, et on recommence
+1. The **Ergo node** generates a "block candidate" containing the transactions to validate
+2. **Miners** search for a number (nonce) that, combined with the candidate, produces a valid hash
+3. The first miner to find a valid hash **wins the block reward**
+4. The block is added to the blockchain, and the process starts again
 
-### L'algorithme Autolykos2
+### The Autolykos2 Algorithm
 
-Autolykos2 est l'algorithme de minage specifique a Ergo. Il est concu pour :
+Autolykos2 is the mining algorithm specific to Ergo. It is designed to:
 
-- **Resister aux ASICs** : necessite beaucoup de memoire (~2.5 GB)
-- **Etre efficace sur GPU** : optimise pour les cartes graphiques modernes
-- **Etre verifiable rapidement** : un noeud peut verifier une solution sans refaire tout le calcul
+- **Resist ASICs**: requires a large amount of memory (~2.5 GB)
+- **Be efficient on GPUs**: optimized for modern graphics cards
+- **Be quickly verifiable**: a node can verify a solution without redoing the entire computation
 
-#### Les etapes de validation d'une share
+#### Share Validation Steps
 
 ```
-1. Combiner le message (msg) avec le nonce
-2. Calculer un index i = blake2b(msg + nonce) mod N
-3. Generer une seed e a partir de i
-4. Calculer 32 index J a partir de e
-5. Pour chaque J, recuperer un element r dans une table de ~2.5 GB
-6. Additionner les 32 elements r pour obtenir f
-7. Hasher f pour obtenir fh (le hash final)
-8. Si fh < target → solution valide !
+1. Combine the message (msg) with the nonce
+2. Compute an index i = blake2b(msg + nonce) mod N
+3. Generate a seed e from i
+4. Compute 32 indices J from e
+5. For each J, retrieve an element r from a ~2.5 GB table
+6. Sum the 32 r elements to obtain f
+7. Hash f to obtain fh (the final hash)
+8. If fh < target -> valid solution!
 ```
 
-**36 appels blake2b256** sont necessaires pour valider une seule share. C'est ce qui rend Autolykos2 intensif en memoire.
+**36 blake2b256 calls** are required to validate a single share. This is what makes Autolykos2 memory-intensive.
 
-## La constante q et le target b
+## The Constant q and the Target b
 
-Dans Ergo, la difficulte est representee par deux valeurs :
+In Ergo, difficulty is represented by two values:
 
-### q (constante)
+### q (constant)
 ```
-q ≈ 2^256
+q ~ 2^256
 ```
-C'est le nombre total de hashes possibles (l'espace de recherche complet).
+This is the total number of possible hashes (the complete search space).
 
 ### b (target)
 ```
 b = q / networkDifficulty
 ```
-C'est le **seuil** en dessous duquel un hash est valide. Plus `b` est grand, plus c'est facile de trouver un hash valide.
+This is the **threshold** below which a hash is valid. The larger `b` is, the easier it is to find a valid hash.
 
-### Exemple concret
+### Concrete Example
 
-Si `networkDifficulty = 300 T` (300 trillions) :
+If `networkDifficulty = 300 T` (300 trillions):
 ```
 b = 2^256 / 300,000,000,000,000
-b ≈ 3.86 × 10^62
+b ~ 3.86 x 10^62
 ```
 
-Un hash `fh` est valide si `fh < b`.
+A hash `fh` is valid if `fh < b`.
 
-## Voir aussi
+## See Also
 
-- [Difficulte & Hashrate](difficulty.md) - Comment fonctionne la difficulte
-- [Les Shares](../mining/shares.md) - Shares vs blocs
-- [Site officiel Ergo](https://ergoplatform.org)
-- [Documentation Ergo](https://docs.ergoplatform.com)
+- [Difficulty & Hashrate](difficulty.md) - How difficulty works
+- [Shares](../mining/shares.md) - Shares vs blocks
+- [Ergo Official Website](https://ergoplatform.org)
+- [Ergo Documentation](https://docs.ergoplatform.com)

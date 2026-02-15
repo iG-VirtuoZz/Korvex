@@ -2,31 +2,31 @@ import net from "net";
 import crypto from "crypto";
 
 interface VardiffConfig {
-  targetShareTime: number; // secondes entre chaque share
+  targetShareTime: number; // seconds between each share
   minDiff: number;
   maxDiff: number;
-  retargetTime: number; // secondes avant recalcul
+  retargetTime: number; // seconds before recalculation
   variancePercent: number;
 }
 
-// Modele multiplyDifficulty : le vardiff controle directement le b envoye au mineur
-// bShare = bNetwork * vardiff (envoye dans mining.notify params[6])
-// mining.set_difficulty envoie toujours 1 (neutre, les mineurs Ergo l'ignorent)
+// multiplyDifficulty model: vardiff directly controls the b sent to the miner
+// bShare = bNetwork * vardiff (sent in mining.notify params[6])
+// mining.set_difficulty always sends 1 (neutral, Ergo miners ignore it)
 const VARDIFF_CONFIG: VardiffConfig = {
   targetShareTime: 15,
-  minDiff: 100,        // Plancher: supporte jusqu'a ~200 GH/s
-  maxDiff: 500000,     // Plafond: supporte jusqu'a ~40 MH/s
-  retargetTime: 90,    // 90s entre chaque ajustement (plus stable)
-  variancePercent: 30, // Tolerance 30% avant ajustement (zone morte elargie)
+  minDiff: 100,        // Floor: supports up to ~200 GH/s
+  maxDiff: 500000,     // Ceiling: supports down to ~40 MH/s
+  retargetTime: 90,    // 90s between adjustments (more stable)
+  variancePercent: 30, // 30% tolerance before adjustment (wider dead zone)
 };
 
-const DEFAULT_INITIAL_DIFF = 20000; // Diff initiale moyenne
+const DEFAULT_INITIAL_DIFF = 20000; // Average initial diff
 
-// Limite de changement par retarget: max x1.25 ou /1.25 (anti-oscillation)
+// Change limit per retarget: max x1.25 or /1.25 (anti-oscillation)
 const MAX_DIFF_CHANGE_RATIO = 1.25;
 
-// Type de mineur detecte via user-agent dans mining.subscribe
-// Certains mineurs (SRBMiner) interpretent set_difficulty differemment
+// Miner type detected via user-agent in mining.subscribe
+// Some miners (SRBMiner) interpret set_difficulty differently
 export type MinerType = "lolminer" | "teamredminer" | "srbminer" | "unknown";
 
 export class MinerSession {
@@ -41,14 +41,14 @@ export class MinerSession {
   public minerType: MinerType = "unknown";
   public userAgent: string = "";
 
-  // Vardiff envoye au mineur avec le dernier mining.notify
-  // Utilise pour la validation des shares (le mineur mine avec CE bShare)
+  // Vardiff sent to the miner with the last mining.notify
+  // Used for share validation (the miner mines with THIS bShare)
   public lastSentDifficulty: number = DEFAULT_INITIAL_DIFF;
 
-  // Callback appele quand le vardiff change, pour que le serveur re-envoie le job
+  // Callback called when vardiff changes, so the server re-sends the job
   public onDifficultyChanged: (() => void) | null = null;
 
-  // Bootstrap : estimation rapide du vardiff pour les nouveaux workers
+  // Bootstrap: quick vardiff estimation for new workers
   private authorizedAt: number = 0;
   private hasBootstrapped: boolean = false;
 
@@ -56,7 +56,7 @@ export class MinerSession {
   private vardiffTimer: NodeJS.Timeout | null = null;
   private msgBuffer: string = "";
 
-  // Protection OOM : limite 10 KB sur le buffer TCP
+  // OOM protection: 10 KB limit on TCP buffer
   private static readonly MAX_BUFFER_SIZE = 10 * 1024;
 
   public onMessage: ((method: string, params: any[], id: number | null) => void) | null = null;
@@ -67,12 +67,12 @@ export class MinerSession {
     this.subscriptionId = crypto.randomBytes(16).toString("hex");
     this.extraNonce = extraNonce;
 
-    // Si une diff de depart est fournie (reconnexion worker), l'utiliser
+    // If a starting diff is provided (worker reconnection), use it
     if (startDifficulty && startDifficulty >= VARDIFF_CONFIG.minDiff) {
       this.difficulty = Math.min(startDifficulty, VARDIFF_CONFIG.maxDiff);
     }
 
-    // TCP keepalive : detecte les connexions mortes (mineur crash sans FIN)
+    // TCP keepalive: detects dead connections (miner crash without FIN)
     socket.setKeepAlive(true, 30000);
 
     socket.setEncoding("utf8");
@@ -86,19 +86,19 @@ export class MinerSession {
       if (this.onDisconnect) this.onDisconnect();
     });
 
-    // Timeout auth : 30s
+    // Auth timeout: 30s
     setTimeout(() => {
       if (!this.authorized) this.disconnect();
     }, 30000);
 
-    // Vardiff retarget periodique
+    // Periodic vardiff retarget
     this.vardiffTimer = setInterval(() => this.retargetDifficulty(), VARDIFF_CONFIG.retargetTime * 1000);
   }
 
   private handleData(data: string) {
     this.msgBuffer += data;
 
-    // Protection OOM : deconnecter si buffer trop grand (client sans newline)
+    // OOM protection: disconnect if buffer too large (client without newline)
     if (this.msgBuffer.length > MinerSession.MAX_BUFFER_SIZE) {
       console.warn("[Session] Buffer overflow (" + this.msgBuffer.length + " bytes), deconnexion " + (this.socket.remoteAddress || "unknown"));
       this.disconnect();
@@ -116,7 +116,7 @@ export class MinerSession {
           this.onMessage(msg.method, msg.params || [], msg.id ?? null);
         }
       } catch {
-        // JSON invalide, ignorer
+        // Invalid JSON, ignore
       }
     }
   }
@@ -142,9 +142,9 @@ export class MinerSession {
 
   setDifficulty(diff: number) {
     this.difficulty = Math.max(VARDIFF_CONFIG.minDiff, Math.min(VARDIFF_CONFIG.maxDiff, Math.round(diff)));
-    // Le nouveau bShare sera applique au prochain job naturel (nouveau bloc ou poll)
-    // NE PAS renvoyer le job ici — renvoyer un mining.notify avec le meme jobId
-    // mais un bShare different confond lolMiner et cause des deconnexions silencieuses
+    // The new bShare will be applied on the next natural job (new block or poll)
+    // DO NOT re-send the job here — re-sending a mining.notify with the same jobId
+    // but a different bShare confuses lolMiner and causes silent disconnections
   }
 
   recordShare() {
@@ -154,14 +154,14 @@ export class MinerSession {
       this.shareTimestamps = this.shareTimestamps.slice(-20);
     }
 
-    // Bootstrap desactive — le vardiff standard (retarget toutes les 90s) suffit.
-    // Le bootstrap causait des vardiff aberrants (ex: 272507) quand le temps entre
-    // autorisation et 1ere share etait long (sessions fantomes, reconnexions), ce qui
-    // rendait le prochain job impossible a resoudre pour le mineur.
+    // Bootstrap disabled — the standard vardiff (retarget every 90s) is sufficient.
+    // Bootstrap caused aberrant vardiffs (e.g., 272507) when the time between
+    // authorization and 1st share was long (phantom sessions, reconnections), which
+    // made the next job impossible to solve for the miner.
   }
 
   private retargetDifficulty() {
-    // Besoin d'au moins 8 shares pour un calcul fiable (moyenne plus stable)
+    // Need at least 8 shares for a reliable calculation (more stable average)
     if (this.shareTimestamps.length < 8) return;
 
     const times: number[] = [];
@@ -173,11 +173,11 @@ export class MinerSession {
     const variance = target * (VARDIFF_CONFIG.variancePercent / 100);
 
     if (avgTime < target - variance || avgTime > target + variance) {
-      // Calcul du ratio de changement
+      // Calculate change ratio
       let ratio = avgTime / target;
 
-      // IMPORTANT: Limiter le changement a x1.25 ou /1.25 max par cycle
-      // Cela evite les oscillations violentes qui causaient les deconnexions
+      // IMPORTANT: Limit change to x1.25 or /1.25 max per cycle
+      // This prevents violent oscillations that caused disconnections
       if (ratio > MAX_DIFF_CHANGE_RATIO) ratio = MAX_DIFF_CHANGE_RATIO;
       if (ratio < 1 / MAX_DIFF_CHANGE_RATIO) ratio = 1 / MAX_DIFF_CHANGE_RATIO;
 
@@ -186,32 +186,32 @@ export class MinerSession {
 
       if (clampedDiff !== this.difficulty) {
         this.setDifficulty(clampedDiff);
-        // Reset buffer apres retarget
+        // Reset buffer after retarget
         this.shareTimestamps = [Date.now()];
       }
     }
   }
 
-  // --- Getters pour l'idle sweep (server.ts) ---
+  // --- Getters for idle sweep (server.ts) ---
 
-  /** Timestamp de la derniere share, ou 0 si aucune */
+  /** Timestamp of the last share, or 0 if none */
   getLastShareTimestamp(): number {
     return this.shareTimestamps.length > 0 ? this.shareTimestamps[this.shareTimestamps.length - 1] : 0;
   }
 
-  /** Reset le buffer de shares (utilise par l'idle sweep apres bump) */
+  /** Reset the share buffer (used by idle sweep after bump) */
   resetShareTimestamps() {
     this.shareTimestamps = [];
   }
 
-  // --- Bootstrap (estimation initiale rapide) ---
+  // --- Bootstrap (quick initial estimation) ---
 
-  /** Enregistre le moment d'autorisation (pour calculer le temps jusqu'a la 1ere share) */
+  /** Records the authorization moment (to calculate time until the 1st share) */
   markAuthorized() {
     this.authorizedAt = Date.now();
   }
 
-  /** Desactive le bootstrap (pour les workers restaures du cache qui ont deja un bon vardiff) */
+  /** Disables bootstrap (for workers restored from cache that already have a good vardiff) */
   markBootstrapped() {
     this.hasBootstrapped = true;
   }

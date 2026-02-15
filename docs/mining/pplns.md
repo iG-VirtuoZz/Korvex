@@ -1,130 +1,130 @@
 # PPLNS - Pay Per Last N Shares
 
-## C'est quoi PPLNS ?
+## What is PPLNS?
 
-PPLNS est un systeme de **repartition des rewards** entre les mineurs d'une pool. Au lieu de payer chaque share individuellement, on regarde les N dernieres shares quand un bloc est trouve.
+PPLNS is a **reward distribution** system among pool miners. Instead of paying for each share individually, it looks at the last N shares when a block is found.
 
-## Pourquoi PPLNS ?
+## Why PPLNS?
 
-### Le probleme du "pool hopping"
+### The "Pool Hopping" Problem
 
-Avec un systeme simple (pay-per-share), des mineurs malins peuvent :
-1. Rejoindre la pool quand elle est "chanceuse"
-2. Partir quand elle est "malchanceuse"
-3. Profiter sans prendre de risque
+With a simple system (pay-per-share), clever miners can:
+1. Join the pool when it's "lucky"
+2. Leave when it's "unlucky"
+3. Profit without taking any risk
 
-### La solution PPLNS
+### The PPLNS Solution
 
-PPLNS recompense la **loyaute** :
-- On regarde les shares sur une **fenetre** de temps/difficulte
-- Les mineurs qui restent longtemps sont recompenses equitablement
-- Les pool-hoppers perdent leurs shares quand ils partent
+PPLNS rewards **loyalty**:
+- It looks at shares within a **window** of time/difficulty
+- Miners who stay longer are rewarded fairly
+- Pool-hoppers lose their shares when they leave
 
-## Comment ca marche ?
+## How Does It Work?
 
-### La fenetre PPLNS
-
-```
-fenetre = factor × networkDifficulty
-```
-
-- **factor** : parametre de la pool (KORVEX = 2)
-- **networkDifficulty** : difficulte reseau actuelle (~318T)
-
-Exemple :
-```
-fenetre = 2 × 318T = 636T de travail cumule
-```
-
-### Quand un bloc est trouve
-
-1. La pool regarde en arriere dans les shares
-2. Elle cumule les `shareDiff` jusqu'a atteindre la fenetre
-3. Chaque mineur recoit une part proportionnelle a son travail
-
-### Exemple concret
+### The PPLNS Window
 
 ```
-Bloc trouve ! Reward = 6 ERG
-Fenetre PPLNS = 636T
-
-Shares dans la fenetre :
-- Mineur A : 400T de shareDiff (62.9%)
-- Mineur B : 200T de shareDiff (31.4%)
-- Mineur C :  36T de shareDiff (5.7%)
-
-Distribution (apres fee 1%) :
-- Pool fee : 0.06 ERG
-- Mineur A : 5.94 × 62.9% = 3.74 ERG
-- Mineur B : 5.94 × 31.4% = 1.87 ERG
-- Mineur C : 5.94 × 5.7%  = 0.34 ERG
+window = factor x networkDifficulty
 ```
 
-## Calcul base sur shareDiff
+- **factor**: pool parameter (KORVEX = 2)
+- **networkDifficulty**: current network difficulty (~318T)
 
-### Pourquoi shareDiff et pas le nombre de shares ?
-
-Avec le **vardiff**, chaque share a une difficulte differente :
-- Petit mineur (vardiff haut) → beaucoup de shares legeres
-- Gros mineur (vardiff bas) → peu de shares lourdes
-
-Si on comptait juste le nombre de shares, le petit mineur serait avantage !
-
-### La formule juste
-
+Example:
 ```
-part_mineur = SUM(shareDiff_mineur) / SUM(shareDiff_total)
+window = 2 x 318T = 636T of cumulative work
 ```
 
-Chaque share est ponderee par son `shareDiff`. Ca reflete le vrai travail effectue.
+### When a Block is Found
 
-## Le factor PPLNS
+1. The pool looks back through the shares
+2. It accumulates `shareDiff` values until reaching the window size
+3. Each miner receives a share proportional to their work
 
-### Qu'est-ce que ca change ?
+### Concrete Example
 
-| Factor | Fenetre | Effet |
-|--------|---------|-------|
-| 0.5 | Petite | Plus de variance, moins de loyaute |
-| 1 | Moyenne | Equilibre |
-| 2 | Grande | Moins de variance, plus de loyaute |
-| 4 | Tres grande | Tres lisse, tres loyal |
+```
+Block found! Reward = 6 ERG
+PPLNS window = 636T
 
-**KORVEX utilise factor = 2** : bon equilibre entre stabilite et reactivite.
+Shares within the window:
+- Miner A: 400T of shareDiff (62.9%)
+- Miner B: 200T of shareDiff (31.4%)
+- Miner C:  36T of shareDiff (5.7%)
+
+Distribution (after 1% fee):
+- Pool fee: 0.06 ERG
+- Miner A: 5.94 x 62.9% = 3.74 ERG
+- Miner B: 5.94 x 31.4% = 1.87 ERG
+- Miner C: 5.94 x 5.7%  = 0.34 ERG
+```
+
+## Calculation Based on shareDiff
+
+### Why shareDiff and Not Share Count?
+
+With **vardiff**, each share has a different difficulty:
+- Small miner (high vardiff) -> many light shares
+- Large miner (low vardiff) -> few heavy shares
+
+If we just counted the number of shares, the small miner would be unfairly advantaged!
+
+### The Fair Formula
+
+```
+miner_share = SUM(miner_shareDiff) / SUM(total_shareDiff)
+```
+
+Each share is weighted by its `shareDiff`. This reflects the actual work performed.
+
+## The PPLNS Factor
+
+### What Does It Change?
+
+| Factor | Window | Effect |
+|--------|--------|--------|
+| 0.5 | Small | More variance, less loyalty |
+| 1 | Medium | Balanced |
+| 2 | Large | Less variance, more loyalty |
+| 4 | Very large | Very smooth, very loyal |
+
+**KORVEX uses factor = 2**: a good balance between stability and responsiveness.
 
 ### Illustration
 
 ```
-Factor 0.5 : On regarde les 30 dernieres minutes de travail
-Factor 2   : On regarde les 2 dernieres heures de travail
-Factor 4   : On regarde les 4 dernieres heures de travail
+Factor 0.5: Looking at the last ~30 minutes of work
+Factor 2  : Looking at the last ~2 hours of work
+Factor 4  : Looking at the last ~4 hours of work
 ```
 
-## Timing des credits
+## Credit Timing
 
-### Etape 1 : Bloc trouve
+### Step 1: Block Found
 
-La distribution PPLNS est **calculee** et stockee dans `block_rewards`.
-Mais les balances ne sont **pas encore creditees** !
+The PPLNS distribution is **calculated** and stored in `block_rewards`.
+But balances are **not yet credited**!
 
-### Etape 2 : Confirmation
+### Step 2: Confirmation
 
-Apres **720 confirmations** (~24h), le bloc est confirme.
-Les balances sont alors creditees depuis `block_rewards`.
+After **720 confirmations** (~24h), the block is confirmed.
+Balances are then credited from `block_rewards`.
 
-### Pourquoi attendre ?
+### Why Wait?
 
-Si le bloc devient orphelin, on ne veut pas avoir credite des ERG qui n'existent pas !
+If the block becomes orphaned, we don't want to have credited ERG that doesn't exist!
 
-## Visualisation sur le dashboard
+## Dashboard Visualization
 
-Sur KORVEX, tu peux voir :
-- **Pending balance** : rewards en attente de confirmation
-- **Balance** : rewards confirmees, prets a etre payes
-- **/api/blocks/:height/rewards** : detail de la distribution d'un bloc
+On KORVEX, you can see:
+- **Pending balance**: rewards waiting for confirmation
+- **Balance**: confirmed rewards, ready to be paid
+- **/api/blocks/:height/rewards**: detailed distribution for a block
 
-## Voir aussi
+## See Also
 
-- [SOLO Mining](solo-mining.md) - L'alternative "tout ou rien" au PPLNS
-- [Les Shares](shares.md) - Comprendre shareDiff
-- [Blocs et Rewards](../blockchain/blocks-rewards.md) - Confirmations
-- [Gestion Wallet](../wallet/wallet-management.md) - Paiements
+- [SOLO Mining](solo-mining.md) - The "all or nothing" alternative to PPLNS
+- [Shares](shares.md) - Understanding shareDiff
+- [Blocks and Rewards](../blockchain/blocks-rewards.md) - Confirmations
+- [Wallet Management](../wallet/wallet-management.md) - Payments

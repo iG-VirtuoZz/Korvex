@@ -1,110 +1,110 @@
-# Gestion du Wallet Pool
+# Pool Wallet Management
 
-## Le Wallet Pool
+## The Pool Wallet
 
-Le wallet de la pool est un wallet Ergo gere par le **noeud Ergo**. C'est lui qui :
-- Recoit les rewards des blocs trouves
-- Envoie les paiements aux mineurs
+The pool wallet is an Ergo wallet managed by the **Ergo node**. It:
+- Receives the rewards from found blocks
+- Sends payments to miners
 
-**Adresse KORVEX** : `9h4UsBoiaFSJAyUSnEgvnjjq6XBptx8vXbc4KPiC8Q5pGuybtYN`
+**KORVEX Address**: `9h4UsBoiaFSJAyUSnEgvnjjq6XBptx8vXbc4KPiC8Q5pGuybtYN`
 
-## Securite du Wallet
+## Wallet Security
 
-### Mot de passe
+### Password
 
-Le wallet est protege par un mot de passe stocke dans `.env` :
+The wallet is protected by a password stored in `.env`:
 ```
-WALLET_PASS=ton_mot_de_passe_secret
-```
-
-**IMPORTANT** :
-- Ne jamais committer le `.env` sur GitHub
-- Utiliser `chmod 600 .env` pour restreindre les permissions
-- Sauvegarder le mot de passe et la mnemonic en lieu sur
-
-### Verrouillage
-
-Le wallet est **verrouille par defaut**. Il est deverrouille uniquement pendant les paiements (~10 secondes max).
-
-```
-Etat normal : wallet verrouille (locked)
-             ↓
-Cycle paiement : unlock → envoyer paiements → lock
-             ↓
-Retour : wallet verrouille
+WALLET_PASS=your_secret_password
 ```
 
-Au demarrage de la pool, un `lockWallet()` est execute pour s'assurer que le wallet est verrouille (au cas ou un crash precedent l'aurait laisse ouvert).
+**IMPORTANT**:
+- Never commit the `.env` file to GitHub
+- Use `chmod 600 .env` to restrict permissions
+- Back up the password and mnemonic in a safe place
 
-## Cycle de Paiement
+### Locking
+
+The wallet is **locked by default**. It is unlocked only during payments (~10 seconds max).
+
+```
+Normal state: wallet locked
+             |
+Payment cycle: unlock -> send payments -> lock
+             |
+Return: wallet locked
+```
+
+At pool startup, a `lockWallet()` is executed to ensure the wallet is locked (in case a previous crash left it open).
+
+## Payment Cycle
 
 ### Conditions
 
-Un paiement est effectue quand :
-1. Le mineur a une balance >= **1 ERG** (seuil minimum)
-2. Il n'y a pas de paiements "unknown" en attente
-3. Le wallet a assez de fonds
+A payment is made when:
+1. The miner has a balance >= **1 ERG** (minimum threshold)
+2. There are no "unknown" payments pending
+3. The wallet has sufficient funds
 
-### Etapes
+### Steps
 
 ```
-1. Verifier qu'il n'y a pas de paiements "unknown"
-   ↓
-2. Recuperer les mineurs avec balance >= 1 ERG
-   ↓
-3. Deverrouiller le wallet
-   ↓
-4. Pour chaque batch (max 20 mineurs) :
-   a. Debiter les balances (transaction SQL)
-   b. Creer les paiements en status "pending"
-   c. Envoyer la transaction au noeud
-   d. Si OK : status "sent" + txHash
-      Si erreur : re-crediter balances + status "failed"
-      Si timeout : status "unknown" (intervention manuelle)
-   ↓
-5. Verrouiller le wallet
+1. Check for no "unknown" payments
+   |
+2. Retrieve miners with balance >= 1 ERG
+   |
+3. Unlock the wallet
+   |
+4. For each batch (max 20 miners):
+   a. Debit balances (SQL transaction)
+   b. Create payments with "pending" status
+   c. Send the transaction to the node
+   d. If OK: status "sent" + txHash
+      If error: re-credit balances + status "failed"
+      If timeout: status "unknown" (manual intervention required)
+   |
+5. Lock the wallet
 ```
 
-### Status des paiements
+### Payment Statuses
 
-| Status | Signification | Action |
-|--------|---------------|--------|
-| `pending` | Reserve, pas encore envoye | Attendre |
-| `sent` | Transaction broadcastee | OK, rien a faire |
-| `failed` | Erreur, balance re-creditee | Verifier les logs |
-| `unknown` | Timeout, on ne sait pas | **Intervention manuelle** |
+| Status | Meaning | Action |
+|--------|---------|--------|
+| `pending` | Reserved, not yet sent | Wait |
+| `sent` | Transaction broadcasted | OK, nothing to do |
+| `failed` | Error, balance re-credited | Check the logs |
+| `unknown` | Timeout, status uncertain | **Manual intervention required** |
 
-### Paiements "unknown"
+### "Unknown" Payments
 
-Si un paiement est en status "unknown", **tous les paiements automatiques sont bloques** jusqu'a resolution manuelle.
+If a payment has "unknown" status, **all automatic payments are blocked** until manual resolution.
 
-Pourquoi ? On ne sait pas si la transaction a ete broadcastee ou non. Il faut verifier manuellement sur l'explorateur blockchain.
+Why? We don't know whether the transaction was broadcasted or not. It must be checked manually on the blockchain explorer.
 
-## Commandes Wallet
+## Wallet Commands
 
-### Via l'API du noeud Ergo
+### Via the Ergo Node API
 
-**Deverrouiller** :
+**Unlock**:
 ```bash
 curl -X POST "http://127.0.0.1:9053/wallet/unlock" \
   -H "api_key: hello" \
   -H "Content-Type: application/json" \
-  -d '{"pass": "mot_de_passe"}'
+  -d '{"pass": "password"}'
 ```
 
-**Verrouiller** :
+**Lock**:
 ```bash
 curl -X GET "http://127.0.0.1:9053/wallet/lock" \
   -H "api_key: hello"
 ```
 
-**Voir le solde** :
+**Check balance**:
 ```bash
 curl "http://127.0.0.1:9053/wallet/balances" \
   -H "api_key: hello"
 ```
 
-**Envoyer un paiement** :
+**Send a payment**:
 ```bash
 curl -X POST "http://127.0.0.1:9053/wallet/payment/send" \
   -H "api_key: hello" \
@@ -117,42 +117,42 @@ curl -X POST "http://127.0.0.1:9053/wallet/payment/send" \
   }'
 ```
 
-## Creer/Restaurer un Wallet
+## Creating/Restoring a Wallet
 
-### Nouveau wallet
+### New Wallet
 
 ```bash
 curl -X POST "http://127.0.0.1:9053/wallet/init" \
   -H "api_key: hello" \
   -H "Content-Type: application/json" \
-  -d '{"pass": "nouveau_mot_de_passe"}'
+  -d '{"pass": "new_password"}'
 ```
 
-Reponse : la **mnemonic** (15 mots). **SAUVEGARDER ABSOLUMENT !**
+Response: the **mnemonic** (15 words). **YOU MUST BACK THIS UP!**
 
-### Restaurer un wallet
+### Restoring a Wallet
 
-> **ATTENTION** : Ne fonctionne PAS si le noeud est en mode **pruning** !
+> **WARNING**: This does NOT work if the node is in **pruning** mode!
 
 ```bash
 curl -X POST "http://127.0.0.1:9053/wallet/restore" \
   -H "api_key: hello" \
   -H "Content-Type: application/json" \
   -d '{
-    "pass": "mot_de_passe",
-    "mnemonic": "mot1 mot2 mot3 ... mot15",
+    "pass": "password",
+    "mnemonic": "word1 word2 word3 ... word15",
     "usePre1627KeyDerivation": false
   }'
 ```
 
-## Frais de Transaction
+## Transaction Fees
 
-Chaque paiement a des frais de **0.001 ERG** (1,000,000 nanoERG).
+Each payment has a fee of **0.001 ERG** (1,000,000 nanoERG).
 
-Ces frais sont payes par le wallet de la pool, pas par le mineur.
+These fees are paid by the pool wallet, not by the miner.
 
-## Voir aussi
+## See Also
 
-- [PPLNS](../mining/pplns.md) - Comment les rewards sont calculees
-- [Blocs et Rewards](../blockchain/blocks-rewards.md) - Confirmations
-- [Monitoring](../operations/monitoring.md) - Verifier les paiements
+- [PPLNS](../mining/pplns.md) - How rewards are calculated
+- [Blocks and Rewards](../blockchain/blocks-rewards.md) - Confirmations
+- [Monitoring](../operations/monitoring.md) - Verifying payments

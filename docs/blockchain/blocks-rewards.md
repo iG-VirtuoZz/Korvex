@@ -1,108 +1,108 @@
-# Blocs, Rewards et Orphans
+# Blocks, Rewards, and Orphans
 
-## C'est quoi un bloc ?
+## What is a Block?
 
-Un bloc est un "paquet" de transactions qui est ajoute a la blockchain. Il contient :
+A block is a "package" of transactions that is added to the blockchain. It contains:
 
-- **Header** : hash du bloc precedent, timestamp, difficulte, nonce
-- **Transactions** : les transfers d'ERG a valider
-- **Coinbase** : la transaction speciale qui cree les nouveaux ERG (la reward)
+- **Header**: hash of the previous block, timestamp, difficulty, nonce
+- **Transactions**: the ERG transfers to validate
+- **Coinbase**: the special transaction that creates new ERG (the reward)
 
-## La Reward de Bloc
+## Block Reward
 
 ### Composition
 
-La reward d'un bloc Ergo comprend :
+An Ergo block reward consists of:
 
-1. **Emission reward** : nouveaux ERG crees (actuellement ~6 ERG)
-2. **Transaction fees** : frais payes par les utilisateurs
+1. **Emission reward**: newly created ERG (currently ~6 ERG)
+2. **Transaction fees**: fees paid by users
 
-### Evolution de l'emission
+### Emission Schedule
 
-L'emission diminue avec le temps selon un calendrier fixe :
+The emission decreases over time according to a fixed schedule:
 
-| Periode | Hauteur blocs | Reward par bloc |
-|---------|---------------|-----------------|
-| Debut | 0 - 525,600 | 75 ERG |
-| Actuel | ~1,700,000 | ~6 ERG |
-| Futur | > 2,000,000 | ~3 ERG |
-| Final | > 2,500,000 | 0 ERG (fees uniquement) |
+| Period | Block Height | Reward per Block |
+|--------|-------------|-----------------|
+| Early | 0 - 525,600 | 75 ERG |
+| Current | ~1,700,000 | ~6 ERG |
+| Future | > 2,000,000 | ~3 ERG |
+| Final | > 2,500,000 | 0 ERG (fees only) |
 
-### Comment recuperer la reward actuelle ?
+### How to Retrieve the Current Reward?
 
-Via l'API du noeud Ergo :
+Via the Ergo node API:
 ```
 GET /emission/at/{height}
 ```
 
 ## Confirmations
 
-### Pourquoi attendre des confirmations ?
+### Why Wait for Confirmations?
 
-Quand un bloc est trouve, il n'est pas immediatement "sur" :
-- Un autre mineur peut avoir trouve un bloc au meme moment
-- Le reseau peut reorganiser la chaine (reorg)
-- Il faut attendre que d'autres blocs soient construits par-dessus
+When a block is found, it is not immediately "safe":
+- Another miner may have found a block at the same time
+- The network may reorganize the chain (reorg)
+- Other blocks need to be built on top of it first
 
-### Combien de confirmations ?
+### How Many Confirmations?
 
-| Confirmations | Temps (~) | Securite |
-|---------------|-----------|----------|
-| 1 | 2 min | Tres risque |
-| 10 | 20 min | Risque |
-| 30 | 1 heure | Acceptable pour petits montants |
-| 720 | 24 heures | Standard pour les pools |
+| Confirmations | Time (~) | Security |
+|---------------|----------|----------|
+| 1 | 2 min | Very risky |
+| 10 | 20 min | Risky |
+| 30 | 1 hour | Acceptable for small amounts |
+| 720 | 24 hours | Industry standard for pools |
 
-**KORVEX** attend **720 confirmations** (~24h) avant de crediter les balances. C'est le standard de l'industrie.
+**KORVEX** waits for **720 confirmations** (~24h) before crediting balances. This is the industry standard.
 
-## Les Orphans (Blocs Orphelins)
+## Orphans (Orphaned Blocks)
 
-### C'est quoi un orphan ?
+### What is an Orphan?
 
-Un bloc orphelin est un bloc qui a ete valide mais qui n'est plus dans la chaine principale. Ca arrive quand :
+An orphaned block is a block that was valid but is no longer part of the main chain. This happens when:
 
-1. Deux mineurs trouvent un bloc quasi-simultanement
-2. Le reseau "choisit" une des deux branches
-3. L'autre bloc devient orphelin et sa reward est perdue
+1. Two miners find a block almost simultaneously
+2. The network "chooses" one of the two branches
+3. The other block becomes orphaned and its reward is lost
 
-### Detection des orphans
+### Orphan Detection
 
-La pool doit verifier que ses blocs sont toujours sur la chaine principale :
-
-```
-1. Recuperer les block IDs a la hauteur du bloc
-2. Comparer avec le blockId qu'on a enregistre
-3. Si notre blockId n'est plus present → orphan !
-```
-
-### Taux d'orphan typique
-
-- Pools bien connectees : < 1%
-- Pools mal connectees : 2-5%
-- Network congestionne : peut augmenter
-
-## Cycle de vie d'un bloc trouve
+The pool must verify that its blocks are still on the main chain:
 
 ```
-1. BLOC TROUVE !
-   ↓
-2. Soumis au noeud (submitSolution)
-   ↓
-3. Enregistre en status "pending"
-   ↓
-4. Distribution PPLNS calculee (pas encore creditee)
-   ↓
-5. Attente confirmations (720 blocs = ~24h)
-   ↓
-6. Verification orphan
-   ↓
-   ├── Si orphan → status "orphan", pas de credit
-   │
-   └── Si confirme → status "confirmed", balances creditees
+1. Retrieve the block IDs at the block's height
+2. Compare with the blockId we recorded
+3. If our blockId is no longer present -> orphan!
 ```
 
-## Voir aussi
+### Typical Orphan Rate
 
-- [Comprendre Ergo](ergo-basics.md) - Les bases
-- [PPLNS](../mining/pplns.md) - Distribution des rewards
-- [Gestion Wallet](../wallet/wallet-management.md) - Paiements
+- Well-connected pools: < 1%
+- Poorly connected pools: 2-5%
+- Congested network: can increase
+
+## Lifecycle of a Found Block
+
+```
+1. BLOCK FOUND!
+   |
+2. Submitted to the node (submitSolution)
+   |
+3. Recorded with status "pending"
+   |
+4. PPLNS distribution calculated (not yet credited)
+   |
+5. Waiting for confirmations (720 blocks = ~24h)
+   |
+6. Orphan check
+   |
+   +-- If orphan -> status "orphan", no credit
+   |
+   +-- If confirmed -> status "confirmed", balances credited
+```
+
+## See Also
+
+- [Understanding Ergo](ergo-basics.md) - The basics
+- [PPLNS](../mining/pplns.md) - Reward distribution
+- [Wallet Management](../wallet/wallet-management.md) - Payments

@@ -16,15 +16,15 @@ export async function runPayer(): Promise<{ sent: number; failed: number; unknow
   }
 
   try {
-    // Verifier s'il y a des payments 'unknown' non resolus
-    // Si oui, bloquer les paiements auto pour eviter tout doublon
+    // Check for unresolved 'unknown' payments
+    // If found, block automatic payouts to prevent any duplicates
     const hasUnresolved = await database.hasUnresolvedPayments();
     if (hasUnresolved) {
       console.warn("[Payer] !!! Payments 'unknown' non resolus detectes — paiements bloques. Intervention manuelle requise !!!");
       return { sent: 0, failed: 0, unknown: 0 };
     }
 
-    // Exclure l'adresse de la pool : la fee reste dans le wallet, pas besoin de s'auto-payer
+    // Exclude the pool address: the fee stays in the wallet, no need to self-pay
     const payables = await database.getPayableBalances(config.pool.minPayoutNano, config.pool.address || undefined);
 
     if (payables.length === 0) {
@@ -33,7 +33,7 @@ export async function runPayer(): Promise<{ sent: number; failed: number; unknow
 
     console.log("[Payer] " + payables.length + " mineur(s) eligible(s) au paiement");
 
-    // Decouper en batches
+    // Split into batches
     const batches: PayableEntry[][] = [];
     for (let i = 0; i < payables.length; i += config.payout.maxPerBatch) {
       batches.push(payables.slice(i, i + config.payout.maxPerBatch));
@@ -51,7 +51,7 @@ export async function runPayer(): Promise<{ sent: number; failed: number; unknow
       failed += result.failed;
       unknown += result.unknown;
 
-      // Si un batch est en 'unknown', arreter immediatement
+      // If a batch is in 'unknown', stop immediately
       if (result.unknown > 0) {
         console.error("[Payer] Batch en status 'unknown', arret des paiements pour ce cycle");
         break;
@@ -71,7 +71,7 @@ export async function runPayer(): Promise<{ sent: number; failed: number; unknow
     console.log("[Payer] Resultat: " + sent + " envoye(s), " + failed + " echoue(s), " + unknown + " unknown(s)");
   }
 
-  // Nettoyage auto : garder max 5 failed par adresse + supprimer vieilles shares
+  // Auto cleanup: keep max 5 failed per address + delete old shares
   try {
     const cleaned = await database.cleanOldFailedPayments();
     if (cleaned > 0) console.log("[Payer] Nettoyage: " + cleaned + " ancien(s) paiement(s) failed supprime(s)");
@@ -86,10 +86,10 @@ export async function runPayer(): Promise<{ sent: number; failed: number; unknow
 
 async function sendBatchSafe(batch: PayableEntry[]): Promise<{ sent: number; failed: number; unknown: number }> {
   // ============================================
-  // PHASE 1 : Preparer en DB (atomique)
-  // Debite les balances + cree payments en 'pending'
-  // Retourne les payments crees avec adresse + montant (pas juste les IDs)
-  // pour eviter tout decalage si des entries sont skip
+  // PHASE 1: Prepare in DB (atomic)
+  // Debits balances + creates payments as 'pending'
+  // Returns created payments with address + amount (not just IDs)
+  // to avoid any mismatch if entries are skipped
   // ============================================
   let prepared: Array<{ id: number; address: string; amount: bigint }>;
   try {
@@ -106,22 +106,22 @@ async function sendBatchSafe(batch: PayableEntry[]): Promise<{ sent: number; fai
 
   const paymentIds = prepared.map((p) => p.id);
 
-  // Construire le payload directement depuis les payments prepares
-  // Chaque entry contient l'adresse et le montant exact qui a ete debite
+  // Build payload directly from prepared payments
+  // Each entry contains the address and exact amount that was debited
   const requests = prepared.map((p) => ({
     address: p.address,
     value: Number(p.amount),
   }));
 
-  // L'API Ergo /wallet/payment/send attend un ARRAY de PaymentRequest
-  // Format : [{ address, value }, ...] — PAS un objet { requests, fee }
+  // The Ergo API /wallet/payment/send expects an ARRAY of PaymentRequest
+  // Format: [{ address, value }, ...] — NOT an object { requests, fee }
   const payload = requests;
 
   const totalErg = prepared.reduce((sum, p) => sum + Number(p.amount), 0) / 1e9;
   console.log("[Payer] Envoi batch: " + prepared.length + " destinataire(s), total " + totalErg.toFixed(4) + " ERG");
 
   // ============================================
-  // PHASE 2 : UN SEUL POST, JAMAIS DE RETRY
+  // PHASE 2: SINGLE POST, NEVER RETRY
   // ============================================
   try {
     const res = await fetch(config.ergoNode.url + "/wallet/payment/send", {
@@ -139,27 +139,27 @@ async function sendBatchSafe(batch: PayableEntry[]): Promise<{ sent: number; fai
       const errorMsg = "HTTP " + res.status + ": " + errorText;
       console.error("[Payer] Erreur send (HTTP non-OK): " + errorMsg);
 
-      // HTTP error = le noeud a repondu, on sait que la tx N'A PAS ete broadcastee
-      // On peut marquer comme 'failed' et re-crediter les balances
+      // HTTP error = the node responded, we know the tx WAS NOT broadcast
+      // We can mark as 'failed' and re-credit the balances
       await refundAndFailBatch(paymentIds, errorMsg);
       return { sent: 0, failed: paymentIds.length, unknown: 0 };
     }
 
-    // Succes : recuperer txHash
+    // Success: retrieve txHash
     const txId = await res.json();
     const txHash = typeof txId === "string" ? txId : (txId as any).id || JSON.stringify(txId);
 
     console.log("[Payer] Transaction envoyee: " + txHash);
 
-    // Finaliser en DB : status 'pending' -> 'sent'
+    // Finalize in DB: status 'pending' -> 'sent'
     await database.finalizeBatchPayments(paymentIds, txHash);
 
     console.log("[Payer] Batch OK: " + paymentIds.length + " paiement(s), tx " + txHash);
     return { sent: paymentIds.length, failed: 0, unknown: 0 };
 
   } catch (err: any) {
-    // Timeout / erreur reseau = ON NE SAIT PAS si la tx a ete broadcastee
-    // JAMAIS de retry, marquer comme 'unknown'
+    // Timeout / network error = WE DON'T KNOW if the tx was broadcast
+    // NEVER retry, mark as 'unknown'
     const errorMsg = err?.message || String(err);
     console.error("[Payer] !!! ERREUR SEND (timeout/reseau) : " + errorMsg);
     console.error("[Payer] !!! Payments marques 'unknown' — INTERVENTION MANUELLE REQUISE !!!");
@@ -170,11 +170,11 @@ async function sendBatchSafe(batch: PayableEntry[]): Promise<{ sent: number; fai
   }
 }
 
-// Re-crediter les balances et marquer les payments en 'failed'
-// Utilise uniquement quand on est SUR que la tx n'a pas ete broadcastee (erreur HTTP)
+// Re-credit balances and mark payments as 'failed'
+// Used only when we are SURE the tx was not broadcast (HTTP error)
 async function refundAndFailBatch(paymentIds: number[], errorMsg: string): Promise<void> {
   try {
-    // Recuperer les payments pour connaitre les montants
+    // Retrieve payments to know the amounts
     const result = await database.query(
       "SELECT id, address, amount_nano FROM payments WHERE id = ANY($1) AND status = 'pending'",
       [paymentIds]
@@ -185,13 +185,13 @@ async function refundAndFailBatch(paymentIds: number[], errorMsg: string): Promi
       await client.query("BEGIN");
 
       for (const row of result.rows) {
-        // Re-crediter la balance
+        // Re-credit the balance
         await client.query(
           "UPDATE balances SET amount = amount + $1 WHERE address = $2",
           [row.amount_nano, row.address]
         );
 
-        // Marquer le payment comme 'failed'
+        // Mark the payment as 'failed'
         await client.query(
           "UPDATE payments SET status = 'failed', error_msg = $1 WHERE id = $2",
           [errorMsg, row.id]

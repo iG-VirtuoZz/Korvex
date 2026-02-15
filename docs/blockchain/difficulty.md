@@ -1,114 +1,114 @@
-# Difficulte et Hashrate
+# Difficulty and Hashrate
 
-## Les deux types de difficulte
+## The Two Types of Difficulty
 
-### 1. Difficulte Reseau (Network Difficulty)
+### 1. Network Difficulty
 
-C'est la difficulte pour trouver un **bloc valide**. Elle est ajustee automatiquement par le reseau Ergo toutes les 1024 blocs pour maintenir un temps moyen de ~2 minutes par bloc.
+This is the difficulty required to find a **valid block**. It is automatically adjusted by the Ergo network every 1024 blocks to maintain an average time of ~2 minutes per block.
 
-**Actuellement** : ~300-320 T (trillions)
+**Currently**: ~300-320 T (trillions)
 
-Si plus de mineurs rejoignent le reseau → difficulte augmente
-Si des mineurs partent → difficulte diminue
+If more miners join the network -> difficulty increases
+If miners leave -> difficulty decreases
 
-### 2. Difficulte Share (Share Difficulty / Vardiff)
+### 2. Share Difficulty (Vardiff)
 
-C'est la difficulte pour trouver une **share valide** sur la pool. Elle est beaucoup plus faible que la difficulte reseau pour que les mineurs puissent prouver leur travail regulierement.
+This is the difficulty required to find a **valid share** on the pool. It is much lower than the network difficulty so that miners can prove their work regularly.
 
-**Typiquement** : 10,000 - 50,000 (variable par mineur)
+**Typically**: 10,000 - 50,000 (variable per miner)
 
-## Comment ca marche ?
+## How Does It Work?
 
-### Le target b
+### The Target b
 
-Dans Ergo :
+In Ergo:
 ```
 b = q / difficulty
 ```
 
-- **bNetwork** = q / networkDifficulty (target pour un bloc)
-- **bShare** = bNetwork × vardiff (target pour une share)
+- **bNetwork** = q / networkDifficulty (target for a block)
+- **bShare** = bNetwork x vardiff (target for a share)
 
-Plus `b` est grand → plus c'est facile de trouver un hash valide.
+The larger `b` is -> the easier it is to find a valid hash.
 
-### Exemple concret
+### Concrete Example
 
 ```
 networkDifficulty = 318 T
 vardiff = 10,000
 
-bNetwork = q / 318T  (tres petit = tres dur)
-bShare = bNetwork × 10,000  (plus grand = plus facile)
+bNetwork = q / 318T  (very small = very hard)
+bShare = bNetwork x 10,000  (larger = easier)
 ```
 
-Le mineur mine contre `bShare`. S'il trouve un hash < bShare → share valide.
-S'il trouve un hash < bNetwork → BLOC TROUVE ! 🎉
+The miner mines against `bShare`. If they find a hash < bShare -> valid share.
+If they find a hash < bNetwork -> BLOCK FOUND!
 
-## Le Vardiff (Variable Difficulty)
+## Vardiff (Variable Difficulty)
 
-### Pourquoi le vardiff ?
+### Why Vardiff?
 
-Sans vardiff, tous les mineurs auraient la meme difficulte :
-- Un **gros rig** (5 GH/s) trouverait des shares toutes les 2 secondes → spam
-- Un **petit rig** (100 MH/s) trouverait des shares toutes les 2 minutes → peu de preuves de travail
+Without vardiff, all miners would have the same difficulty:
+- A **large rig** (5 GH/s) would find shares every 2 seconds -> spam
+- A **small rig** (100 MH/s) would find shares every 2 minutes -> too few proofs of work
 
-Le vardiff ajuste la difficulte **par mineur** pour que chacun trouve une share environ toutes les **15 secondes**.
+Vardiff adjusts the difficulty **per miner** so that each one finds a share approximately every **15 seconds**.
 
-### Comment ca fonctionne ?
+### How Does It Work?
 
-1. La pool observe le temps entre les shares d'un mineur
-2. Si les shares arrivent trop vite → augmenter le vardiff (target plus dur)
-3. Si les shares arrivent trop lentement → diminuer le vardiff (target plus facile)
+1. The pool observes the time between a miner's shares
+2. If shares arrive too fast -> increase vardiff (harder target)
+3. If shares arrive too slowly -> decrease vardiff (easier target)
 
-### Formule
-
-```
-nouveauVardiff = ancienVardiff × (tempsObserve / tempsCible)
-```
-
-Exemple :
-- tempsCible = 15 secondes
-- tempsObserve = 30 secondes (shares trop lentes)
-- nouveauVardiff = 10,000 × (30/15) = 20,000 (target plus facile)
-
-## Calcul du Hashrate
-
-### Formule
+### Formula
 
 ```
-hashrate = SUM(shareDiff) / temps
+newVardiff = oldVardiff x (observedTime / targetTime)
 ```
 
-Ou `shareDiff = networkDifficulty / vardiff`
+Example:
+- targetTime = 15 seconds
+- observedTime = 30 seconds (shares too slow)
+- newVardiff = 10,000 x (30/15) = 20,000 (easier target)
 
-### Exemple
+## Hashrate Calculation
 
-Un mineur avec vardiff=10,000 et networkDiff=318T :
+### Formula
+
 ```
-shareDiff = 318T / 10,000 = 31.8 milliards
-
-S'il trouve 4 shares en 60 secondes :
-hashrate = (4 × 31.8G) / 60 = 2.12 GH/s
+hashrate = SUM(shareDiff) / time
 ```
 
-### Pourquoi ca marche ?
+Where `shareDiff = networkDifficulty / vardiff`
 
-Chaque share prouve un certain "travail" proportionnel a `shareDiff`. Un mineur puissant avec un vardiff bas a des shares plus "lourdes" qu'un petit mineur avec un vardiff haut. Au final, le hashrate calcule reflette la vraie puissance de calcul.
+### Example
+
+A miner with vardiff=10,000 and networkDiff=318T:
+```
+shareDiff = 318T / 10,000 = 31.8 billion
+
+If they find 4 shares in 60 seconds:
+hashrate = (4 x 31.8G) / 60 = 2.12 GH/s
+```
+
+### Why Does This Work?
+
+Each share proves a certain amount of "work" proportional to `shareDiff`. A powerful miner with a low vardiff has "heavier" shares than a small miner with a high vardiff. Ultimately, the calculated hashrate reflects the true computing power.
 
 ## Low / Medium / High Difficulty Ports
 
-Certaines pools proposent plusieurs ports avec des difficultes fixes :
+Some pools offer multiple ports with fixed difficulties:
 
-| Port | Difficulte | Pour qui |
-|------|------------|----------|
-| 3416 | Low (auto) | Petits rigs < 500 MH/s |
-| 3417 | Medium | Rigs moyens 500 MH/s - 2 GH/s |
-| 3418 | High | Gros rigs > 2 GH/s |
+| Port | Difficulty | Intended For |
+|------|------------|--------------|
+| 3416 | Low (auto) | Small rigs < 500 MH/s |
+| 3417 | Medium | Medium rigs 500 MH/s - 2 GH/s |
+| 3418 | High | Large rigs > 2 GH/s |
 
-**KORVEX** utilise un seul port (3416) avec **vardiff automatique** qui s'adapte a chaque mineur.
+**KORVEX** uses a single port (3416) with **automatic vardiff** that adapts to each miner.
 
-## Voir aussi
+## See Also
 
-- [Comprendre Ergo](ergo-basics.md) - Les bases d'Ergo
-- [Les Shares](../mining/shares.md) - Shares et validation
-- [Protocole Stratum](../mining/stratum-protocol.md) - Comment le vardiff est communique
+- [Understanding Ergo](ergo-basics.md) - Ergo basics
+- [Shares](../mining/shares.md) - Shares and validation
+- [Stratum Protocol](../mining/stratum-protocol.md) - How vardiff is communicated

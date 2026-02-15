@@ -1,6 +1,6 @@
-# Monitoring et Operations
+# Monitoring and Operations
 
-## Healthcheck
+## Health Check
 
 ### Endpoint /api/health
 
@@ -8,7 +8,7 @@
 curl http://127.0.0.1:4000/api/health
 ```
 
-Reponse :
+Response:
 ```json
 {
   "status": "ok",
@@ -34,54 +34,54 @@ Reponse :
 }
 ```
 
-### Points a verifier
+### What to Check
 
-| Champ | Valeur attendue | Alerte si |
-|-------|-----------------|-----------|
+| Field | Expected Value | Alert If |
+|-------|---------------|----------|
 | `node.synced` | `true` | `false` |
 | `node.peersCount` | > 10 | < 5 |
-| `stratum.sessions` | > 0 | = 0 (aucun mineur) |
-| `payout.blocks_orphan` | 0 | > 0 (investiguer) |
+| `stratum.sessions` | > 0 | = 0 (no miners) |
+| `payout.blocks_orphan` | 0 | > 0 (investigate) |
 
 ## Logs
 
-### Voir les logs en temps reel
+### View Logs in Real-Time
 
 ```bash
 sudo journalctl -u korvex-pool -f
 ```
 
-### Voir les 100 dernieres lignes
+### View the Last 100 Lines
 
 ```bash
 sudo journalctl -u korvex-pool -n 100 --no-pager
 ```
 
-### Filtrer par type
+### Filter by Type
 
 ```bash
-# Shares uniquement
+# Shares only
 sudo journalctl -u korvex-pool | grep "Share OK"
 
-# Erreurs uniquement
+# Errors only
 sudo journalctl -u korvex-pool | grep -i "error"
 
-# Blocs trouves
+# Blocks found
 sudo journalctl -u korvex-pool | grep "BLOC TROUVE"
 ```
 
-## Service systemd
+## systemd Service
 
-### Commandes de base
+### Basic Commands
 
 ```bash
-# Demarrer
+# Start
 sudo systemctl start korvex-pool
 
-# Arreter
+# Stop
 sudo systemctl stop korvex-pool
 
-# Redemarrer
+# Restart
 sudo systemctl restart korvex-pool
 
 # Status
@@ -90,7 +90,7 @@ sudo systemctl status korvex-pool
 
 ### Configuration
 
-Fichier : `/etc/systemd/system/korvex-pool.service`
+File: `/etc/systemd/system/korvex-pool.service`
 
 ```ini
 [Unit]
@@ -110,21 +110,21 @@ EnvironmentFile=/home/ergo/pool/.env
 WantedBy=multi-user.target
 ```
 
-## Metriques cles
+## Key Metrics
 
-### Hashrate pool
+### Pool Hashrate
 
 ```bash
 curl -s http://127.0.0.1:4000/api/stats | jq '.hashrate'
 ```
 
-### Nombre de mineurs
+### Number of Miners
 
 ```bash
 curl -s http://127.0.0.1:4000/api/health | jq '.stratum.sessions'
 ```
 
-### Shares recentes
+### Recent Shares
 
 ```sql
 SELECT worker, COUNT(*), MAX(created_at)
@@ -133,7 +133,7 @@ WHERE created_at > NOW() - INTERVAL '10 minutes'
 GROUP BY worker;
 ```
 
-### Blocs en attente
+### Pending Blocks
 
 ```sql
 SELECT height, status, created_at
@@ -141,11 +141,11 @@ FROM blocks
 WHERE status = 'pending';
 ```
 
-## Alertes recommandees
+## Recommended Alerts
 
-### Script healthcheck
+### Health Check Script
 
-Fichier : `/home/ergo/pool/korvex-healthcheck.sh`
+File: `/home/ergo/pool/korvex-healthcheck.sh`
 
 ```bash
 #!/bin/bash
@@ -154,71 +154,71 @@ SYNCED=$(echo $HEALTH | jq -r '.node.synced')
 SESSIONS=$(echo $HEALTH | jq -r '.stratum.sessions')
 
 if [ "$SYNCED" != "true" ]; then
-  echo "ALERTE: Noeud non synchronise!"
-  # Envoyer notification Discord/Telegram
+  echo "ALERT: Node not synchronized!"
+  # Send Discord/Telegram notification
 fi
 
 if [ "$SESSIONS" -lt 1 ]; then
-  echo "ALERTE: Aucun mineur connecte!"
+  echo "ALERT: No miners connected!"
 fi
 ```
 
 ### Cron
 
 ```bash
-# Toutes les 5 minutes
+# Every 5 minutes
 */5 * * * * /home/ergo/pool/korvex-healthcheck.sh >> /home/ergo/pool/healthcheck.log 2>&1
 ```
 
 ## Troubleshooting
 
-### Le noeud ne synchronise pas
+### Node Not Syncing
 
 ```bash
-# Verifier les peers
+# Check peers
 curl http://127.0.0.1:9053/peers/connected -H "api_key: hello"
 
-# Redemarrer le noeud
+# Restart the node
 sudo systemctl restart ergo-node
 ```
 
-### Aucun mineur connecte
+### No Miners Connected
 
-1. Verifier que le port 3416 est ouvert :
+1. Check that port 3416 is open:
    ```bash
    sudo ufw status
    netstat -tlnp | grep 3416
    ```
 
-2. Tester la connexion :
+2. Test the connection:
    ```bash
    telnet korvexpool.com 3416
    ```
 
-### Shares rejetees "Low difficulty"
+### Rejected Shares "Low difficulty"
 
-Le vardiff est mal configure. Verifier :
-- `session.ts` : formule `avgTime / target` (pas l'inverse)
-- `server.ts` : `bShare = bNetwork * vardiff`
+The vardiff is misconfigured. Check:
+- `session.ts`: formula `avgTime / target` (not the reverse)
+- `server.ts`: `bShare = bNetwork * vardiff`
 
-### Paiements bloques
+### Stuck Payments
 
-1. Verifier les paiements "unknown" :
+1. Check for "unknown" payments:
    ```sql
    SELECT * FROM payments WHERE status = 'unknown';
    ```
 
-2. Verifier sur l'explorateur si la tx existe
+2. Check on the explorer if the transaction exists
 
-3. Mettre a jour manuellement :
+3. Update manually:
    ```sql
    UPDATE payments SET status = 'sent', tx_hash = 'xxx' WHERE id = Y;
-   -- ou
+   -- or
    UPDATE payments SET status = 'failed' WHERE id = Y;
    ```
 
-## Voir aussi
+## See Also
 
-- [Architecture Pool](../pool-setup/architecture.md)
-- [Gestion Wallet](../wallet/wallet-management.md)
-- [Difficulte & Hashrate](../blockchain/difficulty.md)
+- [Pool Architecture](../pool-setup/architecture.md)
+- [Wallet Management](../wallet/wallet-management.md)
+- [Difficulty & Hashrate](../blockchain/difficulty.md)

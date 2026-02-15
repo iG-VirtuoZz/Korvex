@@ -1,127 +1,127 @@
-# Les Shares - Comprendre le Concept Fondamental
+# Shares - Understanding the Fundamental Concept
 
-## C'est quoi une Share ?
+## What is a Share?
 
-Une share est une **preuve de travail** soumise par un mineur a la pool. Elle prouve que le mineur a bien effectue des calculs de minage.
+A share is a **proof of work** submitted by a miner to the pool. It proves that the miner has actually performed mining computations.
 
-### Analogie simple
+### Simple Analogy
 
-Imagine que trouver un bloc, c'est comme trouver un ticket de loterie gagnant dans un tas de 1 milliard de tickets.
+Imagine that finding a block is like finding a winning lottery ticket in a pile of 1 billion tickets.
 
-- **Bloc** = ticket gagnant (1 chance sur 1 milliard)
-- **Share** = ticket qui finit par "00" (1 chance sur 100)
+- **Block** = winning ticket (1 in 1 billion chance)
+- **Share** = ticket ending in "00" (1 in 100 chance)
 
-La pool demande aux mineurs de montrer tous les tickets qui finissent par "00". Ca prouve qu'ils cherchent bien, meme s'ils n'ont pas encore trouve le gagnant.
+The pool asks miners to show all tickets ending in "00". This proves they are actively searching, even if they haven't found the winner yet.
 
-## Share vs Bloc
+## Share vs Block
 
-| | Share | Bloc |
+| | Share | Block |
 |---|-------|------|
-| **Difficulte** | Basse (vardiff) | Haute (network) |
-| **Frequence** | ~15 secondes | ~2 minutes (reseau entier) |
-| **Reward** | Aucune directe | 6 ERG |
-| **Utilite** | Prouver le travail | Valider transactions |
+| **Difficulty** | Low (vardiff) | High (network) |
+| **Frequency** | ~15 seconds | ~2 minutes (entire network) |
+| **Reward** | No direct reward | 6 ERG |
+| **Purpose** | Prove work | Validate transactions |
 
-### Le lien entre les deux
+### The Link Between the Two
 
-Chaque share est en fait une **tentative de bloc**. Si par chance le hash de la share est aussi inferieur au target reseau → c'est un bloc !
+Each share is actually a **block attempt**. If by chance the share's hash is also below the network target -> it's a block!
 
 ```
-Si hash < bShare      → Share valide ✓
-Si hash < bNetwork    → BLOC TROUVE ! 🎉
+If hash < bShare      -> Valid share
+If hash < bNetwork    -> BLOCK FOUND!
 ```
 
-## Validation d'une Share
+## Share Validation
 
-### Ce que la pool verifie
+### What the Pool Verifies
 
-1. **Le mineur est autorise** (adresse valide)
-2. **Le job existe** (pas un vieux job expire)
-3. **Le nonce est unique** (pas de doublon)
-4. **Le hash est valide** (Autolykos2 complet)
-5. **Le hash < target** (difficulte respectee)
+1. **The miner is authorized** (valid address)
+2. **The job exists** (not an expired old job)
+3. **The nonce is unique** (no duplicates)
+4. **The hash is valid** (full Autolykos2 verification)
+5. **The hash < target** (difficulty met)
 
-### Le processus Autolykos2
+### The Autolykos2 Process
 
 ```python
-def valider_share(msg, nonce, height, bShare, bNetwork):
-    # 1. Calculer l'index i
+def validate_share(msg, nonce, height, bShare, bNetwork):
+    # 1. Compute the index i
     i = blake2b(msg + nonce) % N
 
-    # 2. Generer la seed e
+    # 2. Generate the seed e
     e = blake2b(i + height + M)
 
-    # 3. Calculer 32 index J
+    # 3. Compute 32 indices J
     J = [genIndex(e, k) for k in range(32)]
 
-    # 4. Recuperer les elements r (table de 2.5 GB)
+    # 4. Retrieve the r elements (2.5 GB table)
     r = [element(J[k]) for k in range(32)]
 
-    # 5. Additionner pour obtenir f
+    # 5. Sum to obtain f
     f = sum(r)
 
-    # 6. Hash final
+    # 6. Final hash
     fh = blake2b(f)
 
-    # 7. Verifier les targets
+    # 7. Check targets
     if fh < bShare:
-        share_valide = True
+        share_valid = True
         if fh < bNetwork:
-            bloc_trouve = True
+            block_found = True
 
-    return share_valide, bloc_trouve
+    return share_valid, block_found
 ```
 
-## Types de Shares
+## Types of Shares
 
-### Share Valide ✓
+### Valid Share
 
-Le hash est inferieur au target du mineur. La pool l'accepte et la compte pour le PPLNS.
+The hash is below the miner's target. The pool accepts it and counts it for PPLNS.
 
-### Share Invalide ✗
+### Invalid Share
 
-Plusieurs raisons possibles :
+Several possible reasons:
 
-| Erreur | Cause | Solution |
-|--------|-------|----------|
-| "Low difficulty" | Hash > target | Le mineur utilise un mauvais b |
-| "Job not found" | Job expire | Le mineur est en retard |
-| "Duplicate share" | Nonce deja soumis | Bug mineur ou triche |
-| "Invalid nonce" | Mauvais format | Bug mineur |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "Low difficulty" | Hash > target | The miner is using an incorrect b |
+| "Job not found" | Job expired | The miner is behind |
+| "Duplicate share" | Nonce already submitted | Miner bug or cheating |
+| "Invalid nonce" | Incorrect format | Miner bug |
 
-### Bloc Candidat 🎉
+### Block Candidate
 
-Le hash est inferieur au target reseau ! La pool soumet la solution au noeud Ergo.
+The hash is below the network target! The pool submits the solution to the Ergo node.
 
-## Le poids d'une Share (shareDiff)
+## Share Weight (shareDiff)
 
-Toutes les shares n'ont pas la meme "valeur". Une share a un **poids** proportionnel a sa difficulte :
+Not all shares have the same "value". A share has a **weight** proportional to its difficulty:
 
 ```
 shareDiff = networkDifficulty / vardiff
 ```
 
-### Exemple
+### Example
 
-| Mineur | Vardiff | shareDiff | Interpretation |
-|--------|---------|-----------|----------------|
-| Petit rig | 30,000 | 10.6 G | Share "legere" |
-| Gros rig | 5,000 | 63.6 G | Share "lourde" |
+| Miner | Vardiff | shareDiff | Interpretation |
+|-------|---------|-----------|----------------|
+| Small rig | 30,000 | 10.6 G | "Light" share |
+| Large rig | 5,000 | 63.6 G | "Heavy" share |
 
-Le gros rig a des shares moins frequentes mais plus lourdes. Au final, le **travail total** est proportionnel au hashrate reel.
+The large rig has less frequent but heavier shares. Ultimately, the **total work** is proportional to the actual hashrate.
 
-## Calcul du Hashrate depuis les Shares
+## Computing Hashrate from Shares
 
 ```
-hashrate = SUM(shareDiff) / temps
+hashrate = SUM(shareDiff) / time
 ```
 
-Exemple sur 5 minutes :
-- Mineur A : 20 shares × 31.8G shareDiff = 636 G de travail
+Example over 5 minutes:
+- Miner A: 20 shares x 31.8G shareDiff = 636 G of work
 - hashrate = 636G / 300s = 2.12 GH/s
 
-## Voir aussi
+## See Also
 
-- [Difficulte & Hashrate](../blockchain/difficulty.md) - Vardiff et calculs
-- [Protocole Stratum](stratum-protocol.md) - Comment les shares sont envoyees
-- [PPLNS](pplns.md) - Comment les shares sont recompensees
+- [Difficulty & Hashrate](../blockchain/difficulty.md) - Vardiff and calculations
+- [Stratum Protocol](stratum-protocol.md) - How shares are submitted
+- [PPLNS](pplns.md) - How shares are rewarded
