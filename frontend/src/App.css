@@ -1,9 +1,9 @@
 /* ======================================================
-   KORVEX - Ergo Mining Pool — Dark Cyan Theme
+   KORVEX - Ergo Mining Pool — Theme Sombre Cyan
    ====================================================== */
 
 :root {
-  /* Default colors - will be overridden by JS */
+  /* Couleurs par defaut - seront ecrasees par JS */
   --bg: #09090b;
   --card: #18181b;
   --card-hover: #27272a;
@@ -20,7 +20,7 @@
   --gradient-start: #fdba74;
   --gradient-end: #ea580c;
 
-  /* Layout variables - will be overridden by JS */
+  /* Variables de layout - seront ecrasees par JS */
   --card-radius: 12px;
   --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   --card-border: 1px solid var(--border);
@@ -30,7 +30,7 @@
 
 /* ==================== LAYOUT VARIANTS ==================== */
 
-/* Card style: outlined (transparent background) */
+/* Card style: outlined (fond transparent) */
 [data-card-style="outlined"] .stat-card,
 [data-card-style="outlined"] .chart-container,
 [data-card-style="outlined"] .info-card,
@@ -40,7 +40,7 @@
   background: transparent;
 }
 
-/* Card style: flat (no shadow) */
+/* Card style: flat (sans ombre) */
 [data-card-style="flat"] .stat-card,
 [data-card-style="flat"] .chart-container,
 [data-card-style="flat"] .info-card {
@@ -84,7 +84,7 @@
   border: 1px solid var(--border);
 }
 
-/* Table style: minimal (subtle lines) */
+/* Table style: minimal (lignes subtiles) */
 [data-table-style="minimal"] .workers-table,
 [data-table-style="minimal"] .blocks-table,
 [data-table-style="minimal"] .leaderboard-table {
@@ -108,7 +108,7 @@
   font-size: 13px;
 }
 
-/* Stats layout: row (stats in a row) */
+/* Stats layout: row (stats en ligne) */
 [data-stats-layout="row"] .stats-grid {
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
@@ -1438,7 +1438,7 @@ a:hover { color: var(--accent-hover); }
   padding: 0 8px;
 }
 
-/* ==================== STATUS PAGE (minimalist) ==================== */
+/* ==================== STATUS PAGE (minimaliste) ==================== */
 
 .status-page {
   display: flex;
@@ -1700,7 +1700,7 @@ a:hover { color: var(--accent-hover); }
   font-variant-numeric: tabular-nums;
 }
 
-/* ==================== EARNINGS CALCULATOR (table style) ==================== */
+/* ==================== EARNINGS CALCULATOR (style tableau) ==================== */
 
 .earnings-calc {
   padding: 0;
@@ -1963,7 +1963,7 @@ a:hover { color: var(--accent-hover); }
   transition: background 0.2s, transform 0.15s;
 }
 
-/* Desktop: Unicode character, Mobile: SVG */
+/* PC : caractere Unicode, Mobile : SVG */
 .power-icon-mobile { display: none; }
 
 @media (max-width: 768px) {
@@ -1975,13 +1975,13 @@ a:hover { color: var(--accent-hover); }
   transform: scale(1.1);
 }
 
-/* Online: green + glow */
+/* Online : vert + glow */
 .worker-power-online {
   color: #22c55e;
   text-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
 }
 
-/* Warning: yellow/orange + glow */
+/* Warning : jaune/orange + glow */
 .worker-power-warning {
   color: #facc15;
   text-shadow: 0 0 8px rgba(250, 204, 21, 0.5);
@@ -1992,7 +1992,7 @@ a:hover { color: var(--accent-hover); }
   background: rgba(250, 204, 21, 0.1);
 }
 
-/* Offline: red + glow */
+/* Offline : rouge + glow */
 .worker-power-offline {
   color: #ef4444;
   text-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
@@ -2003,7 +2003,7 @@ a:hover { color: var(--accent-hover); }
   background: rgba(239, 68, 68, 0.1);
 }
 
-/* "Remove all offline workers" link */
+/* Lien "Remove all offline workers" */
 .worker-remove-all {
   background: none;
   border: 1px solid var(--border);
@@ -2233,7 +2233,7 @@ a:hover { color: var(--accent-hover); }
   font-weight: bold;
 }
 
-/* ==================== THEME TOGGLE (sun / moon) ==================== */
+/* ==================== THEME TOGGLE (soleil / lune) ==================== */
 
 .theme-toggle-btn {
   display: flex;
@@ -2905,7 +2905,7 @@ a:hover { color: var(--accent-hover); }
   margin-top: 8px;
 }
 
-/* 5-column grid for Performance section */
+/* Grille à 5 colonnes pour Performance */
 .modern-stats-grid-5 {
   grid-template-columns: repeat(5, 1fr);
 }
@@ -2928,7 +2928,7 @@ a:hover { color: var(--accent-hover); }
   }
 }
 
-/* Cards with accent (Earnings) */
+/* Cards avec accent (Earnings) */
 .modern-stat-accent {
   border-color: var(--accent-dim);
   background: linear-gradient(135deg, var(--card) 0%, rgba(249, 115, 22, 0.05) 100%);
@@ -2938,14 +2938,14 @@ a:hover { color: var(--accent-hover); }
   border-color: var(--accent);
 }
 
-/* Icon in stat cards */
+/* Icône dans les stat cards */
 .msc-icon {
   font-size: 24px;
   opacity: 0.6;
   margin-bottom: 8px;
 }
 
-/* Sub-text in stat cards */
+/* Sous-texte dans les stat cards */
 .msc-sub {
   font-size: 11px;
   color: var(--text-dim);
@@ -4167,7 +4167,7 @@ a:hover { color: var(--accent-hover); }
   letter-spacing: 1px;
 }
 
-/* PPLNS / SOLO tabs */
+/* Onglets PPLNS / SOLO */
 .landing-tabs {
   display: flex;
   justify-content: center;
@@ -4207,7 +4207,7 @@ a:hover { color: var(--accent-hover); }
   background: var(--accent);
 }
 
-/* Cards grid */
+/* Grille de cards */
 .landing-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -4244,7 +4244,7 @@ a:hover { color: var(--accent-hover); }
   filter: grayscale(0.3);
 }
 
-/* Vertical algo text (2miners style) */
+/* Texte algo vertical (style 2miners) */
 .coin-card-algo-vertical {
   position: absolute;
   left: 0;
@@ -4432,9 +4432,9 @@ a:hover { color: var(--accent-hover); }
   }
 }
 
-/* ==================== LIGHT MODE ==================== */
+/* ==================== MODE CLAIR ==================== */
 
-/* --- 1. All hardcoded #fff texts → var(--text) --- */
+/* --- 1. Tous les textes hardcodes #fff → var(--text) --- */
 .light-mode .stat-value,
 .light-mode .stat-card p,
 .light-mode .how-to-start-page h3,
@@ -4470,7 +4470,7 @@ a:hover { color: var(--accent-hover); }
   color: var(--text);
 }
 
-/* --- 3. Discord: keep purple background --- */
+/* --- 3. Discord : garder le fond violet --- */
 .light-mode .header-discord {
   background: #5865F2;
   color: #fff;
@@ -4494,7 +4494,7 @@ a:hover { color: var(--accent-hover); }
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
 
-/* --- 5. CTA buttons keep white text (orange background) --- */
+/* --- 5. Boutons CTA gardent le texte blanc (fond orange) --- */
 .light-mode .header-cta,
 .light-mode .coin-card-btn,
 .light-mode .admin-login-btn,
@@ -4547,7 +4547,7 @@ a:hover { color: var(--accent-hover); }
   opacity: 0.6;
 }
 
-/* --- 11. Tooltip (hardcoded dark background) --- */
+/* --- 11. Tooltip (fond sombre hardcode) --- */
 .light-mode .tooltip-wrap .tooltip {
   background: var(--card);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
@@ -4585,7 +4585,7 @@ a:hover { color: var(--accent-hover); }
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
-/* --- 16. Subtle borders rgba(255,255,255,0.0x) invisible in light mode --- */
+/* --- 16. Bordures subtiles rgba(255,255,255,0.0x) invisibles en clair --- */
 .light-mode .coin-card-detail,
 .light-mode .modern-info-row,
 .light-mode .clean-stat-row,
@@ -4594,7 +4594,7 @@ a:hover { color: var(--accent-hover); }
   border-bottom-color: var(--border);
 }
 
-/* --- 17. Tables subtle lines --- */
+/* --- 17. Tables lignes subtiles --- */
 .light-mode [data-table-style="minimal"] .blocks-table td,
 .light-mode [data-table-style="minimal"] .leaderboard-table td,
 .light-mode [data-table-style="minimal"] .payments-table td {
@@ -4606,12 +4606,12 @@ a:hover { color: var(--accent-hover); }
   background: rgba(0, 0, 0, 0.02);
 }
 
-/* --- 18. Style selector button --- */
+/* --- 18. Style selector bouton --- */
 .light-mode .style-selector-btn {
   background: var(--card);
 }
 
-/* --- 19. Earnings USD and BTC keep their colors --- */
+/* --- 19. Earnings USD et BTC gardent leurs couleurs --- */
 .light-mode .earnings-usd {
   color: var(--green) !important;
 }

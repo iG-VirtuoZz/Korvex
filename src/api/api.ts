@@ -10,10 +10,10 @@ import { ergoNode } from "../ergo/node";
 import { runConfirmer } from "../payout/confirmer";
 import { runPayer } from "../payout/payer";
 
-// Hashrate correction factor for Ergo/Autolykos2
-// Compensates for GPU time lost during Autolykos2 dataset generation
-// MiningCore uses 1.15x, adjusted to 1.08 for our pool (measured over 8h)
-// HiveOS: 2.158 GH/s, Raw pool: 2.01 GH/s -> ideal ratio ~1.074
+// Facteur de correction hashrate pour Ergo/Autolykos2
+// Compense le temps GPU perdu a la generation du dataset Autolykos2
+// MiningCore utilise 1.15x, ajuste a 1.08 pour notre pool (mesure sur 8h)
+// HiveOS: 2.158 GH/s, Brut pool: 2.01 GH/s -> ratio ideal ~1.074
 const ERGO_HASHRATE_CORRECTION = 1.08;
 
 const CHART_PERIODS: Record<string, { interval: string | null; bucketSeconds: number }> = {
@@ -24,17 +24,17 @@ const CHART_PERIODS: Record<string, { interval: string | null; bucketSeconds: nu
   "all": { interval: null,        bucketSeconds: 0 },
 };
 
-// Allowed periods for miner hashrate chart (no 1y/all because of 90-day retention limit)
+// Periodes autorisees pour le chart miner hashrate (pas de 1y/all car retention 90j max)
 const MINER_CHART_PERIODS: Record<string, { interval: string; bucketSeconds: number }> = {
   "1h":  { interval: "1 hour",    bucketSeconds: 60 },
   "1d":  { interval: "24 hours",  bucketSeconds: 300 },
   "7d":  { interval: "7 days",    bucketSeconds: 3600 },
 };
 
-// Cache for blockReward (avoids calling the node too often)
+// Cache pour blockReward (evite d'appeler le noeud trop souvent)
 let cachedBlockReward: number = 6;
 let blockRewardCacheTime: number = 0;
-const BLOCK_REWARD_CACHE_TTL = 3600_000; // 1 hour
+const BLOCK_REWARD_CACHE_TTL = 3600_000; // 1 heure
 
 async function getBlockRewardCached(): Promise<number> {
   const now = Date.now();
@@ -55,11 +55,11 @@ async function getBlockRewardCached(): Promise<number> {
   return cachedBlockReward;
 }
 
-// Cache for ERG price (CoinGecko, refreshed every 5 min)
+// Cache pour le prix ERG (CoinGecko, rafraichi toutes les 5 min)
 let cachedErgPriceUsd: number = 0;
 let cachedErgPriceBtc: number = 0;
 let ergPriceCacheTime: number = 0;
-const ERG_PRICE_CACHE_TTL = 300_000; // 5 minutes (avoids HTTP 429 from CoinGecko)
+const ERG_PRICE_CACHE_TTL = 300_000; // 5 minutes (evite HTTP 429 CoinGecko)
 
 async function fetchErgPrice(): Promise<{ usd: number; btc: number }> {
   const url = "https://api.coingecko.com/api/v3/simple/price?ids=ergo&vs_currencies=usd,btc";
@@ -86,9 +86,9 @@ async function getErgPriceCached(): Promise<{ usd: number; btc: number }> {
   }
 }
 
-// Cache for last network block timestamp (with debug logs)
-// We use the moment of DETECTION (not the block's own timestamp)
-// so that the progress bar always starts from 0% when a new block is found
+// Cache pour le timestamp du dernier bloc reseau (avec logs de debug)
+// On utilise le moment de DETECTION du bloc (pas le timestamp du bloc lui-meme)
+// pour que la barre parte toujours de 0% quand un nouveau bloc est trouve
 let cachedDetectionTs: number | null = null;
 let cachedLastBlockHeight: number = 0;
 
@@ -97,13 +97,13 @@ async function getLastBlockTimestampCached(): Promise<number | null> {
     const info = await ergoNode.getInfo();
     const currentHeight = info.fullHeight || 0;
 
-    // If height changed, use current time as reference
+    // Si la hauteur a change, on utilise le temps actuel comme reference
     if (currentHeight !== cachedLastBlockHeight && currentHeight > 0) {
       const oldHeight = cachedLastBlockHeight;
       const oldTs = cachedDetectionTs;
       const now = Date.now();
 
-      // Log the block change
+      // Log le changement de bloc
       if (oldHeight > 0) {
         const oldElapsed = oldTs ? Math.floor((now - oldTs) / 1000) : 0;
         console.log(`[BlockProgress] Nouveau bloc! Hauteur: ${oldHeight} -> ${currentHeight}, ` +
@@ -113,7 +113,7 @@ async function getLastBlockTimestampCached(): Promise<number | null> {
       }
 
       cachedLastBlockHeight = currentHeight;
-      cachedDetectionTs = now; // We use the detection moment, not the block's timestamp
+      cachedDetectionTs = now; // On utilise le moment de detection, pas le timestamp du bloc
     }
     return cachedDetectionTs;
   } catch (err) {
@@ -122,13 +122,13 @@ async function getLastBlockTimestampCached(): Promise<number | null> {
   }
 }
 
-// Timing-safe comparison to prevent timing attacks
+// Comparaison timing-safe pour eviter les timing attacks
 function safeCompare(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
 }
 
-// Admin authentication middleware
+// Middleware d'authentification admin
 function requireAdmin(req: Request, res: Response, next: NextFunction) {
   if (!config.admin.password) {
     return res.status(503).json({ error: "Admin non configure" });
@@ -151,14 +151,14 @@ export function createApi(
 ) {
   const app = express();
 
-  // Fix trust proxy for express-rate-limit behind Nginx
+  // Fix trust proxy pour express-rate-limit derriere Nginx
   app.set("trust proxy", 1);
 
   app.use(cors({
     origin: ["https://korvexpool.com", "http://localhost:3000"],
   }));
 
-  // Rate limit: 120 requests per minute per IP
+  // Rate limit : 120 requetes par minute par IP
   const apiLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 120,
@@ -166,68 +166,54 @@ export function createApi(
     legacyHeaders: false,
   });
   app.use("/api/", apiLimiter);
-  app.use(express.json());
 
-  // Health check (enriched in Phase 3)
-  app.get("/api/health", async (_req, res) => {
-    try {
-      // Healthcheck DB
-      await database.query("SELECT 1");
-
-      const info = await ergoNode.getInfo();
-      const synced = await ergoNode.isSynced();
-
-      const pendingBlocks = await database.query(
-        "SELECT COUNT(*) as count FROM blocks WHERE reward_distributed = false AND is_orphan = false AND reward_nano > 0"
-      );
-      const confirmedBlocks = await database.query(
-        "SELECT COUNT(*) as count FROM blocks WHERE reward_distributed = true"
-      );
-      const orphanBlocks = await database.query(
-        "SELECT COUNT(*) as count FROM blocks WHERE is_orphan = true"
-      );
-      const totalPayable = await database.query(
-        "SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total FROM balances WHERE amount >= " + config.pool.minPayoutNano.toString()
-      );
-      const paidCount = await database.query(
-        "SELECT COUNT(*) as count FROM payments WHERE status = 'sent'"
-      );
-
-      res.json({
-        status: "ok",
-        node: {
-          synced,
-          headersHeight: info.headersHeight,
-          fullHeight: info.fullHeight,
-          peersCount: info.peersCount,
-          difficulty: info.difficulty,
-        },
-        stratum: getStratumInfo(),
-        payout: {
-          confirmations_required: config.payout.confirmations,
-          blocks_pending: parseInt(pendingBlocks.rows[0].count) || 0,
-          blocks_confirmed: parseInt(confirmedBlocks.rows[0].count) || 0,
-          blocks_orphan: parseInt(orphanBlocks.rows[0].count) || 0,
-          miners_payable: parseInt(totalPayable.rows[0].count) || 0,
-          total_payable_nano: totalPayable.rows[0].total?.toString() || "0",
-          payments_sent: parseInt(paidCount.rows[0].count) || 0,
-          // wallet_configured removed for security
-        },
-      });
-    } catch (err) {
-      console.error("[API] Erreur /api/health:", err);
-      res.status(500).json({ status: "error", message: "Node indisponible" });
-    }
+  // Rate limit strict sur le login admin : 5 tentatives par 15 minutes par IP
+  const adminLoginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Trop de tentatives. Réessayez dans 15 minutes." },
   });
 
-  // General stats (MiningPoolStats compatible) + effort/luck + price
+  app.use(express.json());
+
+  // Health check (securise : retourne uniquement ok/degraded, details dans les logs)
+  app.get("/api/health", async (_req, res) => {
+    let dbOk = false;
+    let nodeOk = false;
+
+    try {
+      await database.query("SELECT 1");
+      dbOk = true;
+    } catch (err) {
+      console.warn("[Health] DB indisponible:", err);
+    }
+
+    try {
+      const info = await ergoNode.getInfo();
+      const synced = await ergoNode.isSynced();
+      nodeOk = synced && (info.fullHeight || 0) > 0;
+
+      // Details uniquement dans les logs serveur
+      const stratum = getStratumInfo();
+      console.log(`[Health] DB: ${dbOk ? "OK" : "DOWN"}, Node: ${nodeOk ? "OK" : "DOWN"} (synced=${synced}, height=${info.fullHeight}, peers=${info.peersCount}), Stratum sessions: ${stratum.sessions}, Uptime: ${Math.floor(process.uptime())}s`);
+    } catch (err) {
+      console.warn("[Health] Node indisponible:", err);
+    }
+
+    const status = dbOk && nodeOk ? "ok" : "degraded";
+    res.status(status === "ok" ? 200 : 503).json({ status });
+  });
+
+  // Stats generales (compatible MiningPoolStats) + effort/luck + prix
   app.get("/api/stats", async (req, res) => {
     try {
       const mode = getMiningMode(req);
       const info = await ergoNode.getInfo();
       const stratum = getStratumInfo(mode);
 
-      // Pool hashrate: same method as chart, filtered by mode
+      // Hashrate pool : meme methode que le chart, filtree par mode
       const hrResult = await database.query(
         `WITH all_buckets AS (
           SELECT
@@ -254,7 +240,7 @@ export function createApi(
       );
       const hashrate = Math.round(parseFloat(hrResult.rows[0].avg_hr));
 
-      // Blocks found by this mode
+      // Blocs trouves par ce mode
       const blocksResult = await database.query(
         "SELECT COUNT(*) as count FROM blocks WHERE mining_mode = $1",
         [mode]
@@ -267,7 +253,7 @@ export function createApi(
       );
       const lastBlockHeight = lastBlockResult.rows[0]?.height || 0;
 
-      // Current effort and average luck
+      // Effort en cours et luck moyenne
       let currentEffort: number | null = null;
       let poolLuck: number | null = null;
 
@@ -286,13 +272,13 @@ export function createApi(
         }
       }
 
-      // Block reward with cache
+      // Block reward avec cache
       const blockReward = await getBlockRewardCached();
 
-      // ERG price with cache
+      // Prix ERG avec cache
       const ergPrice = await getErgPriceCached();
 
-      // Last network block timestamp (for the progress bar)
+      // Timestamp du dernier bloc reseau (pour la barre de progression)
       const lastNetworkBlockTimestamp = await getLastBlockTimestampCached();
 
       res.json({
@@ -326,7 +312,7 @@ export function createApi(
     }
   });
 
-  // ========== LEADERBOARD — MUST be BEFORE /api/miners/:address ==========
+  // ========== LEADERBOARD — DOIT etre AVANT /api/miners/:address ==========
   app.get("/api/miners/leaderboard", async (req, res) => {
     try {
       const mode = getMiningMode(req);
@@ -334,7 +320,7 @@ export function createApi(
       const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
       const search = (req.query.search as string || "").trim();
 
-      // Sortable columns (whitelist to prevent SQL injection)
+      // Colonnes triables (whitelist pour eviter injection SQL)
       const SORTABLE: Record<string, string> = {
         hashrate_1h: "hashrate_1h",
         hashrate_15m: "hashrate_15m",
@@ -349,7 +335,7 @@ export function createApi(
       const sortCol = SORTABLE[req.query.sort as string] || "hashrate_1h";
       const sortOrder = (req.query.order as string) === "asc" ? "ASC" : "DESC";
 
-      // Parameter $1 is the mode, so search starts at $2
+      // Le parametre $1 est le mode, donc search commence a $2
       const searchClause = search ? "AND address ILIKE $2" : "";
 
       const sql = `
@@ -464,7 +450,7 @@ export function createApi(
     }
   });
 
-  // List of active miners
+  // Liste des mineurs actifs
   app.get("/api/miners", async (_req, res) => {
     try {
       const result = await database.query(
@@ -477,7 +463,7 @@ export function createApi(
     }
   });
 
-  // Miner stats (+ balance + payments + per-worker effort + per-worker hashrate)
+  // Stats d'un mineur (+ solde + paiements + effort par worker + hashrate par worker)
   app.get("/api/miners/:address", async (req, res) => {
     try {
       const mode = getMiningMode(req);
@@ -488,7 +474,7 @@ export function createApi(
         return res.status(404).json({ error: "Mineur non trouve" });
       }
 
-      // Miner hashrate with P90 anti-spike cap, filtered by mode
+      // Hashrate mineur avec cap P90 anti-spike, filtre par mode
       const hrResult = await database.query(
         `WITH all_buckets AS (
           SELECT
@@ -515,13 +501,13 @@ export function createApi(
       );
 
       const payments = await database.query(
-        "SELECT amount_nano, tx_hash, status, sent_at, created_at FROM payments WHERE address=$1 ORDER BY created_at DESC LIMIT 20",
+        "SELECT amount_nano, tx_hash, status, sent_at, created_at FROM payments WHERE address=$1 AND status = 'sent' ORDER BY created_at DESC LIMIT 20",
         [address]
       );
 
-      // Enriched workers: shares 1h + effort since last block + blocks found + per-worker hashrate
-      // In SOLO: effort since the MINER's last block (not any SOLO miner's)
-      // In PPLNS: effort since the pool's last block
+      // Workers enrichis : shares 1h + effort depuis dernier bloc + blocs trouves + hashrate par worker
+      // En SOLO : effort depuis le dernier bloc du MINEUR (pas de n'importe quel mineur SOLO)
+      // En PPLNS : effort depuis le dernier bloc de la pool
       let lastBlockAt: string;
       if (mode === 'solo') {
         const lastBlockTime = await database.query(
@@ -537,7 +523,7 @@ export function createApi(
         lastBlockAt = lastBlockTime.rows[0]?.last_block_at || '1970-01-01';
       }
 
-      // Fetch network difficulty to calculate effort
+      // Recuperer la difficulte reseau pour calculer l'effort
       let networkDifficulty = 0;
       try {
         const info = await ergoNode.getInfo();
@@ -546,7 +532,7 @@ export function createApi(
         console.error("[API] Erreur fetch networkDifficulty:", err);
       }
 
-      // Workers with 24h shares (to also show yellow/red inactive ones) AND smoothed effort since last block
+      // Workers avec shares 24h (pour voir aussi les inactifs jaunes/rouges) ET effort lisse depuis dernier bloc
       const workers = await database.query(
         `SELECT
           w24h.worker,
@@ -566,7 +552,7 @@ export function createApi(
         [address, lastBlockAt, mode]
       );
 
-      // Blocks found per worker (lifetime)
+      // Blocs trouves par worker (lifetime)
       const workerBlocks = await database.query(
         "SELECT finder_worker as worker, COUNT(*) as blocks_found FROM blocks WHERE finder_address=$1 AND is_orphan = false GROUP BY finder_worker",
         [address]
@@ -576,7 +562,7 @@ export function createApi(
         if (row.worker) blocksMap[row.worker] = parseInt(row.blocks_found) || 0;
       }
 
-      // Per-worker hashrate with P90 anti-spike cap, filtered by mode
+      // Hashrate par worker avec cap P90 anti-spike, filtre par mode
       const workerHr = await database.query(
         `WITH all_buckets AS (
           SELECT
@@ -627,7 +613,7 @@ export function createApi(
       );
       const totalPaidNano = paidResult.rows[0].total_paid_nano || "0";
 
-      // SOLO-specific stats
+      // Stats SOLO specifiques
       let soloEffortPercent: number | null = null;
       let soloBlocksFound = 0;
       if (mode === 'solo') {
@@ -681,7 +667,7 @@ export function createApi(
     }
   });
 
-  // Recent blocks
+  // Derniers blocs
   app.get("/api/blocks", async (req, res) => {
     try {
       const mode = getMiningMode(req);
@@ -696,7 +682,7 @@ export function createApi(
     }
   });
 
-  // PPLNS distribution for a block
+  // Distribution PPLNS d'un bloc
   app.get("/api/blocks/:height/rewards", async (req, res) => {
     try {
       const height = parseInt(req.params.height);
@@ -735,7 +721,7 @@ export function createApi(
     }
   });
 
-  // Recent payments
+  // Derniers paiements
   app.get("/api/payouts", async (_req, res) => {
     try {
       const payments = await database.getRecentPayments(50);
@@ -756,7 +742,7 @@ export function createApi(
     }
   });
 
-  // Pool hashrate chart
+  // Chart pool hashrate
   app.get("/api/chart/pool-hashrate", async (req, res) => {
     try {
       const mode = getMiningMode(req);
@@ -784,14 +770,14 @@ export function createApi(
         ? `NOW() - INTERVAL '${conf.interval}'`
         : `(SELECT COALESCE(MIN(ts_minute), NOW() - INTERVAL '24 hours') FROM pool_hashrate_1m)`;
 
-      // Smoothing: moving average window (ROWS BETWEEN N PRECEDING AND N FOLLOWING)
-      // Pool smoothing: 1d: 4 (40 min), 7d: 0 (1h raw), others: 1
+      // Lissage : fenetre de moyenne glissante (ROWS BETWEEN N PRECEDING AND N FOLLOWING)
+      // Lissage pool : 1d: 4 (40 min), 7d: 0 (1h brut), autres: 1
       const smoothingWindow = period === "1d" ? 4 : period === "7d" ? 0 : 1;
 
-      // Anti-spike cap BEFORE smoothing: we compute the 75th percentile over the entire period
-      // and cap each bucket at that value. P75 represents the "normally high" hashrate
-      // without being polluted by spikes. Anything above is vardiff noise.
-      // Then we apply smoothing on the already-capped data.
+      // Cap anti-spike AVANT lissage : on calcule le percentile 75 de toute la periode
+      // et on cap chaque bucket a cette valeur. Le P75 represente le hashrate "normalement haut"
+      // sans etre pollue par les spikes. Tout ce qui depasse est du bruit de vardiff.
+      // Ensuite on applique le lissage sur les donnees deja cappees.
 
       const result = await database.query(`
         WITH first_data AS (
@@ -850,7 +836,7 @@ export function createApi(
     }
   });
 
-  // Miner hashrate chart (filtered by address)
+  // Chart miner hashrate (filtre par adresse)
   app.get("/api/chart/miner-hashrate/:address", async (req, res) => {
     try {
       const mode = getMiningMode(req);
@@ -859,7 +845,7 @@ export function createApi(
       const conf = MINER_CHART_PERIODS[period] || MINER_CHART_PERIODS["1d"];
       const bucketSeconds = conf.bucketSeconds;
 
-      // Smoothing: 1h: 6 (12 min), 1d: 4 (40 min), 7d: 0 (1h raw), others: 1 (12h)
+      // Lissage : 1h: 6 (12 min), 1d: 4 (40 min), 7d: 0 (1h brut), autres: 1 (12h)
       const smoothingWindow = period === "1h" ? 6 : period === "1d" ? 4 : period === "7d" ? 0 : 1;
       const smoothingClause = "AVG(raw_value) OVER (ORDER BY ts ROWS BETWEEN " + smoothingWindow + " PRECEDING AND " + smoothingWindow + " FOLLOWING)";
 
@@ -917,7 +903,7 @@ export function createApi(
     }
   });
 
-  // Worker hashrate chart (filtered by address + worker)
+  // Chart worker hashrate (filtre par adresse + worker)
   app.get("/api/chart/worker-hashrate/:address/:worker", async (req, res) => {
     try {
       const mode = getMiningMode(req);
@@ -926,7 +912,7 @@ export function createApi(
       const conf = MINER_CHART_PERIODS[period] || MINER_CHART_PERIODS["1d"];
       const bucketSeconds = conf.bucketSeconds;
 
-      // Smoothing: 1h: 6 (12 min), 1d: 4 (40 min), 7d: 0 (1h raw), others: 1 (12h)
+      // Lissage : 1h: 6 (12 min), 1d: 4 (40 min), 7d: 0 (1h brut), autres: 1 (12h)
       const smoothingWindow = period === "1h" ? 6 : period === "1d" ? 4 : period === "7d" ? 0 : 1;
       const smoothingClause = "AVG(raw_value) OVER (ORDER BY ts ROWS BETWEEN " + smoothingWindow + " PRECEDING AND " + smoothingWindow + " FOLLOWING)";
 
@@ -984,7 +970,7 @@ export function createApi(
     }
   });
 
-  // Network difficulty chart
+  // Chart difficulte reseau
   app.get("/api/chart/network-difficulty", async (req, res) => {
     try {
       const period = (req.query.period as string) || "1d";
@@ -1026,8 +1012,8 @@ export function createApi(
           ORDER BY ts
         `);
       } else {
-        // 1D view: difficulty change points
-        // 1) Anchor point: last snapshot BEFORE the window (repositioned at the start)
+        // Vue 1J : points de changement de difficulte
+        // 1) Point d'ancrage : dernier snapshot AVANT la fenetre (repositionne au debut)
         const beforeResult = await database.query(`
           SELECT difficulty as value, height
           FROM network_snapshots
@@ -1036,7 +1022,7 @@ export function createApi(
           LIMIT 1
         `);
 
-        // 2) Difficulty changes within the window
+        // 2) Changements de diff dans la fenetre
         const changesResult = await database.query(`
           SELECT ts, value, height FROM (
             SELECT
@@ -1051,7 +1037,7 @@ export function createApi(
           ORDER BY ts
         `);
 
-        // 3) Last known snapshot (for the "now" point)
+        // 3) Dernier snapshot connu (pour le point "maintenant")
         const lastResult = await database.query(`
           SELECT difficulty as value, height
           FROM network_snapshots
@@ -1061,7 +1047,7 @@ export function createApi(
 
         const data: any[] = [];
 
-        // Add the anchor point at the start of the window
+        // Ajouter le point d'ancrage au debut de la fenetre
         if (beforeResult.rows.length > 0) {
           data.push({
             ts: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
@@ -1070,12 +1056,12 @@ export function createApi(
           });
         }
 
-        // Add the changes
+        // Ajouter les changements
         for (const row of changesResult.rows) {
           data.push(row);
         }
 
-        // Add the "now" point if different from the last point
+        // Ajouter le point "maintenant" si different du dernier point
         if (lastResult.rows.length > 0) {
           data.push({
             ts: new Date().toISOString(),
@@ -1095,8 +1081,8 @@ export function createApi(
 
   // ========== ADMIN ENDPOINTS ==========
 
-  // Admin login
-  app.post("/api/admin/login", (req, res) => {
+  // Login admin (rate-limit strict : 5 tentatives / 15 min par IP)
+  app.post("/api/admin/login", adminLoginLimiter, (req, res) => {
     if (!config.admin.password) {
       return res.status(503).json({ error: "Admin non configure" });
     }
@@ -1107,7 +1093,7 @@ export function createApi(
     res.json({ success: true });
   });
 
-  // Admin dashboard - all info in a single call
+  // Dashboard admin - toutes les infos en un seul appel
   app.get("/api/admin/dashboard", requireAdmin, async (_req, res) => {
     try {
       // Node info
@@ -1145,7 +1131,7 @@ export function createApi(
       let walletConfirmed = 0;
       let walletUnconfirmed = 0;
       try {
-        // /wallet/balances returns { balance, height, assets }
+        // /wallet/balances retourne { balance, height, assets }
         const walletRes = await fetch(config.ergoNode.url + "/wallet/balances", {
           headers: { "api_key": config.ergoNode.apiKey },
           signal: AbortSignal.timeout(5000),
@@ -1154,7 +1140,7 @@ export function createApi(
           const walletData = await walletRes.json() as any;
           walletConfirmed = (walletData.balance || 0) / 1e9;
         }
-        // /wallet/balances/withUnconfirmed returns the balance including mempool txs
+        // /wallet/balances/withUnconfirmed retourne le solde incluant les tx mempool
         const walletResUnconf = await fetch(config.ergoNode.url + "/wallet/balances/withUnconfirmed", {
           headers: { "api_key": config.ergoNode.apiKey },
           signal: AbortSignal.timeout(5000),
@@ -1168,7 +1154,7 @@ export function createApi(
         console.error("[Admin] Erreur wallet balance:", err);
       }
 
-      // Pending payments (miners eligible for payout)
+      // Pending payments (mineurs eligibles au paiement)
       const pendingPayments = await database.query(
         `SELECT address, amount FROM balances WHERE amount >= ${config.pool.minPayoutNano.toString()}`
       );
@@ -1186,7 +1172,7 @@ export function createApi(
         FROM blocks
       `);
 
-      // Alerts: payments with 'unknown' status
+      // Alerts : paiements en status 'unknown'
       const unknownPayments = await database.query(
         "SELECT address, amount_nano, tx_hash, created_at FROM payments WHERE status = 'unknown' ORDER BY created_at DESC"
       );
@@ -1267,7 +1253,7 @@ export function createApi(
     }
   });
 
-  // Dice Rolls — last 100 shares with their fh/b ratio (casino style)
+  // Dice Rolls — les 100 dernieres shares avec leur ratio fh/b (style casino)
   app.get("/api/admin/dice-rolls", requireAdmin, async (_req, res) => {
     try {
       res.json(getDiceRolls());
@@ -1277,10 +1263,10 @@ export function createApi(
     }
   });
 
-  // Financial stats — total mined, paid, pool revenue, earnings/payments per day (30d)
+  // Financial stats — total mine, paye, revenus pool, gains/paiements par jour (30j)
   app.get("/api/admin/financial-stats", requireAdmin, async (_req, res) => {
     try {
-      // Total ERG mined (sum of reward_nano from all confirmed blocks)
+      // Total ERG mine (somme des reward_nano de tous les blocs confirmes)
       const minedResult = await database.query(`
         SELECT COALESCE(SUM(reward_nano), 0) as total_mined
         FROM blocks WHERE reward_distributed = true
@@ -1288,7 +1274,7 @@ export function createApi(
       const totalMinedNano = BigInt(minedResult.rows[0].total_mined || "0");
       const totalMinedErg = Number(totalMinedNano) / 1e9;
 
-      // Total ERG paid (sum of sent payments)
+      // Total ERG paye (somme des paiements envoyes)
       const paidResult = await database.query(`
         SELECT COALESCE(SUM(amount_nano), 0) as total_paid
         FROM payments WHERE status = 'sent'
@@ -1296,10 +1282,10 @@ export function createApi(
       const totalPaidNano = BigInt(paidResult.rows[0].total_paid || "0");
       const totalPaidErg = Number(totalPaidNano) / 1e9;
 
-      // Pool revenue (collected fees) = totalMined * fee
+      // Revenus pool (fees collectees) = totalMined * fee
       const poolRevenueErg = totalMinedErg * config.pool.fee;
 
-      // Earnings per day (confirmed blocks, last 30 days)
+      // Gains par jour (blocs confirmes, 30 derniers jours)
       const dailyMined = await database.query(`
         SELECT
           DATE(found_at) as day,
@@ -1312,7 +1298,7 @@ export function createApi(
         ORDER BY day ASC
       `);
 
-      // Payments per day (last 30 days)
+      // Paiements par jour (30 derniers jours)
       const dailyPaid = await database.query(`
         SELECT
           DATE(sent_at) as day,
@@ -1347,7 +1333,7 @@ export function createApi(
     }
   });
 
-  // System stats — CPU, RAM, disk, Ergo node, pool uptime
+  // System stats — CPU, RAM, disque, noeud Ergo, uptime pool
   app.get("/api/admin/system-stats", requireAdmin, async (_req, res) => {
     try {
       // CPU
@@ -1359,7 +1345,7 @@ export function createApi(
       const freeMem = os.freemem();
       const usedMem = totalMem - freeMem;
 
-      // Disk (via df)
+      // Disque (via df)
       let diskTotal = 0;
       let diskUsed = 0;
       let diskFree = 0;
@@ -1373,7 +1359,7 @@ export function createApi(
         }
       } catch {}
 
-      // Ergo node
+      // Noeud Ergo
       let nodeInfo = { synced: false, fullHeight: 0, headersHeight: 0, peersCount: 0, latencyMs: 0 };
       try {
         const start = Date.now();
@@ -1423,7 +1409,7 @@ export function createApi(
     }
   });
 
-  // Manual payout trigger
+  // Trigger payout manuel
   app.post("/api/admin/trigger-payout", requireAdmin, async (_req, res) => {
     try {
       console.log("[Admin] Declenchement manuel du cycle de paiement");

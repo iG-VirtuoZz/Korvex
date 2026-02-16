@@ -1,5 +1,5 @@
-// Themes for Korvex Pool
-// 2 modes: Dark (pure black) and Light (white)
+// Themes pour Korvex Pool
+// 2 modes : Sombre (noir pur) et Clair (blanc)
 
 export interface BgTheme {
   id: string;
@@ -89,7 +89,7 @@ export const applyBgTheme = (theme: BgTheme) => {
   root.style.setProperty("--gradient-end", theme.gradientEnd);
   document.body.style.background = theme.bg;
 
-  // Class for light mode (allows specific CSS overrides)
+  // Classe pour le mode clair (permet CSS overrides specifiques)
   if (theme.id === "clair") {
     root.classList.add("light-mode");
   } else {
@@ -105,7 +105,7 @@ export const loadSavedBgTheme = (): BgTheme => {
   return getBgThemeById(savedId || "noir-pur");
 };
 
-// Legacy code compatibility
+// Compat ancien code
 export interface PoolLayout { id: string; name: string; description: string; }
 export const applyLayout = (_layout: PoolLayout) => applyBgTheme(loadSavedBgTheme());
 export const loadSavedLayout = (): PoolLayout => ({ id: "modern-grid", name: "Modern Grid", description: "" });

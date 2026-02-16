@@ -64,7 +64,7 @@ export async function distributePPLNS(
     console.log("[PPLNS] Reste arrondi: " + remainder + " nanoERG -> " + rewards[0].address.substring(0, 12) + "...");
   }
 
-  // Credit the fee to the pool address
+  // Crediter le fee a l adresse de la pool
   if (feeNano > BigInt(0) && config.pool.address) {
     rewards.push({
       address: config.pool.address,
@@ -75,7 +75,7 @@ export async function distributePPLNS(
     console.log("[PPLNS] Fee " + (Number(feeNano) / 1e9) + " ERG credite a " + config.pool.address.substring(0, 12) + "...");
   }
 
-  // Save (atomic transaction)
+  // Sauvegarder (transaction atomique)
   await database.insertBlockRewardsAndUpdateBlock(
     blockHeight,
     rewards,

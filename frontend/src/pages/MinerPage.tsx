@@ -25,8 +25,8 @@ const formatErg = (nanoStr: string | undefined | null) => {
   return val.toFixed(4) + " ERG";
 };
 
-// Static function to calculate elapsed time
-// Uses i18n.t() because it's outside the React component
+// Fonction statique pour calculer le temps ecoule
+// Utilise i18n.t() car elle est en dehors du composant React
 const calcTimeAgo = (dateStr: string | null | undefined) => {
   if (!dateStr) return "\u2014";
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -40,9 +40,9 @@ const calcTimeAgo = (dateStr: string | null | undefined) => {
   return i18n.t('time.d_ago', { count: Math.floor(hr / 24) });
 };
 
-// LiveTimeAgo component - adaptive updates with precise sync
-// < 60 sec: update every second
-// >= 60 sec: update synchronized on minute change
+// Composant LiveTimeAgo - mise a jour adaptative avec sync precise
+// < 60 sec : update chaque seconde
+// >= 60 sec : update synchronise sur le changement de minute
 const LiveTimeAgo: React.FC<{ dateStr: string | null | undefined }> = ({ dateStr }) => {
   const [display, setDisplay] = useState(() => calcTimeAgo(dateStr));
 
@@ -62,14 +62,14 @@ const LiveTimeAgo: React.FC<{ dateStr: string | null | undefined }> = ({ dateStr
 
       let nextUpdateMs: number;
       if (diffSec < 60) {
-        // Less than 60 sec: update every second
+        // Moins de 60 sec : update chaque seconde
         nextUpdateMs = 1000;
       } else {
-        // More than 60 sec: calculate time until next minute
-        // E.g.: at 1min 45sec, wait 15 sec to reach 2 min
+        // Plus de 60 sec : calculer le temps jusqu'a la prochaine minute
+        // Ex: a 1min 45sec, attendre 15 sec pour passer a 2 min
         const secsIntoCurrentMinute = diffSec % 60;
         nextUpdateMs = (60 - secsIntoCurrentMinute) * 1000;
-        // Safety: minimum 1 sec, maximum 60 sec
+        // Securite : minimum 1 sec, maximum 60 sec
         nextUpdateMs = Math.max(1000, Math.min(nextUpdateMs, 60000));
       }
 
@@ -85,16 +85,16 @@ const LiveTimeAgo: React.FC<{ dateStr: string | null | undefined }> = ({ dateStr
 
 const effortColor = (effort: number | null) => {
   if (effort === null) return "var(--text-dim)";
-  if (effort < 50) return "#16a34a";   // Dark green (different from USD green)
-  if (effort < 100) return "#84cc16";  // Lime / yellow-green
-  if (effort < 150) return "#facc15";  // Yellow
+  if (effort < 50) return "#16a34a";   // Vert fonce (different du vert USD)
+  if (effort < 100) return "#84cc16";  // Lime / vert-jaune
+  if (effort < 150) return "#facc15";  // Jaune
   if (effort < 200) return "#f97316";  // Orange
-  return "#ef4444";                     // Red
+  return "#ef4444";                     // Rouge
 };
 
-// Network block progress bar component
-// Styled with animated diagonal stripes and arrow
-const BLOCK_TARGET_TIME = 120; // 2 minutes in seconds
+// Composant barre de progression du bloc reseau
+// Style avec rayures diagonales animees et fleche
+const BLOCK_TARGET_TIME = 120; // 2 minutes en secondes
 const NetworkBlockProgress: React.FC<{ lastBlockTimestamp: number; label: string }> = ({ lastBlockTimestamp, label }) => {
   const [percent, setPercent] = useState(0);
 
@@ -111,10 +111,10 @@ const NetworkBlockProgress: React.FC<{ lastBlockTimestamp: number; label: string
     return () => clearInterval(interval);
   }, [lastBlockTimestamp]);
 
-  // Fill position (max 100% of the bar = 250% effort)
+  // Position du remplissage (max 100% de la barre = 250% effort)
   const fillPercent = Math.min((percent / 250) * 100, 100);
 
-  // Color and gradient based on current effort
+  // Couleur et degrade selon l'effort actuel
   const getGradient = () => {
     if (percent <= 50) return "linear-gradient(90deg, #16a34a 0%, #22c55e 100%)";
     if (percent <= 100) return "linear-gradient(90deg, #16a34a 0%, #84cc16 50%, #a3e635 100%)";
@@ -162,15 +162,15 @@ const NetworkBlockProgress: React.FC<{ lastBlockTimestamp: number; label: string
   );
 };
 
-// Pool effort progress bar component
-// Shows the pool's current effort % to find a block
+// Composant barre d'effort de la pool
+// Affiche le % d'effort actuel de la pool pour trouver un bloc
 const PoolEffortProgress: React.FC<{ effort: number | null; label: string }> = ({ effort, label }) => {
   const percent = effort ?? 0;
 
-  // Fill position (max 100% of the bar = 250% effort)
+  // Position du remplissage (max 100% de la barre = 250% effort)
   const fillPercent = Math.min((percent / 250) * 100, 100);
 
-  // Color and gradient based on current effort
+  // Couleur et degrade selon l'effort actuel
   const getGradient = () => {
     if (percent <= 50) return "linear-gradient(90deg, #16a34a 0%, #22c55e 100%)";
     if (percent <= 100) return "linear-gradient(90deg, #16a34a 0%, #84cc16 50%, #a3e635 100%)";
@@ -218,7 +218,7 @@ const PoolEffortProgress: React.FC<{ effort: number | null; label: string }> = (
   );
 };
 
-// Determine a worker's status based on its last share date
+// Determine le statut d'un worker selon la date de sa derniere share
 const getWorkerStatus = (lastShare: string | null): "online" | "warning" | "offline" => {
   if (!lastShare) return "offline";
   const minutes = (Date.now() - new Date(lastShare).getTime()) / 60000;
@@ -227,7 +227,7 @@ const getWorkerStatus = (lastShare: string | null): "online" | "warning" | "offl
   return "offline";
 };
 
-// Hidden workers management in localStorage (per miner address)
+// Gestion des workers masques dans localStorage (par adresse de mineur)
 const getHiddenWorkers = (address: string): string[] => {
   try {
     const raw = localStorage.getItem(`korvex_hidden_workers_${address}`);
@@ -252,7 +252,7 @@ const MinerPage: React.FC = () => {
   const [selectedWorker, setSelectedWorker] = useState<string | null>(null);
   const [hiddenWorkers, setHiddenWorkersState] = useState<string[]>([]);
 
-  // Load hidden workers when address changes
+  // Charger les workers masques au changement d'adresse
   useEffect(() => {
     if (paramAddress) {
       setHiddenWorkersState(getHiddenWorkers(paramAddress));
@@ -288,21 +288,21 @@ const MinerPage: React.FC = () => {
     const interval = setInterval(() => {
       loadMiner(paramAddress);
       getStats(mode).then(setPoolStats).catch(() => {});
-    }, 15000); // Refresh every 15 seconds (avoids DB/API overload)
+    }, 15000); // Refresh toutes les 15 secondes (evite surcharge DB/API)
     return () => clearInterval(interval);
   }, [paramAddress, loadMiner, mode]);
 
-  // Hide a worker (add to the hidden list)
+  // Masquer un worker (ajouter a la liste)
   const hideWorker = (workerName: string) => {
     if (!paramAddress) return;
     const updated = [...hiddenWorkers, workerName];
     setHiddenWorkersState(updated);
     setHiddenWorkers(paramAddress, updated);
-    // If the hidden worker was selected, close the detail panel
+    // Si le worker masque etait selectionne, fermer le panneau detail
     if (selectedWorker === workerName) setSelectedWorker(null);
   };
 
-  // Hide all offline workers (red status)
+  // Masquer tous les workers offline (rouges)
   const hideAllOffline = () => {
     if (!paramAddress || !miner?.workers) return;
     const offlineNames = miner.workers
@@ -316,29 +316,29 @@ const MinerPage: React.FC = () => {
     }
   };
 
-  // Filter workers: hide hidden ones UNLESS they came back online
+  // Filtrer les workers : masquer les hidden SAUF s'ils sont redevenus online
   const visibleWorkers = miner?.workers?.filter((w: any) => {
     const status = getWorkerStatus(w.last_share);
-    // If the worker is hidden BUT came back online, show it again (and remove from hidden list)
+    // Si le worker est masque MAIS est redevenu online, on le remontre (et on le retire de la liste)
     if (hiddenWorkers.includes(w.worker)) {
       if (status === "online") {
-        // Auto-reactivate: remove from hidden list
+        // Reactiver automatiquement : retirer de la liste hidden
         const updated = hiddenWorkers.filter((name: string) => name !== w.worker);
-        // Update asynchronously to avoid setState during render
+        // On met a jour en asynchrone pour eviter un setState pendant le rendu
         setTimeout(() => {
           if (paramAddress) {
             setHiddenWorkersState(updated);
             setHiddenWorkers(paramAddress, updated);
           }
         }, 0);
-        return true; // Show it
+        return true; // Le montrer
       }
-      return false; // Hidden
+      return false; // Masque
     }
-    return true; // Not hidden, always visible
+    return true; // Pas masque, toujours visible
   }) || [];
 
-  // Sort workers by 1h hashrate descending (most powerful first)
+  // Trier les workers par hashrate 1h decroissant (plus puissant en premier)
   visibleWorkers.sort((a: any, b: any) => (b.hashrate_1h || 0) - (a.hashrate_1h || 0));
 
   const hasOfflineWorkers = miner?.workers?.some(
@@ -357,7 +357,7 @@ const MinerPage: React.FC = () => {
     ? parseFloat(poolStats.nodes[0].difficulty)
     : 0;
 
-  // Get the selected worker's data
+  // Recuperer les infos du worker selectionne
   const selectedWorkerData = selectedWorker && miner?.workers
     ? miner.workers.find((w: any) => w.worker === selectedWorker)
     : null;
@@ -398,7 +398,7 @@ const MinerPage: React.FC = () => {
 
       {miner && (
         <>
-          {/* Miner address */}
+          {/* Adresse du mineur */}
           <div className="miner-address-bar">
             <span className="miner-address-label">{t('miner.address')}</span>
             <span className="miner-address-value">{miner.address}</span>
@@ -411,7 +411,7 @@ const MinerPage: React.FC = () => {
             </button>
           </div>
 
-          {/* Earnings section - 3 stats */}
+          {/* Section Earnings - 3 stats */}
           <div className="miner-section-title">{t('miner.earnings')}</div>
           <div className="modern-stats-grid">
             {mode === 'solo' ? (
@@ -443,7 +443,7 @@ const MinerPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Performance section - 5 stats */}
+          {/* Section Performance - 5 stats */}
           <div className="miner-section-title">{t('miner.performance')}</div>
           <div className="modern-stats-grid modern-stats-grid-5">
             <div className="modern-stat-card">
@@ -473,12 +473,12 @@ const MinerPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Hashrate chart */}
+          {/* Graphique Hashrate */}
           <div className="modern-info-card">
             <MinerChart address={paramAddress} mode={mode} />
           </div>
 
-          {/* Progress bars */}
+          {/* Barres de progression */}
           <div className="progress-bars-container">
             {poolStats && poolStats.lastNetworkBlockTimestamp && (
               <NetworkBlockProgress lastBlockTimestamp={poolStats.lastNetworkBlockTimestamp} label={t('miner.network_block_progress')} />
@@ -494,7 +494,7 @@ const MinerPage: React.FC = () => {
             )}
           </div>
 
-          {/* Workers Table */}
+          {/* Workers Table - garde tel quel */}
           <div className="modern-info-card">
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <div className="modern-info-title" style={{ marginBottom: 0 }}>{t('miner.active_workers')}</div>
@@ -579,7 +579,7 @@ const MinerPage: React.FC = () => {
                   </tbody>
                 </table>
 
-                {/* Selected worker chart */}
+                {/* Graphique du worker selectionne */}
                 {selectedWorker && selectedWorkerData && (
                   <div className="worker-detail-panel">
                     <div className="worker-detail-header">
@@ -604,7 +604,7 @@ const MinerPage: React.FC = () => {
             )}
           </div>
 
-          {/* Estimated Earnings */}
+          {/* Estimated Earnings - garde tel quel */}
           {poolStats && networkDifficulty > 0 && (
             <div className="modern-info-card">
               <EarningsCalculator
@@ -618,7 +618,7 @@ const MinerPage: React.FC = () => {
             </div>
           )}
 
-          {/* Payments */}
+          {/* Payments - garde tel quel */}
           <div className="modern-info-card">
             <div className="modern-info-title">{t('miner.recent_payments')}</div>
             {miner.payments && miner.payments.length > 0 ? (

@@ -107,7 +107,7 @@ const MinersPage: React.FC = () => {
         <p>{mode === 'solo' ? t('miners.subtitle_solo') : t('miners.subtitle')}</p>
       </div>
 
-      {/* Stats grid */}
+      {/* Stats en grille */}
       <div className="modern-stats-grid">
         <div className="modern-stat-card">
           <div className="msc-label">{t('miners.total_miners')}</div>
@@ -123,7 +123,7 @@ const MinersPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Miners table */}
+      {/* Table des mineurs */}
       <div className="modern-info-card miners-table-card">
         <div className="modern-info-title">{t('miners.leaderboard')}</div>
 

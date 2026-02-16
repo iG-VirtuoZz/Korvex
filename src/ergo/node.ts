@@ -28,7 +28,7 @@ export interface MiningCandidate {
 class ErgoNode {
   private baseUrl: string;
   private apiKey: string;
-  private defaultTimeout: number = 10000; // 10 seconds
+  private defaultTimeout: number = 10000; // 10 secondes
 
   constructor() {
     this.baseUrl = config.ergoNode.url;
@@ -152,15 +152,15 @@ class ErgoNode {
       if (blockIds.length === 0) return false;
       return blockIds.includes(blockId);
     } catch (err) {
-      // On network error, return true (= don't mark as orphan)
-      // It's safer than marking a valid block as orphan by mistake
-      // The confirmer will retry in the next cycle
+      // En cas d'erreur reseau, retourner true (= ne pas marquer orphan)
+      // C'est plus sur que de marquer un bloc valide comme orphan par erreur
+      // Le confirmer reessaiera au prochain cycle
       console.warn("[Node] isBlockOnChain erreur pour hauteur " + height + ", presume valide:", err);
       return true;
     }
   }
 
-  // Get the last network block timestamp (for the progress bar)
+  // Obtenir le timestamp du dernier bloc du reseau (pour la barre de progression)
   async getLastBlockTimestamp(): Promise<number | null> {
     try {
       const info = await this.getInfo();

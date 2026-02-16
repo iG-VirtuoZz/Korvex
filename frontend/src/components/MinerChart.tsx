@@ -32,7 +32,7 @@ const computeTicks = (data: { tsNum: number }[], period: string): number[] => {
 
   let intervalMs: number;
   if (period === "1h") {
-    intervalMs = 10 * 60 * 1000; // tick every 10 minutes
+    intervalMs = 10 * 60 * 1000; // tick toutes les 10 minutes
   } else if (period === "1d") {
     intervalMs = 4 * 3600 * 1000;
   } else if (period === "7d") {
@@ -69,7 +69,7 @@ const computeTicks = (data: { tsNum: number }[], period: string): number[] => {
   return ticks;
 };
 
-// Retrieve a CSS variable
+// Recuperer une variable CSS
 const getCSSVar = (varName: string, fallback: string): string => {
   if (typeof window === "undefined") return fallback;
   const value = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
@@ -89,7 +89,7 @@ const MinerChart: React.FC<MinerChartProps> = ({ address, worker, hideTitle = fa
   const [rawData, setRawData] = useState<ChartPoint[]>([]);
   const [colors, setColors] = useState({ accent: "#f97316", card: "#18181b", border: "#27272a", text: "#a1a1aa" });
 
-  // Update colors when the style changes
+  // Mettre a jour les couleurs quand le style change
   useEffect(() => {
     const updateColors = () => {
       setColors({
@@ -133,7 +133,7 @@ const MinerChart: React.FC<MinerChartProps> = ({ address, worker, hideTitle = fa
     return [data[0].tsNum, data[data.length - 1].tsNum] as [number, number];
   }, [data]);
 
-  // Unique ID for the gradient (avoid collision if multiple charts)
+  // ID unique pour le gradient (eviter collision si plusieurs charts)
   const gradientId = worker ? "grad-worker-hr-" + worker : "grad-miner-hr";
 
   return (

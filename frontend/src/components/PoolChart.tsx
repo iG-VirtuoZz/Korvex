@@ -68,7 +68,7 @@ const computeTicks = (data: { tsNum: number }[], period: string): number[] => {
   return ticks;
 };
 
-// Retrieve a CSS variable
+// Recuperer une variable CSS
 const getCSSVar = (varName: string, fallback: string): string => {
   if (typeof window === "undefined") return fallback;
   const value = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
@@ -92,7 +92,7 @@ const PoolChart: React.FC<PoolChartProps> = ({ mode }) => {
   const [rawData, setRawData] = useState<ChartPoint[]>([]);
   const [colors, setColors] = useState({ accent: "#f97316", yellow: "#fbbf24", card: "#18181b", border: "#27272a", text: "#a1a1aa" });
 
-  // Update colors when the style changes
+  // Mettre a jour les couleurs quand le style change
   useEffect(() => {
     const updateColors = () => {
       setColors({
@@ -104,7 +104,7 @@ const PoolChart: React.FC<PoolChartProps> = ({ mode }) => {
       });
     };
     updateColors();
-    // Observe style changes
+    // Observer les changements de style
     const observer = new MutationObserver(updateColors);
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ["style", "class"] });
     return () => observer.disconnect();
@@ -131,7 +131,7 @@ const PoolChart: React.FC<PoolChartProps> = ({ mode }) => {
     }));
   }, [rawData]);
 
-  // Use theme colors
+  // Utiliser les couleurs du theme
   const color = tab === "hashrate" ? colors.accent : colors.yellow;
   const curveType = tab === "difficulty" ? "stepAfter" : "monotone";
 

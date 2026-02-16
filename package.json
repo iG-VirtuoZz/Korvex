@@ -1,13 +1,7 @@
 {
-  "name": "korvex",
-  "version": "1.0.0",
-  "description": "Open-source Ergo (Autolykos2) mining pool built from scratch in TypeScript",
-  "author": "Guillaume Sastre (iG-VirtuoZz)",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/iG-VirtuoZz/Korvex.git"
-  },
+  "name": "korvex-pool",
+  "version": "0.3.0",
+  "private": true,
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",

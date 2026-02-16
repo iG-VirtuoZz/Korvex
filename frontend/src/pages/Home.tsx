@@ -117,7 +117,7 @@ const HomeLayout: React.FC<{ stats: PoolStats | null; health: HealthData | null;
         <p>{mode === 'solo' ? t('home.subtitle_solo') : t('home.subtitle_pplns')}</p>
       </div>
 
-      {/* 3-column stats grid */}
+      {/* Stats en grille 3 colonnes */}
       <div className="modern-stats-grid">
         <div className="modern-stat-card">
           <div className="msc-label">{mode === 'solo' ? t('home.solo_hashrate') : t('home.pool_hashrate')}</div>
@@ -135,12 +135,12 @@ const HomeLayout: React.FC<{ stats: PoolStats | null; health: HealthData | null;
         </div>
       </div>
 
-      {/* Chart */}
+      {/* Graphique */}
       <div className="modern-chart">
         <PoolChart mode={mode} />
       </div>
 
-      {/* 2 info cards side by side */}
+      {/* 2 cards info cote a cote */}
       <div className="modern-info-row-grid">
         <div className="modern-info-card">
           <div className="modern-info-title">{t('home.network')}</div>
@@ -187,7 +187,7 @@ const HomeLayout: React.FC<{ stats: PoolStats | null; health: HealthData | null;
         </div>
       </div>
 
-      {/* Blocks table if available */}
+      {/* Table des blocs si disponible */}
       {blocks.length > 0 && (
         <div className="modern-blocks-card modern-blocks-full">
           <div className="modern-info-title">{t('home.recent_blocks')}</div>

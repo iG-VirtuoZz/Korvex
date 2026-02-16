@@ -6,13 +6,13 @@ import { StratumServer } from "./stratum/server";
 import { createApi } from "./api/api";
 import { lockWallet } from "./payout/payer";
 
-// --- Global handlers: never crash silently ---
+// --- Handlers globaux : ne jamais crash silencieusement ---
 process.on("unhandledRejection", (reason) => {
   console.error("[FATAL] Unhandled promise rejection:", reason);
 });
 process.on("uncaughtException", (err) => {
   console.error("[FATAL] Uncaught exception:", err);
-  // We don't force process.exit(): the process continues but we are warned
+  // On ne force pas process.exit() : le process continue mais on est prevenu
 });
 
 console.log("===========================================");
@@ -26,8 +26,8 @@ async function main() {
     await database.query("SELECT 1");
     console.log("[DB] PostgreSQL connecte");
 
-    // Lock wallet at startup (best-effort)
-    // Covers the case where the previous process crashed between unlock and lock
+    // Lock wallet au demarrage (best-effort)
+    // Couvre le cas ou le process precedent a crashe entre unlock et lock
     if (config.payout.walletPass) {
       try {
         await lockWallet();
@@ -60,7 +60,7 @@ async function main() {
   }
 }
 
-// --- Graceful shutdown: lock wallet + close stratum properly ---
+// --- Graceful shutdown : lock wallet + fermer stratum proprement ---
 async function gracefulShutdown(signal: string) {
   console.log("[Pool] Signal " + signal + " recu, arret en cours...");
   try {
