@@ -22,6 +22,7 @@
     "difficulty": "Schwierigkeit",
     "erg_price": "ERG-Preis",
     "block_reward": "Blockbelohnung",
+    "block_height": "Blockhöhe",
     "pool_info": "Pool-Info",
     "last_block_found": "Letzter gefundener Block",
     "pool_fee": "Pool-Gebühr",
