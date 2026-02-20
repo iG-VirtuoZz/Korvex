@@ -17,8 +17,6 @@ const formatHash = (h: number) => {
 const coinLogoUrls: Record<string, string> = {
   ergo: "https://assets.coingecko.com/coins/images/2484/standard/Ergo.png",
   kaspa: "https://assets.coingecko.com/coins/images/25751/standard/kaspa-icon-exchanges.png",
-  ravencoin: "https://assets.coingecko.com/coins/images/3412/standard/ravencoin.png",
-  flux: "https://assets.coingecko.com/coins/images/5163/standard/Flux_symbol_blue-white.png",
 };
 
 const CoinIcon: React.FC<{ coinId: string }> = ({ coinId }) => (
