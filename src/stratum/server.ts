@@ -1,4 +1,5 @@
 import net from "net";
+import blakejs from "blakejs";
 import { config } from "../config";
 import { ergoNode, MiningCandidate } from "../ergo/node";
 import { database } from "../db/database";
@@ -6,6 +7,53 @@ import { MinerSession, MinerType } from "./session";
 import { validateShare } from "../ergo/autolykos2";
 import { distributePPLNS } from "../payout/pplns";
 import { distributeSolo } from "../payout/solo";
+
+// Alphabet Base58 (Bitcoin/Ergo)
+const BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+
+// Decode une adresse base58 en bytes
+function decodeBase58(str: string): Buffer {
+  const bytes: number[] = [];
+  for (const char of str) {
+    const idx = BASE58_ALPHABET.indexOf(char);
+    if (idx === -1) throw new Error("Caractere base58 invalide: " + char);
+    let carry = idx;
+    for (let j = 0; j < bytes.length; j++) {
+      carry += bytes[j] * 58;
+      bytes[j] = carry & 0xff;
+      carry >>= 8;
+    }
+    while (carry > 0) {
+      bytes.push(carry & 0xff);
+      carry >>= 8;
+    }
+  }
+  // Ajouter les zeros de tete (chaque '1' = un zero)
+  for (const char of str) {
+    if (char !== '1') break;
+    bytes.push(0);
+  }
+  return Buffer.from(bytes.reverse());
+}
+
+// Valide le checksum Blake2b d'une adresse Ergo
+// Format : prefix_byte || content_bytes || checksum (4 bytes)
+// Checksum = blake2b256(prefix_byte || content_bytes)[0..4]
+function isValidErgoAddress(address: string): boolean {
+  try {
+    const decoded = decodeBase58(address);
+    if (decoded.length < 5) return false; // minimum : 1 prefix + 0 content + 4 checksum
+
+    const payload = decoded.subarray(0, decoded.length - 4);
+    const checksum = decoded.subarray(decoded.length - 4);
+    const hash = blakejs.blake2b(payload, undefined, 32);
+    const expected = Buffer.from(hash).subarray(0, 4);
+
+    return checksum.equals(expected);
+  } catch {
+    return false;
+  }
+}
 
 interface JobEntry {
   candidate: MiningCandidate;
@@ -270,6 +318,12 @@ export class StratumServer {
       session.disconnect();
       return;
     }
+    // Verification du checksum Blake2b (protege contre les fautes de frappe)
+    if (!isValidErgoAddress(session.address)) {
+      session.sendResult(id, false, "Adresse ERGO invalide (checksum incorrect)");
+      session.disconnect();
+      return;
+    }
     session.authorized = true;
     session.sendResult(id, true);
 
@@ -475,6 +529,7 @@ export class StratumServer {
 
     } catch (err) {
       console.error("[Stratum] Erreur validation share:", err);
+      this.incrementInvalidCount(ip);
       session.sendResult(id, false, "Erreur interne validation");
     }
   }

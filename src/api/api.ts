@@ -166,58 +166,44 @@ export function createApi(
     legacyHeaders: false,
   });
   app.use("/api/", apiLimiter);
+
+  // Rate limit strict sur le login admin : 5 tentatives par 15 minutes par IP
+  const adminLoginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Trop de tentatives. Réessayez dans 15 minutes." },
+  });
+
   app.use(express.json());
 
-  // Health check (enrichi Phase 3)
+  // Health check (securise : retourne uniquement ok/degraded, details dans les logs)
   app.get("/api/health", async (_req, res) => {
-    try {
-      // Healthcheck DB
-      await database.query("SELECT 1");
+    let dbOk = false;
+    let nodeOk = false;
 
+    try {
+      await database.query("SELECT 1");
+      dbOk = true;
+    } catch (err) {
+      console.warn("[Health] DB indisponible:", err);
+    }
+
+    try {
       const info = await ergoNode.getInfo();
       const synced = await ergoNode.isSynced();
+      nodeOk = synced && (info.fullHeight || 0) > 0;
 
-      const pendingBlocks = await database.query(
-        "SELECT COUNT(*) as count FROM blocks WHERE reward_distributed = false AND is_orphan = false AND reward_nano > 0"
-      );
-      const confirmedBlocks = await database.query(
-        "SELECT COUNT(*) as count FROM blocks WHERE reward_distributed = true"
-      );
-      const orphanBlocks = await database.query(
-        "SELECT COUNT(*) as count FROM blocks WHERE is_orphan = true"
-      );
-      const totalPayable = await database.query(
-        "SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total FROM balances WHERE amount >= " + config.pool.minPayoutNano.toString()
-      );
-      const paidCount = await database.query(
-        "SELECT COUNT(*) as count FROM payments WHERE status = 'sent'"
-      );
-
-      res.json({
-        status: "ok",
-        node: {
-          synced,
-          headersHeight: info.headersHeight,
-          fullHeight: info.fullHeight,
-          peersCount: info.peersCount,
-          difficulty: info.difficulty,
-        },
-        stratum: getStratumInfo(),
-        payout: {
-          confirmations_required: config.payout.confirmations,
-          blocks_pending: parseInt(pendingBlocks.rows[0].count) || 0,
-          blocks_confirmed: parseInt(confirmedBlocks.rows[0].count) || 0,
-          blocks_orphan: parseInt(orphanBlocks.rows[0].count) || 0,
-          miners_payable: parseInt(totalPayable.rows[0].count) || 0,
-          total_payable_nano: totalPayable.rows[0].total?.toString() || "0",
-          payments_sent: parseInt(paidCount.rows[0].count) || 0,
-          // wallet_configured retire pour securite
-        },
-      });
+      // Details uniquement dans les logs serveur
+      const stratum = getStratumInfo();
+      console.log(`[Health] DB: ${dbOk ? "OK" : "DOWN"}, Node: ${nodeOk ? "OK" : "DOWN"} (synced=${synced}, height=${info.fullHeight}, peers=${info.peersCount}), Stratum sessions: ${stratum.sessions}, Uptime: ${Math.floor(process.uptime())}s`);
     } catch (err) {
-      console.error("[API] Erreur /api/health:", err);
-      res.status(500).json({ status: "error", message: "Node indisponible" });
+      console.warn("[Health] Node indisponible:", err);
     }
+
+    const status = dbOk && nodeOk ? "ok" : "degraded";
+    res.status(status === "ok" ? 200 : 503).json({ status });
   });
 
   // Stats generales (compatible MiningPoolStats) + effort/luck + prix
@@ -515,7 +501,7 @@ export function createApi(
       );
 
       const payments = await database.query(
-        "SELECT amount_nano, tx_hash, status, sent_at, created_at FROM payments WHERE address=$1 ORDER BY created_at DESC LIMIT 20",
+        "SELECT amount_nano, tx_hash, status, sent_at, created_at FROM payments WHERE address=$1 AND status = 'sent' ORDER BY created_at DESC LIMIT 20",
         [address]
       );
 
@@ -1095,8 +1081,8 @@ export function createApi(
 
   // ========== ADMIN ENDPOINTS ==========
 
-  // Login admin
-  app.post("/api/admin/login", (req, res) => {
+  // Login admin (rate-limit strict : 5 tentatives / 15 min par IP)
+  app.post("/api/admin/login", adminLoginLimiter, (req, res) => {
     if (!config.admin.password) {
       return res.status(503).json({ error: "Admin non configure" });
     }
