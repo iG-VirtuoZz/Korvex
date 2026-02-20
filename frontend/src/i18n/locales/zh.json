@@ -22,6 +22,7 @@
     "difficulty": "难度",
     "erg_price": "ERG 价格",
     "block_reward": "区块奖励",
+    "block_height": "区块高度",
     "pool_info": "矿池信息",
     "last_block_found": "最近找到的区块",
     "pool_fee": "矿池费率",

@@ -22,6 +22,7 @@
     "difficulty": "Сложность",
     "erg_price": "Цена ERG",
     "block_reward": "Награда за блок",
+    "block_height": "Высота блока",
     "pool_info": "Информация о пуле",
     "last_block_found": "Последний найденный блок",
     "pool_fee": "Комиссия пула",

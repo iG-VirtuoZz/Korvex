@@ -160,6 +160,10 @@ const HomeLayout: React.FC<{ stats: PoolStats | null; health: HealthData | null;
             <span>{t('home.block_reward')}</span>
             <span>{stats?.blockReward || 6} ERG</span>
           </div>
+          <div className="modern-info-row">
+            <span>{t('home.block_height')}</span>
+            <span>{stats?.nodes?.[0]?.height ? Number(stats.nodes[0].height).toLocaleString() : "\u2014"}</span>
+          </div>
         </div>
 
         <div className="modern-info-card">
