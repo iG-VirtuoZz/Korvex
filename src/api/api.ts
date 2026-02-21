@@ -12,9 +12,9 @@ import { runPayer } from "../payout/payer";
 
 // Facteur de correction hashrate pour Ergo/Autolykos2
 // Compense le temps GPU perdu a la generation du dataset Autolykos2
-// MiningCore utilise 1.15x, ajuste a 1.08 pour notre pool (mesure sur 8h)
-// HiveOS: 2.158 GH/s, Brut pool: 2.01 GH/s -> ratio ideal ~1.074
-const ERGO_HASHRATE_CORRECTION = 1.08;
+// MiningCore utilise 1.15x, ajuste a 1.11 pour notre pool (mesure sur 12h+)
+// HiveOS: 1.670 GH/s (3 workers), Brut pool: 1.509 GH/s -> ratio ideal ~1.107
+const ERGO_HASHRATE_CORRECTION = 1.11;
 
 const CHART_PERIODS: Record<string, { interval: string | null; bucketSeconds: number }> = {
   "1d":  { interval: "24 hours",  bucketSeconds: 300 },
@@ -838,7 +838,19 @@ export function createApi(
       const smoothingWindow = adaptive.smoothing;
 
       const result = await database.query(`
-        WITH data AS (
+        WITH params AS (
+          SELECT
+            to_timestamp(floor(extract(epoch from GREATEST(NOW() - INTERVAL '${conf.interval}', to_timestamp(${Math.floor(firstTs / 1000)}))) / ${bucketSeconds}) * ${bucketSeconds}) as start_ts,
+            to_timestamp(floor(extract(epoch from NOW()) / ${bucketSeconds}) * ${bucketSeconds}) as end_ts
+        ),
+        time_series AS (
+          SELECT generate_series(
+            (SELECT start_ts FROM params),
+            (SELECT end_ts FROM params),
+            INTERVAL '${bucketSeconds} seconds'
+          ) as ts
+        ),
+        data AS (
           SELECT
             to_timestamp(floor(extract(epoch from ts_minute) / ${bucketSeconds}) * ${bucketSeconds}) as ts,
             SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / ${bucketSeconds}.0 as value
@@ -847,15 +859,24 @@ export function createApi(
             AND ts_minute >= GREATEST(NOW() - INTERVAL '${conf.interval}', to_timestamp(${Math.floor(firstTs / 1000)}))
           GROUP BY to_timestamp(floor(extract(epoch from ts_minute) / ${bucketSeconds}) * ${bucketSeconds})
         ),
+        joined AS (
+          SELECT time_series.ts, data.value as raw_value
+          FROM time_series LEFT JOIN data ON time_series.ts = data.ts
+        ),
+        filled AS (
+          SELECT ts,
+            COALESCE(raw_value, (SELECT j2.raw_value FROM joined j2 WHERE j2.ts < joined.ts AND j2.raw_value IS NOT NULL ORDER BY j2.ts DESC LIMIT 1)) as filled_value
+          FROM joined
+        ),
         cap_threshold AS (
-          SELECT PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY value) as cap_hr
-          FROM data WHERE value > 0
+          SELECT PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY filled_value) as cap_hr
+          FROM filled WHERE filled_value > 0
         ),
         capped AS (
-          SELECT d.ts,
-            CASE WHEN c.cap_hr > 0 AND d.value > c.cap_hr THEN c.cap_hr
-                 ELSE d.value END as capped_value
-          FROM data d CROSS JOIN cap_threshold c
+          SELECT f.ts,
+            CASE WHEN c.cap_hr > 0 AND f.filled_value > c.cap_hr THEN c.cap_hr
+                 ELSE COALESCE(f.filled_value, 0) END as capped_value
+          FROM filled f CROSS JOIN cap_threshold c
         )
         SELECT ts,
           AVG(capped_value) OVER (ORDER BY ts ROWS BETWEEN ${smoothingWindow} PRECEDING AND ${smoothingWindow} FOLLOWING) as value
@@ -897,7 +918,19 @@ export function createApi(
       const smoothingWindow = adaptive.smoothing;
 
       const result = await database.query(`
-        WITH data AS (
+        WITH params AS (
+          SELECT
+            to_timestamp(floor(extract(epoch from GREATEST(NOW() - INTERVAL '${conf.interval}', to_timestamp(${Math.floor(firstTs / 1000)}))) / ${bucketSeconds}) * ${bucketSeconds}) as start_ts,
+            to_timestamp(floor(extract(epoch from NOW()) / ${bucketSeconds}) * ${bucketSeconds}) as end_ts
+        ),
+        time_series AS (
+          SELECT generate_series(
+            (SELECT start_ts FROM params),
+            (SELECT end_ts FROM params),
+            INTERVAL '${bucketSeconds} seconds'
+          ) as ts
+        ),
+        data AS (
           SELECT
             to_timestamp(floor(extract(epoch from ts_minute) / ${bucketSeconds}) * ${bucketSeconds}) as ts,
             SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / ${bucketSeconds}.0 as value
@@ -906,20 +939,29 @@ export function createApi(
             AND ts_minute >= GREATEST(NOW() - INTERVAL '${conf.interval}', to_timestamp(${Math.floor(firstTs / 1000)}))
           GROUP BY to_timestamp(floor(extract(epoch from ts_minute) / ${bucketSeconds}) * ${bucketSeconds})
         ),
+        joined AS (
+          SELECT time_series.ts, data.value as raw_value
+          FROM time_series LEFT JOIN data ON time_series.ts = data.ts
+        ),
+        filled AS (
+          SELECT ts,
+            COALESCE(raw_value, (SELECT j2.raw_value FROM joined j2 WHERE j2.ts < joined.ts AND j2.raw_value IS NOT NULL ORDER BY j2.ts DESC LIMIT 1)) as filled_value
+          FROM joined
+        ),
         cap_threshold AS (
-          SELECT PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY value) as cap_hr
-          FROM data WHERE value > 0
+          SELECT PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY filled_value) as cap_hr
+          FROM filled WHERE filled_value > 0
         ),
         capped AS (
-          SELECT d.ts,
-            CASE WHEN c.cap_hr > 0 AND d.value > c.cap_hr THEN c.cap_hr
-                 ELSE d.value END as capped_value
-          FROM data d CROSS JOIN cap_threshold c
+          SELECT f.ts,
+            CASE WHEN c.cap_hr > 0 AND f.filled_value > c.cap_hr THEN c.cap_hr
+                 ELSE COALESCE(f.filled_value, 0) END as capped_value
+          FROM filled f CROSS JOIN cap_threshold c
         )
         SELECT ts,
           AVG(capped_value) OVER (ORDER BY ts ROWS BETWEEN ${smoothingWindow} PRECEDING AND ${smoothingWindow} FOLLOWING) as value
         FROM capped
-        ORDER BY ts
+        Order by ts
       `, [address, worker, mode]);
 
       res.json({ period, data: result.rows });
