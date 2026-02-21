@@ -26,10 +26,37 @@ const CHART_PERIODS: Record<string, { interval: string | null; bucketSeconds: nu
 
 // Periodes autorisees pour le chart miner hashrate (pas de 1y/all car retention 90j max)
 const MINER_CHART_PERIODS: Record<string, { interval: string; bucketSeconds: number }> = {
-  "1h":  { interval: "1 hour",    bucketSeconds: 60 },
+  "1h":  { interval: "1 hour",    bucketSeconds: 120 },
   "1d":  { interval: "24 hours",  bucketSeconds: 300 },
   "7d":  { interval: "7 days",    bucketSeconds: 3600 },
 };
+
+// Adapte bucket + smoothing a la duree reelle des donnees du mineur
+// Comme la vue "all" du pool chart : evite les courbes vides/incoherentes
+// quand un mineur vient d'arriver et clique sur "1d" ou "7d"
+function adaptiveMinerChart(dataDurationSeconds: number, requestedPeriodSeconds: number): { bucketSeconds: number; smoothing: number } {
+  // Si le mineur a assez de donnees pour la periode demandee, utiliser les presets normaux
+  if (dataDurationSeconds >= requestedPeriodSeconds * 0.8) {
+    if (requestedPeriodSeconds <= 3600) return { bucketSeconds: 120, smoothing: 10 };     // 1h
+    if (requestedPeriodSeconds <= 86400) return { bucketSeconds: 300, smoothing: 6 };     // 1d
+    return { bucketSeconds: 3600, smoothing: 2 };                                         // 7d
+  }
+
+  // Sinon, adapter aux donnees reelles pour ~60-80 points max
+  if (dataDurationSeconds < 1800) {         // < 30 min
+    return { bucketSeconds: 60, smoothing: 4 };
+  } else if (dataDurationSeconds < 3600) {  // 30 min - 1h
+    return { bucketSeconds: 60, smoothing: 6 };
+  } else if (dataDurationSeconds < 10800) { // 1h - 3h
+    return { bucketSeconds: 120, smoothing: 8 };
+  } else if (dataDurationSeconds < 43200) { // 3h - 12h
+    return { bucketSeconds: 300, smoothing: 4 };
+  } else if (dataDurationSeconds < 86400) { // 12h - 24h
+    return { bucketSeconds: 300, smoothing: 6 };
+  } else {                                  // > 24h
+    return { bucketSeconds: 3600, smoothing: 2 };
+  }
+}
 
 // Cache pour blockReward (evite d'appeler le noeud trop souvent)
 let cachedBlockReward: number = 6;
@@ -837,22 +864,34 @@ export function createApi(
   });
 
   // Chart miner hashrate (filtre par adresse)
+  // Bucket + smoothing adaptatifs : s'adapte a la duree reelle des donnees du mineur
   app.get("/api/chart/miner-hashrate/:address", async (req, res) => {
     try {
       const mode = getMiningMode(req);
       const { address } = req.params;
       const period = (req.query.period as string) || "1d";
       const conf = MINER_CHART_PERIODS[period] || MINER_CHART_PERIODS["1d"];
-      const bucketSeconds = conf.bucketSeconds;
 
-      // Lissage : 1h: 6 (12 min), 1d: 4 (40 min), 7d: 0 (1h brut), autres: 1 (12h)
-      const smoothingWindow = period === "1h" ? 6 : period === "1d" ? 4 : period === "7d" ? 0 : 1;
-      const smoothingClause = "AVG(raw_value) OVER (ORDER BY ts ROWS BETWEEN " + smoothingWindow + " PRECEDING AND " + smoothingWindow + " FOLLOWING)";
+      // 1) Recuperer la premiere donnee du mineur pour calculer la duree reelle
+      const firstDataResult = await database.query(
+        "SELECT COALESCE(MIN(ts_minute), NOW()) as first_ts FROM miner_hashrate_1m WHERE address = $1 AND mining_mode = $2",
+        [address, mode]
+      );
+      const firstTs = new Date(firstDataResult.rows[0].first_ts).getTime();
+      const dataDurationSeconds = Math.max(0, (Date.now() - firstTs) / 1000);
+
+      // Duree de la periode demandee en secondes
+      const periodSecondsMap: Record<string, number> = { "1h": 3600, "1d": 86400, "7d": 604800 };
+      const requestedPeriodSeconds = periodSecondsMap[period] || 86400;
+
+      // 2) Adapter bucket + smoothing a la duree reelle
+      const adaptive = adaptiveMinerChart(dataDurationSeconds, requestedPeriodSeconds);
+      const bucketSeconds = adaptive.bucketSeconds;
+      const smoothingWindow = adaptive.smoothing;
 
       const result = await database.query(`
         WITH first_data AS (
-          SELECT COALESCE(MIN(ts_minute), NOW()) as first_ts
-          FROM miner_hashrate_1m WHERE address = $1 AND mining_mode = $2
+          SELECT to_timestamp(${Math.floor(firstTs / 1000)}) as first_ts
         ),
         params AS (
           SELECT
@@ -904,22 +943,34 @@ export function createApi(
   });
 
   // Chart worker hashrate (filtre par adresse + worker)
+  // Bucket + smoothing adaptatifs : s'adapte a la duree reelle des donnees du worker
   app.get("/api/chart/worker-hashrate/:address/:worker", async (req, res) => {
     try {
       const mode = getMiningMode(req);
       const { address, worker } = req.params;
       const period = (req.query.period as string) || "1d";
       const conf = MINER_CHART_PERIODS[period] || MINER_CHART_PERIODS["1d"];
-      const bucketSeconds = conf.bucketSeconds;
 
-      // Lissage : 1h: 6 (12 min), 1d: 4 (40 min), 7d: 0 (1h brut), autres: 1 (12h)
-      const smoothingWindow = period === "1h" ? 6 : period === "1d" ? 4 : period === "7d" ? 0 : 1;
-      const smoothingClause = "AVG(raw_value) OVER (ORDER BY ts ROWS BETWEEN " + smoothingWindow + " PRECEDING AND " + smoothingWindow + " FOLLOWING)";
+      // 1) Recuperer la premiere donnee du worker pour calculer la duree reelle
+      const firstDataResult = await database.query(
+        "SELECT COALESCE(MIN(ts_minute), NOW()) as first_ts FROM worker_hashrate_1m WHERE address = $1 AND worker = $2 AND mining_mode = $3",
+        [address, worker, mode]
+      );
+      const firstTs = new Date(firstDataResult.rows[0].first_ts).getTime();
+      const dataDurationSeconds = Math.max(0, (Date.now() - firstTs) / 1000);
+
+      // Duree de la periode demandee en secondes
+      const periodSecondsMap: Record<string, number> = { "1h": 3600, "1d": 86400, "7d": 604800 };
+      const requestedPeriodSeconds = periodSecondsMap[period] || 86400;
+
+      // 2) Adapter bucket + smoothing a la duree reelle
+      const adaptive = adaptiveMinerChart(dataDurationSeconds, requestedPeriodSeconds);
+      const bucketSeconds = adaptive.bucketSeconds;
+      const smoothingWindow = adaptive.smoothing;
 
       const result = await database.query(`
         WITH first_data AS (
-          SELECT COALESCE(MIN(ts_minute), NOW()) as first_ts
-          FROM worker_hashrate_1m WHERE address = $1 AND worker = $2 AND mining_mode = $3
+          SELECT to_timestamp(${Math.floor(firstTs / 1000)}) as first_ts
         ),
         params AS (
           SELECT
