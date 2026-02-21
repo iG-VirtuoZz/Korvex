@@ -240,29 +240,11 @@ export function createApi(
       const info = await ergoNode.getInfo();
       const stratum = getStratumInfo(mode);
 
-      // Hashrate pool : meme methode que le chart, filtree par mode
+      // Hashrate pool : SUM(diff) * correction / duree_fenetre (methode directe sur 1h)
       const hrResult = await database.query(
-        `WITH all_buckets AS (
-          SELECT
-            to_timestamp(floor(extract(epoch from ts_minute) / 300) * 300) as ts,
-            SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / GREATEST(COUNT(*) * 60, 1) as value
-          FROM pool_hashrate_1m
-          WHERE ts_minute > NOW() - INTERVAL '24 hours' AND mining_mode = $1
-          GROUP BY to_timestamp(floor(extract(epoch from ts_minute) / 300) * 300)
-        ),
-        cap AS (
-          SELECT PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY value) as p75
-          FROM all_buckets WHERE value > 0
-        ),
-        recent_capped AS (
-          SELECT b.ts,
-            CASE WHEN c.p75 > 0 AND b.value > c.p75 THEN c.p75
-                 ELSE b.value END as hr
-          FROM all_buckets b CROSS JOIN cap c
-          ORDER BY b.ts DESC
-          LIMIT 12
-        )
-        SELECT COALESCE(AVG(hr), 0) as avg_hr FROM recent_capped`,
+        `SELECT COALESCE(SUM(diff_sum), 0) * ${ERGO_HASHRATE_CORRECTION} / 3600.0 as avg_hr
+        FROM pool_hashrate_1m
+        WHERE ts_minute > NOW() - INTERVAL '1 hour' AND mining_mode = $1`,
         [mode]
       );
       const hashrate = Math.round(parseFloat(hrResult.rows[0].avg_hr));
@@ -501,29 +483,13 @@ export function createApi(
         return res.status(404).json({ error: "Mineur non trouve" });
       }
 
-      // Hashrate mineur avec cap P90 anti-spike, filtre par mode
+      // Hashrate mineur : SUM(diff) * correction / duree_fenetre (methode directe, pas de buckets)
       const hrResult = await database.query(
-        `WITH all_buckets AS (
-          SELECT
-            to_timestamp(floor(extract(epoch from ts_minute) / 300) * 300) as ts,
-            SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / GREATEST(COUNT(*) * 60, 1) as value
-          FROM miner_hashrate_1m
-          WHERE address = $1 AND ts_minute > NOW() - INTERVAL '24 hours' AND mining_mode = $2
-          GROUP BY to_timestamp(floor(extract(epoch from ts_minute) / 300) * 300)
-        ),
-        cap AS (
-          SELECT COALESCE(PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY value), 0) as cap_val
-          FROM all_buckets WHERE value > 0
-        ),
-        capped AS (
-          SELECT b.ts,
-            CASE WHEN c.cap_val > 0 AND b.value > c.cap_val THEN c.cap_val ELSE b.value END as hr
-          FROM all_buckets b CROSS JOIN cap c
-        )
-        SELECT
-          COALESCE(AVG(hr) FILTER (WHERE ts > NOW() - INTERVAL '15 minutes'), 0) as total_15m,
-          COALESCE(AVG(hr) FILTER (WHERE ts > NOW() - INTERVAL '1 hour'), 0) as total_1h
-        FROM capped`,
+        `SELECT
+          COALESCE(SUM(diff_sum) FILTER (WHERE ts_minute > NOW() - INTERVAL '15 minutes'), 0) * ${ERGO_HASHRATE_CORRECTION} / 900.0 as total_15m,
+          COALESCE(SUM(diff_sum) FILTER (WHERE ts_minute > NOW() - INTERVAL '1 hour'), 0) * ${ERGO_HASHRATE_CORRECTION} / 3600.0 as total_1h
+        FROM miner_hashrate_1m
+        WHERE address = $1 AND ts_minute > NOW() - INTERVAL '1 hour' AND mining_mode = $2`,
         [address, mode]
       );
 
@@ -589,32 +555,14 @@ export function createApi(
         if (row.worker) blocksMap[row.worker] = parseInt(row.blocks_found) || 0;
       }
 
-      // Hashrate par worker avec cap P90 anti-spike, filtre par mode
+      // Hashrate par worker : SUM(diff) * correction / duree_fenetre (methode directe)
       const workerHr = await database.query(
-        `WITH all_buckets AS (
-          SELECT
-            worker,
-            to_timestamp(floor(extract(epoch from ts_minute) / 300) * 300) as ts,
-            SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / GREATEST(COUNT(*) * 60, 1) as value
-          FROM worker_hashrate_1m
-          WHERE address = $1 AND ts_minute > NOW() - INTERVAL '24 hours' AND mining_mode = $2
-          GROUP BY worker, to_timestamp(floor(extract(epoch from ts_minute) / 300) * 300)
-        ),
-        cap AS (
-          SELECT worker, COALESCE(PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY value), 0) as cap_val
-          FROM all_buckets WHERE value > 0
-          GROUP BY worker
-        ),
-        capped AS (
-          SELECT b.worker, b.ts,
-            CASE WHEN c.cap_val > 0 AND b.value > c.cap_val THEN c.cap_val ELSE b.value END as hr
-          FROM all_buckets b JOIN cap c ON c.worker = b.worker
-        )
-        SELECT
+        `SELECT
           worker,
-          COALESCE(AVG(hr) FILTER (WHERE ts > NOW() - INTERVAL '15 minutes'), 0) as hashrate_15m,
-          COALESCE(AVG(hr) FILTER (WHERE ts > NOW() - INTERVAL '1 hour'), 0) as hashrate_1h
-        FROM capped
+          COALESCE(SUM(diff_sum) FILTER (WHERE ts_minute > NOW() - INTERVAL '15 minutes'), 0) * ${ERGO_HASHRATE_CORRECTION} / 900.0 as hashrate_15m,
+          COALESCE(SUM(diff_sum) FILTER (WHERE ts_minute > NOW() - INTERVAL '1 hour'), 0) * ${ERGO_HASHRATE_CORRECTION} / 3600.0 as hashrate_1h
+        FROM worker_hashrate_1m
+        WHERE address = $1 AND ts_minute > NOW() - INTERVAL '1 hour' AND mining_mode = $2
         GROUP BY worker`,
         [address, mode]
       );
@@ -825,7 +773,7 @@ export function createApi(
         data AS (
           SELECT
             to_timestamp(floor(extract(epoch from ts_minute) / ${bucketSeconds}) * ${bucketSeconds}) as ts,
-            SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / GREATEST(COUNT(*) * 60, 1) as value
+            SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / ${bucketSeconds}.0 as value
           FROM pool_hashrate_1m
           WHERE ts_minute >= GREATEST(${periodStart}, (SELECT first_ts FROM first_data)) AND mining_mode = $1
           GROUP BY to_timestamp(floor(extract(epoch from ts_minute) / ${bucketSeconds}) * ${bucketSeconds})
@@ -890,44 +838,24 @@ export function createApi(
       const smoothingWindow = adaptive.smoothing;
 
       const result = await database.query(`
-        WITH first_data AS (
-          SELECT to_timestamp(${Math.floor(firstTs / 1000)}) as first_ts
-        ),
-        params AS (
-          SELECT
-            to_timestamp(floor(extract(epoch from GREATEST(NOW() - INTERVAL '${conf.interval}', (SELECT first_ts FROM first_data))) / ${bucketSeconds}) * ${bucketSeconds}) as start_ts,
-            to_timestamp(floor(extract(epoch from NOW()) / ${bucketSeconds}) * ${bucketSeconds}) as end_ts
-        ),
-        time_series AS (
-          SELECT generate_series(
-            (SELECT start_ts FROM params),
-            (SELECT end_ts FROM params),
-            INTERVAL '${bucketSeconds} seconds'
-          ) as ts
-        ),
-        data AS (
+        WITH data AS (
           SELECT
             to_timestamp(floor(extract(epoch from ts_minute) / ${bucketSeconds}) * ${bucketSeconds}) as ts,
-            SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / GREATEST(COUNT(*) * 60, 1) as value
+            SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / ${bucketSeconds}.0 as value
           FROM miner_hashrate_1m
           WHERE address = $1 AND mining_mode = $2
-            AND ts_minute >= GREATEST(NOW() - INTERVAL '${conf.interval}', (SELECT first_ts FROM first_data))
+            AND ts_minute >= GREATEST(NOW() - INTERVAL '${conf.interval}', to_timestamp(${Math.floor(firstTs / 1000)}))
           GROUP BY to_timestamp(floor(extract(epoch from ts_minute) / ${bucketSeconds}) * ${bucketSeconds})
         ),
-        joined AS (
-          SELECT time_series.ts, COALESCE(data.value, 0) as raw_value
-          FROM time_series
-          LEFT JOIN data ON time_series.ts = data.ts
-        ),
         cap_threshold AS (
-          SELECT PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY raw_value) as cap_hr
-          FROM joined WHERE raw_value > 0
+          SELECT PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY value) as cap_hr
+          FROM data WHERE value > 0
         ),
         capped AS (
-          SELECT j.ts,
-            CASE WHEN c.cap_hr > 0 AND j.raw_value > c.cap_hr THEN c.cap_hr
-                 ELSE j.raw_value END as capped_value
-          FROM joined j CROSS JOIN cap_threshold c
+          SELECT d.ts,
+            CASE WHEN c.cap_hr > 0 AND d.value > c.cap_hr THEN c.cap_hr
+                 ELSE d.value END as capped_value
+          FROM data d CROSS JOIN cap_threshold c
         )
         SELECT ts,
           AVG(capped_value) OVER (ORDER BY ts ROWS BETWEEN ${smoothingWindow} PRECEDING AND ${smoothingWindow} FOLLOWING) as value
@@ -969,44 +897,24 @@ export function createApi(
       const smoothingWindow = adaptive.smoothing;
 
       const result = await database.query(`
-        WITH first_data AS (
-          SELECT to_timestamp(${Math.floor(firstTs / 1000)}) as first_ts
-        ),
-        params AS (
-          SELECT
-            to_timestamp(floor(extract(epoch from GREATEST(NOW() - INTERVAL '${conf.interval}', (SELECT first_ts FROM first_data))) / ${bucketSeconds}) * ${bucketSeconds}) as start_ts,
-            to_timestamp(floor(extract(epoch from NOW()) / ${bucketSeconds}) * ${bucketSeconds}) as end_ts
-        ),
-        time_series AS (
-          SELECT generate_series(
-            (SELECT start_ts FROM params),
-            (SELECT end_ts FROM params),
-            INTERVAL '${bucketSeconds} seconds'
-          ) as ts
-        ),
-        data AS (
+        WITH data AS (
           SELECT
             to_timestamp(floor(extract(epoch from ts_minute) / ${bucketSeconds}) * ${bucketSeconds}) as ts,
-            SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / GREATEST(COUNT(*) * 60, 1) as value
+            SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / ${bucketSeconds}.0 as value
           FROM worker_hashrate_1m
           WHERE address = $1 AND worker = $2 AND mining_mode = $3
-            AND ts_minute >= GREATEST(NOW() - INTERVAL '${conf.interval}', (SELECT first_ts FROM first_data))
+            AND ts_minute >= GREATEST(NOW() - INTERVAL '${conf.interval}', to_timestamp(${Math.floor(firstTs / 1000)}))
           GROUP BY to_timestamp(floor(extract(epoch from ts_minute) / ${bucketSeconds}) * ${bucketSeconds})
         ),
-        joined AS (
-          SELECT time_series.ts, COALESCE(data.value, 0) as raw_value
-          FROM time_series
-          LEFT JOIN data ON time_series.ts = data.ts
-        ),
         cap_threshold AS (
-          SELECT PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY raw_value) as cap_hr
-          FROM joined WHERE raw_value > 0
+          SELECT PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY value) as cap_hr
+          FROM data WHERE value > 0
         ),
         capped AS (
-          SELECT j.ts,
-            CASE WHEN c.cap_hr > 0 AND j.raw_value > c.cap_hr THEN c.cap_hr
-                 ELSE j.raw_value END as capped_value
-          FROM joined j CROSS JOIN cap_threshold c
+          SELECT d.ts,
+            CASE WHEN c.cap_hr > 0 AND d.value > c.cap_hr THEN c.cap_hr
+                 ELSE d.value END as capped_value
+          FROM data d CROSS JOIN cap_threshold c
         )
         SELECT ts,
           AVG(capped_value) OVER (ORDER BY ts ROWS BETWEEN ${smoothingWindow} PRECEDING AND ${smoothingWindow} FOLLOWING) as value
@@ -1151,30 +1059,12 @@ export function createApi(
       const info = await ergoNode.getInfo();
       const synced = await ergoNode.isSynced();
 
-      // Pool info
+      // Pool info : SUM(diff) * correction / duree_fenetre (methode directe sur 30min)
       const stratum = getStratumInfo();
       const hrResult = await database.query(
-        `WITH all_buckets AS (
-          SELECT
-            to_timestamp(floor(extract(epoch from ts_minute) / 300) * 300) as ts,
-            SUM(diff_sum) * ${ERGO_HASHRATE_CORRECTION} / GREATEST(COUNT(*) * 60, 1) as value
-          FROM pool_hashrate_1m
-          WHERE ts_minute > NOW() - INTERVAL '24 hours'
-          GROUP BY to_timestamp(floor(extract(epoch from ts_minute) / 300) * 300)
-        ),
-        cap AS (
-          SELECT PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY value) as p75
-          FROM all_buckets WHERE value > 0
-        ),
-        recent_capped AS (
-          SELECT b.ts,
-            CASE WHEN c.p75 > 0 AND b.value > c.p75 THEN c.p75
-                 ELSE b.value END as hr
-          FROM all_buckets b CROSS JOIN cap c
-          ORDER BY b.ts DESC
-          LIMIT 6
-        )
-        SELECT COALESCE(AVG(hr), 0) as avg_hr FROM recent_capped`
+        `SELECT COALESCE(SUM(diff_sum), 0) * ${ERGO_HASHRATE_CORRECTION} / 1800.0 as avg_hr
+        FROM pool_hashrate_1m
+        WHERE ts_minute > NOW() - INTERVAL '30 minutes'`
       );
       const poolHashrate = Math.round(parseFloat(hrResult.rows[0].avg_hr));
 
