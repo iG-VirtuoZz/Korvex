@@ -541,7 +541,7 @@ export function createXmrApi(
           AVG(raw_value) OVER (ORDER BY ts ROWS BETWEEN ${smoothingWindow} PRECEDING AND ${smoothingWindow} FOLLOWING) as value
         FROM joined
         ORDER BY ts
-      `, [address, address]);
+      `, [address]);
 
       res.json({ period, data: result.rows });
     } catch (err) {
