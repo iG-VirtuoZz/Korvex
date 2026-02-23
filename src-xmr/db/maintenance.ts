@@ -1,5 +1,6 @@
 import { xmrDatabase } from "./database";
 import { daemon } from "../monero/daemon";
+import { execFileSync } from "child_process";
 import { xmrConfig } from "../config";
 import { runXmrConfirmer } from "../payout/confirmer";
 import { runXmrPayer } from "../payout/payer";
@@ -18,6 +19,12 @@ class XmrMaintenance {
     setInterval(() => this.aggregate(), 60_000);
     setInterval(() => this.recordNetworkSnapshot(), 60_000);
     setInterval(() => this.purge(), 3_600_000);
+
+    // Alerting: health check toutes les 5 minutes, disk toutes les heures
+    setInterval(() => this.healthCheck(), 5 * 60 * 1000);
+    setInterval(() => this.diskCheck(), 60 * 60 * 1000);
+    setTimeout(() => this.healthCheck(), 30_000); // Premier check 30s apres boot
+    console.log("[XMR Maintenance] Alerting Discord active (health: 5min, disk: 1h)");
 
     const payoutIntervalMs = xmrConfig.payout.intervalMinutes * 60 * 1000;
     console.log("[XMR Maintenance] Cycle confirmations+paiements toutes les " + xmrConfig.payout.intervalMinutes + " minutes");
@@ -108,9 +115,9 @@ class XmrMaintenance {
 
   private async purge(): Promise<void> {
     try {
-      const shareResult = await xmrDatabase.query("DELETE FROM xmr_shares WHERE created_at < NOW() - INTERVAL '30 days'");
+      const shareResult = await xmrDatabase.query("DELETE FROM xmr_shares WHERE created_at < NOW() - INTERVAL '7 days'");
       if (shareResult.rowCount && shareResult.rowCount > 0) {
-        console.log("[XMR Maintenance] Purge: " + shareResult.rowCount + " shares supprimees (>30 jours)");
+        console.log("[XMR Maintenance] Purge: " + shareResult.rowCount + " shares supprimees (>7 jours)");
       }
 
       await xmrDatabase.query("DELETE FROM xmr_pool_hashrate_1m WHERE ts_minute < NOW() - INTERVAL '90 days'");
@@ -118,6 +125,109 @@ class XmrMaintenance {
       await xmrDatabase.query("DELETE FROM xmr_worker_hashrate_1m WHERE ts_minute < NOW() - INTERVAL '90 days'");
     } catch (err) {
       console.error("[XMR Maintenance] Erreur purge:", err);
+    }
+  }
+
+  // ── Alerting Discord ──────────────────────────────────────────
+  private lastAlertTime: Record<string, number> = {};
+  private readonly ALERT_COOLDOWN_MS = 30 * 60 * 1000; // 30 min entre alertes identiques
+
+  private async sendDiscordAlert(title: string, message: string, color: number = 0xFF0000): Promise<void> {
+    const webhook = process.env.DISCORD_WEBHOOK_URL;
+    if (!webhook) return;
+
+    const now = Date.now();
+    if (this.lastAlertTime[title] && (now - this.lastAlertTime[title]) < this.ALERT_COOLDOWN_MS) return;
+    this.lastAlertTime[title] = now;
+
+    try {
+      await fetch(webhook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          embeds: [{
+            title: "\u26a0\ufe0f " + title,
+            description: message,
+            color,
+            timestamp: new Date().toISOString(),
+            footer: { text: "Korvex XMR Pool Alerting" },
+          }],
+        }),
+      });
+      console.log("[XMR Alerting] Alerte envoyee: " + title);
+    } catch (err) {
+      console.error("[XMR Alerting] Erreur envoi Discord:", err);
+    }
+  }
+
+  private async healthCheck(): Promise<void> {
+    try {
+      // 1. Daemon repond ?
+      const info = await daemon.getInfo();
+      if (!info || !info.height) {
+        await this.sendDiscordAlert(
+          "Daemon Monero injoignable",
+          "Le daemon monerod ne repond pas aux appels RPC."
+        );
+        return;
+      }
+
+      // 2. Synchronisation
+      if (!info.synchronized) {
+        await this.sendDiscordAlert(
+          "Daemon Monero desynchronise",
+          "Height: " + info.height + " — le daemon n'est pas synchronise."
+        );
+      }
+
+      // 3. Reject rate > 2%
+      const rejectResult = await xmrDatabase.query(
+        "SELECT COUNT(*) FILTER (WHERE is_valid = false) as invalid, COUNT(*) as total FROM xmr_shares WHERE created_at > NOW() - INTERVAL '15 minutes'"
+      );
+      const invalid = parseInt(rejectResult.rows[0].invalid) || 0;
+      const total = parseInt(rejectResult.rows[0].total) || 0;
+      if (total > 10) {
+        const rejectRate = (invalid / total) * 100;
+        if (rejectRate > 2) {
+          await this.sendDiscordAlert(
+            "Reject rate eleve: " + rejectRate.toFixed(1) + "%",
+            invalid + "/" + total + " shares invalides (15 min). Seuil: 2%",
+            0xFFA500
+          );
+        }
+      }
+
+      // 4. Aucun share depuis > 10 min
+      const lastShareResult = await xmrDatabase.query("SELECT MAX(created_at) as last FROM xmr_shares");
+      if (lastShareResult.rows[0].last) {
+        const age = Date.now() - new Date(lastShareResult.rows[0].last).getTime();
+        if (age > 10 * 60 * 1000) {
+          await this.sendDiscordAlert(
+            "Aucun share depuis " + Math.round(age / 60000) + " min",
+            "Aucun mineur ne soumet de shares. Verifier stratum port 3418."
+          );
+        }
+      }
+    } catch (err) {
+      console.error("[XMR Alerting] Erreur health check:", err);
+    }
+  }
+
+  private async diskCheck(): Promise<void> {
+    try {
+      // execFileSync = safe (pas de shell injection, args en array)
+      const output = execFileSync("df", ["/", "--output=pcent"]).toString().trim();
+      const lines = output.split("\n");
+      const usagePercent = parseInt(lines[lines.length - 1].replace("%", "").trim());
+      if (usagePercent > 90) {
+        await this.sendDiscordAlert(
+          "Disque presque plein: " + usagePercent + "%",
+          "Espace disque VPS > 90%. Nettoyer ou augmenter le stockage.",
+          0xFFA500
+        );
+      }
+    } catch (_) {
+      // Silencieux si df echoue
     }
   }
 

@@ -389,16 +389,22 @@ export function createXmrApi(
           sent_at: p.sent_at,
           created_at: p.created_at,
         })),
-        workers: workers.rows.map((w: any) => {
-          return {
+        workers: workers.rows
+          .filter((w: any) => {
+            // Filtrer les workers stale (0 hashrate + dernier share > 15 min)
+            const hr = workerHrMap[w.worker] || 0;
+            if (hr > 0) return true;
+            const lastShareAge = Date.now() - new Date(w.last_share).getTime();
+            return lastShareAge < 15 * 60 * 1000;
+          })
+          .map((w: any) => ({
             worker: w.worker,
             shares: parseInt(w.shares) || 0,
             last_share: w.last_share,
             hashrate: workerHrMap[w.worker] || 0,
             hashrate_15m: workerHrMap[w.worker] || 0,
             hashrate_1h: workerHrMap[w.worker] || 0,
-          };
-        }),
+          })),
       });
     } catch (err) {
       console.error("[XMR API] Erreur miners/:address:", err);
