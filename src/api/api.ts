@@ -757,24 +757,16 @@ export function createApi(
       // Lissage pool : 1d: 4 (40 min), 7d: 0 (1h brut), autres: 1
       const smoothingWindow = period === "1d" ? 4 : period === "7d" ? 0 : 1;
 
-      // Cap anti-spike AVANT lissage : on calcule le percentile 75 de toute la periode
-      // et on cap chaque bucket a cette valeur. Le P75 represente le hashrate "normalement haut"
-      // sans etre pollue par les spikes. Tout ce qui depasse est du bruit de vardiff.
-      // Ensuite on applique le lissage sur les donnees deja cappees.
-
-      const result = await database.query(`
+      // Lissage par mediane glissante (resistant aux outliers vardiff)
+      // puis moyenne glissante pour adoucir la courbe
+      const rawResult = await database.query(`
         WITH first_data AS (
           SELECT COALESCE(MIN(ts_minute), NOW()) as first_ts FROM pool_hashrate_1m WHERE mining_mode = $1
         ),
-        params AS (
-          SELECT
-            to_timestamp(floor(extract(epoch from GREATEST(${periodStart}, (SELECT first_ts FROM first_data))) / ${bucketSeconds}) * ${bucketSeconds}) as start_ts,
-            to_timestamp(floor(extract(epoch from NOW()) / ${bucketSeconds}) * ${bucketSeconds}) as end_ts
-        ),
         time_series AS (
           SELECT generate_series(
-            (SELECT start_ts FROM params),
-            (SELECT end_ts FROM params),
+            to_timestamp(floor(extract(epoch from GREATEST(${periodStart}, (SELECT first_ts FROM first_data))) / ${bucketSeconds}) * ${bucketSeconds}),
+            to_timestamp(floor(extract(epoch from NOW()) / ${bucketSeconds}) * ${bucketSeconds}),
             INTERVAL '${bucketSeconds} seconds'
           ) as ts
         ),
@@ -788,29 +780,38 @@ export function createApi(
         ),
         joined AS (
           SELECT time_series.ts, COALESCE(data.value, 0) as raw_value
-          FROM time_series
-          LEFT JOIN data ON time_series.ts = data.ts
-        ),
-        cap_threshold AS (
-          SELECT PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY raw_value) as cap_hr
-          FROM joined
-          WHERE raw_value > 0
-        ),
-        capped AS (
-          SELECT j.ts,
-            CASE
-              WHEN c.cap_hr > 0 AND j.raw_value > c.cap_hr
-              THEN c.cap_hr
-              ELSE j.raw_value
-            END as capped_value
-          FROM joined j
-          CROSS JOIN cap_threshold c
+          FROM time_series LEFT JOIN data ON time_series.ts = data.ts
         )
-        SELECT ts,
-          AVG(capped_value) OVER (ORDER BY ts ROWS BETWEEN ${smoothingWindow} PRECEDING AND ${smoothingWindow} FOLLOWING) as value
-        FROM capped
+        SELECT ts, raw_value as value
+        FROM joined
         ORDER BY ts
       `, [mode]);
+
+      // Passe 1 : mediane glissante (fenetre = smoothingWindow ou 3 min)
+      // La mediane ignore les outliers — un spike ne peut pas l'affecter
+      const raw = rawResult.rows.map((r: any) => ({ ts: r.ts, value: parseFloat(r.value) || 0 }));
+      const medianW = Math.max(smoothingWindow, 3);
+      const medianFiltered = raw.map((p: any, i: number) => {
+        const neighbors: number[] = [];
+        for (let j = Math.max(0, i - medianW); j <= Math.min(raw.length - 1, i + medianW); j++) {
+          neighbors.push(raw[j].value);
+        }
+        neighbors.sort((a, b) => a - b);
+        return { ts: p.ts, value: neighbors[Math.floor(neighbors.length / 2)] };
+      });
+
+      // Passe 2 : moyenne glissante pour lisser la courbe
+      const smoothed = medianFiltered.map((p: any, i: number) => {
+        if (smoothingWindow === 0) return p;
+        let sum = 0, count = 0;
+        for (let j = Math.max(0, i - smoothingWindow); j <= Math.min(medianFiltered.length - 1, i + smoothingWindow); j++) {
+          sum += medianFiltered[j].value;
+          count++;
+        }
+        return { ts: p.ts, value: sum / count };
+      });
+
+      const result = { rows: smoothed };
 
       res.json({ period, data: result.rows });
     } catch (err) {
