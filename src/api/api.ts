@@ -2,7 +2,10 @@ import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import crypto from "crypto";
 import os from "os";
-import { execSync } from "child_process";
+import { exec } from "child_process";
+import { promisify } from "util";
+
+const execAsync = promisify(exec);
 import rateLimit from "express-rate-limit";
 import { config } from "../config";
 import { database } from "../db/database";
@@ -182,15 +185,20 @@ export function createApi(
   app.set("trust proxy", 1);
 
   app.use(cors({
-    origin: ["https://korvexpool.com", "http://localhost:3000"],
+    origin: ["https://korvexpool.com"],
   }));
 
   // Rate limit : 120 requetes par minute par IP
+  // Exclure localhost (VPS Monitor, alertes Discord, health checks internes)
   const apiLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 120,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => {
+      const ip = req.ip || req.socket.remoteAddress || "";
+      return ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
+    },
   });
   app.use("/api/", apiLimiter);
 
@@ -326,7 +334,7 @@ export function createApi(
     try {
       const mode = getMiningMode(req);
       const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 25, 1), 100);
-      const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
+      const offset = Math.min(Math.max(parseInt(req.query.offset as string) || 0, 0), 10000);
       const search = (req.query.search as string || "").trim();
 
       // Colonnes triables (whitelist pour eviter injection SQL)
@@ -463,7 +471,7 @@ export function createApi(
   app.get("/api/miners", async (_req, res) => {
     try {
       const result = await database.query(
-        "SELECT address, last_seen, total_shares, total_blocks, total_paid FROM miners WHERE last_seen > NOW() - INTERVAL '24 hours' ORDER BY total_shares DESC"
+        "SELECT address, last_seen, total_shares, total_blocks, total_paid FROM miners WHERE last_seen > NOW() - INTERVAL '24 hours' ORDER BY total_shares DESC LIMIT 1000"
       );
       res.json(result.rows);
     } catch (err) {
@@ -1333,8 +1341,8 @@ export function createApi(
       let diskUsed = 0;
       let diskFree = 0;
       try {
-        const dfOutput = execSync("df -B1 / | tail -1", { timeout: 5000 }).toString().trim();
-        const parts = dfOutput.split(/\s+/);
+        const { stdout } = await execAsync("df -B1 / | tail -1", { timeout: 5000 });
+        const parts = stdout.trim().split(/\s+/);
         if (parts.length >= 4) {
           diskTotal = parseInt(parts[1]) || 0;
           diskUsed = parseInt(parts[2]) || 0;
@@ -1392,8 +1400,13 @@ export function createApi(
     }
   });
 
-  // Trigger payout manuel
+  // Trigger payout manuel (verrou anti-double-paiement)
+  let isPayoutRunning = false;
   app.post("/api/admin/trigger-payout", requireAdmin, async (_req, res) => {
+    if (isPayoutRunning) {
+      return res.status(409).json({ error: "Un cycle de paiement est deja en cours" });
+    }
+    isPayoutRunning = true;
     try {
       console.log("[Admin] Declenchement manuel du cycle de paiement");
       const confirmResult = await runConfirmer();
@@ -1406,6 +1419,8 @@ export function createApi(
     } catch (err) {
       console.error("[Admin] Erreur trigger payout:", err);
       res.status(500).json({ error: "Erreur lors du paiement" });
+    } finally {
+      isPayoutRunning = false;
     }
   });
 

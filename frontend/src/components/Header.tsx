@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import LanguageSelector from "./LanguageSelector";
 import StyleSelector from "./StyleSelector";
 import { applyBgTheme, loadSavedBgTheme } from "../themes/styles";
-import { useCoinBasePath } from "../hooks/useMiningMode";
+import { useCoinBasePath, useCoin } from "../hooks/useMiningMode";
 
 const STORAGE_KEY = "korvex_miner_address";
 
@@ -46,10 +46,13 @@ const Header: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const basePath = useCoinBasePath();
+  const coin = useCoin();
+  const isMonero = coin === 'monero';
 
   const isLanding = location.pathname === "/";
   const isSoloSection = location.pathname.includes("ergo-solo");
-  const howToStartLink = isSoloSection ? "/how-to-start-solo" : "/how-to-start";
+  const howToStartLink = isMonero ? "/coin/monero/how-to-start" : (isSoloSection ? "/how-to-start-solo" : "/how-to-start");
+  const faqLink = isMonero ? "/coin/monero/faq" : "/faq";
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -113,7 +116,7 @@ const Header: React.FC = () => {
             <NavLink to={basePath} end>{t('header.dashboard')}</NavLink>
             <NavLink to={basePath + "/miners"}>{t('header.miners')}</NavLink>
             <NavLink to={howToStartLink}>{t('header.how_to_start')}</NavLink>
-            <NavLink to="/faq">FAQ</NavLink>
+            <NavLink to={faqLink}>FAQ</NavLink>
           </div>
         </nav>
       )}

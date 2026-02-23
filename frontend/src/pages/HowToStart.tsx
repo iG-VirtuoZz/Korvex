@@ -1,18 +1,170 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useCoin } from "../hooks/useMiningMode";
 
 const HowToStart: React.FC = () => {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
-  const isSolo = location.pathname.includes("solo");
+  const coin = useCoin();
+  const isMonero = coin === 'monero';
+  const isSolo = !isMonero && location.pathname.includes("solo");
 
   // Valeurs dynamiques selon le mode
   const fee = isSolo ? "1.5%" : "1%";
-  const port = isSolo ? "3417" : "3416";
-  const prefix = isSolo ? "howtoSolo" : "howto";
+  const port = isMonero ? "3418" : (isSolo ? "3417" : "3416");
+  const prefix = isMonero ? "howtoXmr" : (isSolo ? "howtoSolo" : "howto");
 
+  // ============ MONERO VERSION ============
+  if (isMonero) {
+    return (
+      <div className="layout-modern">
+        {/* Header */}
+        <div className="modern-header">
+          <h1>{t('howtoXmr.title')}</h1>
+          <p className="modern-header-sub">{t('howtoXmr.subtitle')}</p>
+        </div>
+
+        {/* 3 stat cards */}
+        <div className="modern-stats-grid">
+          <div className="stat-card-new">
+            <span className="stat-label">{t('howto.stat_fee')}</span>
+            <span className="stat-value">1%</span>
+          </div>
+          <div className="stat-card-new">
+            <span className="stat-label">{t('howto.stat_min_payout')}</span>
+            <span className="stat-value">0.1 XMR</span>
+          </div>
+          <div className="stat-card-new">
+            <span className="stat-label">{t('howto.stat_port')}</span>
+            <span className="stat-value">3418</span>
+          </div>
+        </div>
+
+        {/* Intro */}
+        <div className="modern-info-card">
+          <p dangerouslySetInnerHTML={{ __html: t('howtoXmr.intro_p1') }} />
+          <p>{t('howtoXmr.intro_p2')}</p>
+        </div>
+
+        {/* Server */}
+        <div className="modern-info-card">
+          <h3>{t('howto.server_title')}</h3>
+          <p>{t('howto.server_desc')}</p>
+          <table className="howto-table">
+            <thead>
+              <tr><th>{t('howto.server_region')}</th><th>{t('howto.server_server')}</th><th>{t('howto.server_port')}</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>{t('howto.server_europe')}</td><td>korvexpool.com</td><td>3418</td></tr>
+            </tbody>
+          </table>
+          <p className="howto-note">{t('howto.server_note')}</p>
+        </div>
+
+        {/* Wallet */}
+        <div className="modern-info-card">
+          <h3>{t('howtoXmr.wallet_title')}</h3>
+          <p>{t('howtoXmr.wallet_desc')}</p>
+          <p dangerouslySetInnerHTML={{ __html: t('howtoXmr.wallet_recommended') }} />
+          <ul>
+            <li dangerouslySetInnerHTML={{ __html: t('howtoXmr.wallet_official') }} />
+            <li dangerouslySetInnerHTML={{ __html: t('howtoXmr.wallet_feather') }} />
+            <li dangerouslySetInnerHTML={{ __html: t('howtoXmr.wallet_cake') }} />
+          </ul>
+          <div className="howto-warning">
+            {t('howtoXmr.wallet_warning')}
+          </div>
+        </div>
+
+        {/* Mining Software */}
+        <div className="modern-info-card">
+          <h3>{t('howto.software_title')}</h3>
+          <p dangerouslySetInnerHTML={{ __html: t('howtoXmr.software_desc') }} />
+
+          <h4 className="howto-section-label howto-label-green">{t('howto.software_recommended_title')}</h4>
+          <p className="howto-note">{t('howtoXmr.software_recommended_desc')}</p>
+
+          <div className="howto-miners-grid">
+            <div className="howto-miner-card">
+              <div className="howto-miner-header">
+                <span className="howto-miner-name">XMRig</span>
+                <span className="howto-badge-rec">{t('howto.recommended')}</span>
+              </div>
+              <p className="howto-miner-desc">{t('howtoXmr.xmrig_desc')}</p>
+              <pre><code>xmrig -o korvexpool.com:3418 -u YOUR_WALLET.RIG_NAME -p x --coin monero</code></pre>
+            </div>
+          </div>
+
+          <h4 className="howto-section-label">{t('howtoXmr.hiveos_title')}</h4>
+          <p className="howto-note">{t('howtoXmr.hiveos_desc')}</p>
+
+          <div className="howto-miners-grid">
+            <div className="howto-miner-card">
+              <div className="howto-miner-header">
+                <span className="howto-miner-name">HiveOS Flight Sheet</span>
+              </div>
+              <p className="howto-miner-desc">{t('howtoXmr.hiveos_steps')}</p>
+            </div>
+          </div>
+
+          <div className="howto-warning">
+            {t('howtoXmr.cpu_note')}
+          </div>
+        </div>
+
+        {/* Rewards + Support */}
+        <div className="howto-two-col">
+          <div className="modern-info-card">
+            <h3>{t('howtoXmr.pplns_title')}</h3>
+            <p dangerouslySetInnerHTML={{ __html: t('howtoXmr.pplns_desc') }} />
+            <p>{t('howtoXmr.pplns_window')}</p>
+            <p dangerouslySetInnerHTML={{ __html: t('howtoXmr.pplns_key_points') }} />
+            <ul>
+              {(t('howtoXmr.pplns_points', { returnObjects: true }) as string[]).map((item, i) => (
+                <li key={i} dangerouslySetInnerHTML={{ __html: item }} />
+              ))}
+            </ul>
+          </div>
+          <div className="modern-info-card">
+            <h3>{t('howto.support_title')}</h3>
+            <p>{t('howto.support_desc')}</p>
+            <ul>
+              <li dangerouslySetInnerHTML={{ __html: t('howto.support_discord') }} />
+              <li dangerouslySetInnerHTML={{ __html: t('howto.support_email') }} />
+            </ul>
+            <p className="howto-note" dangerouslySetInnerHTML={{ __html: t('howto.support_note') }} />
+          </div>
+        </div>
+
+        {/* Payments + Stats */}
+        <div className="howto-two-col">
+          <div className="modern-info-card">
+            <h3>{t('howto.payments_title')}</h3>
+            <p dangerouslySetInnerHTML={{ __html: t('howtoXmr.payments_desc') }} />
+            <ul>
+              {(t('howtoXmr.payments_points', { returnObjects: true }) as string[]).map((item, i) => (
+                <li key={i} dangerouslySetInnerHTML={{ __html: item }} />
+              ))}
+            </ul>
+          </div>
+          <div className="modern-info-card">
+            <h3>{t('howto.stats_title')}</h3>
+            <p dangerouslySetInnerHTML={{ __html: t('howto.stats_desc') }} />
+            <ul>
+              {(t('howto.stats_points', { returnObjects: true }) as string[]).map((item, i) => (
+                <li key={i} dangerouslySetInnerHTML={{ __html: item }} />
+              ))}
+            </ul>
+            <p className="howto-note">{t('howto.stats_note')}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ============ ERGO VERSION (PPLNS / SOLO) ============
   return (
     <div className="layout-modern">
 

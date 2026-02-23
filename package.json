@@ -1,16 +1,21 @@
 {
   "name": "korvex-pool",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.json",
+    "build-xmr": "tsc -p tsconfig.xmr.json",
+    "build-all": "npm run build && npm run build-xmr",
     "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts"
+    "start-xmr": "node dist-xmr/index.js",
+    "dev": "ts-node src/index.ts",
+    "dev-xmr": "ts-node src-xmr/index.ts"
   },
   "dependencies": {
     "@noble/hashes": "^2.0.1",
     "blakejs": "^1.2.1",
     "cors": "^2.8.5",
+    "cryptonight-hashing": "^0.3.4",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-rate-limit": "^8.2.1",

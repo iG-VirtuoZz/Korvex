@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n/i18n";
-import { getMiner, getStats, PoolStats } from "../api";
-import { useMiningMode } from "../hooks/useMiningMode";
+import { getMiner, getStats, getXmrMiner, getXmrStats, PoolStats } from "../api";
+import { useMiningMode, useCoin } from "../hooks/useMiningMode";
 import EarningsCalculator from "../components/EarningsCalculator";
 import MinerChart from "../components/MinerChart";
 
@@ -23,6 +23,19 @@ const formatErg = (nanoStr: string | undefined | null) => {
   const val = Number(BigInt(nanoStr)) / 1e9;
   if (val < 0.0001) return "< 0.0001 ERG";
   return val.toFixed(4) + " ERG";
+};
+
+// Formatage piconero → XMR safe (string-based, pas de BigInt → Number)
+const formatXmr = (picoStr: string | undefined | null) => {
+  if (!picoStr || picoStr === "0") return "0 XMR";
+  // picoStr est en piconero (1 XMR = 1e12 piconero)
+  const s = picoStr.padStart(13, "0"); // au moins 13 chars pour avoir 12 decimales
+  const intPart = s.slice(0, s.length - 12) || "0";
+  const decPart = s.slice(s.length - 12).replace(/0+$/, "") || "0";
+  const trimmed = decPart.slice(0, 6); // 6 decimales max
+  const val = parseFloat(intPart + "." + (trimmed || "0"));
+  if (val < 0.000001) return "< 0.000001 XMR";
+  return val.toFixed(6) + " XMR";
 };
 
 // Fonction statique pour calculer le temps ecoule
@@ -245,12 +258,18 @@ const MinerPage: React.FC = () => {
   const { address: paramAddress } = useParams<{ address: string }>();
   const { t } = useTranslation();
   const mode = useMiningMode();
+  const coin = useCoin();
+  const isMonero = coin === 'monero';
   const [miner, setMiner] = useState<any>(null);
   const [poolStats, setPoolStats] = useState<PoolStats | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedWorker, setSelectedWorker] = useState<string | null>(null);
   const [hiddenWorkers, setHiddenWorkersState] = useState<string[]>([]);
+
+  // Fonctions de formatage selon le coin
+  const formatBalance = isMonero ? formatXmr : formatErg;
+  const symbol = isMonero ? 'XMR' : 'ERG';
 
   // Charger les workers masques au changement d'adresse
   useEffect(() => {
@@ -263,7 +282,8 @@ const MinerPage: React.FC = () => {
     if (!addr) return;
     setError("");
     setLoading(true);
-    getMiner(addr, mode)
+    const fetcher = isMonero ? getXmrMiner(addr) : getMiner(addr, mode);
+    fetcher
       .then((data) => {
         setMiner(data);
         localStorage.setItem(STORAGE_KEY, addr);
@@ -273,24 +293,26 @@ const MinerPage: React.FC = () => {
         setError(t('miner.not_found_text'));
       })
       .finally(() => setLoading(false));
-  }, [mode, t]);
+  }, [mode, t, isMonero]);
 
   useEffect(() => {
     if (paramAddress) {
       loadMiner(paramAddress);
       setSelectedWorker(null);
     }
-    getStats(mode).then(setPoolStats).catch(() => {});
-  }, [paramAddress, loadMiner, mode]);
+    const statsFetcher = isMonero ? getXmrStats() : getStats(mode);
+    statsFetcher.then(setPoolStats).catch(() => {});
+  }, [paramAddress, loadMiner, mode, isMonero]);
 
   useEffect(() => {
     if (!paramAddress) return;
     const interval = setInterval(() => {
       loadMiner(paramAddress);
-      getStats(mode).then(setPoolStats).catch(() => {});
+      const sf = isMonero ? getXmrStats() : getStats(mode);
+      sf.then(setPoolStats).catch(() => {});
     }, 15000); // Refresh toutes les 15 secondes (evite surcharge DB/API)
     return () => clearInterval(interval);
-  }, [paramAddress, loadMiner, mode]);
+  }, [paramAddress, loadMiner, mode, isMonero]);
 
   // Masquer un worker (ajouter a la liste)
   const hideWorker = (workerName: string) => {
@@ -362,6 +384,11 @@ const MinerPage: React.FC = () => {
     ? miner.workers.find((w: any) => w.worker === selectedWorker)
     : null;
 
+  // Explorateur pour les paiements
+  const txExplorerUrl = isMonero
+    ? "https://xmrchain.net/tx/"
+    : "https://explorer.ergoplatform.com/en/transactions/";
+
   if (!paramAddress) {
     return (
       <div className="layout-modern">
@@ -380,8 +407,8 @@ const MinerPage: React.FC = () => {
     <div className="layout-modern">
       {/* Header */}
       <div className="modern-header">
-        <h1>{mode === 'solo' ? t('miner.title_solo') : t('miner.title')}</h1>
-        <p>{mode === 'solo' ? t('miner.subtitle_solo') : t('miner.subtitle')}</p>
+        <h1>{isMonero ? 'Monero Miner' : (mode === 'solo' ? t('miner.title_solo') : t('miner.title'))}</h1>
+        <p>{isMonero ? 'PPLNS · RandomX · 1% Fee' : (mode === 'solo' ? t('miner.subtitle_solo') : t('miner.subtitle'))}</p>
       </div>
 
       {loading && !miner && (
@@ -414,7 +441,7 @@ const MinerPage: React.FC = () => {
           {/* Section Earnings - 3 stats */}
           <div className="miner-section-title">{t('miner.earnings')}</div>
           <div className="modern-stats-grid">
-            {mode === 'solo' ? (
+            {mode === 'solo' && !isMonero ? (
               <div className="modern-stat-card modern-stat-accent">
                 <div className="msc-icon">&#9874;</div>
                 <div className="msc-label">{t('miner.solo_blocks_found')}</div>
@@ -425,20 +452,20 @@ const MinerPage: React.FC = () => {
               <div className="modern-stat-card modern-stat-accent">
                 <div className="msc-icon">&#9203;</div>
                 <div className="msc-label">{t('miner.unpaid_pending')}</div>
-                <div className="msc-value">{formatErg(miner.pending_balance)}</div>
+                <div className="msc-value">{formatBalance(miner.pending_balance)}</div>
                 <div className="msc-sub">{t('miner.pplns_sub')}</div>
               </div>
             )}
             <div className="modern-stat-card modern-stat-accent">
               <div className="msc-icon">&#128176;</div>
               <div className="msc-label">{t('miner.confirmed_balance')}</div>
-              <div className="msc-value">{formatErg(miner.balance)}</div>
-              <div className="msc-sub">{t('miner.confirmed_sub')}</div>
+              <div className="msc-value">{formatBalance(miner.balance)}</div>
+              <div className="msc-sub">{isMonero ? 'Ready for payout (\u2265 0.1 XMR)' : t('miner.confirmed_sub')}</div>
             </div>
             <div className="modern-stat-card modern-stat-accent">
               <div className="msc-icon">&#128184;</div>
               <div className="msc-label">{t('miner.total_paid')}</div>
-              <div className="msc-value">{formatErg(miner.total_paid_nano)}</div>
+              <div className="msc-value">{formatBalance(miner.total_paid_nano)}</div>
               <div className="msc-sub">{t('miner.total_paid_sub')}</div>
             </div>
           </div>
@@ -475,7 +502,7 @@ const MinerPage: React.FC = () => {
 
           {/* Graphique Hashrate */}
           <div className="modern-info-card">
-            <MinerChart address={paramAddress} mode={mode} />
+            <MinerChart address={paramAddress} mode={mode} coin={coin} />
           </div>
 
           {/* Barres de progression */}
@@ -483,7 +510,7 @@ const MinerPage: React.FC = () => {
             {poolStats && poolStats.lastNetworkBlockTimestamp && (
               <NetworkBlockProgress lastBlockTimestamp={poolStats.lastNetworkBlockTimestamp} label={t('miner.network_block_progress')} />
             )}
-            {mode === 'solo' ? (
+            {mode === 'solo' && !isMonero ? (
               miner.soloEffortPercent != null && (
                 <PoolEffortProgress effort={miner.soloEffortPercent} label={t('miner.personal_effort')} />
               )
@@ -494,7 +521,7 @@ const MinerPage: React.FC = () => {
             )}
           </div>
 
-          {/* Workers Table - garde tel quel */}
+          {/* Workers Table */}
           <div className="modern-info-card">
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <div className="modern-info-title" style={{ marginBottom: 0 }}>{t('miner.active_workers')}</div>
@@ -569,7 +596,7 @@ const MinerPage: React.FC = () => {
                                 : "\u2014"}
                             </span>
                           </td>
-                          <td>{w.blocks_found || 0}</td>
+                          <td>{w.blocks_found !== null && w.blocks_found !== undefined ? w.blocks_found : "\u2014"}</td>
                           <td style={{ color: "var(--text-dim)" }}>
                             <LiveTimeAgo dateStr={w.last_share} />
                           </td>
@@ -595,7 +622,7 @@ const MinerPage: React.FC = () => {
                       </button>
                     </div>
 
-                    <MinerChart address={paramAddress} worker={selectedWorker} hideTitle mode={mode} />
+                    <MinerChart address={paramAddress} worker={isMonero ? undefined : selectedWorker} hideTitle mode={mode} coin={coin} />
                   </div>
                 )}
               </>
@@ -604,21 +631,23 @@ const MinerPage: React.FC = () => {
             )}
           </div>
 
-          {/* Estimated Earnings - garde tel quel */}
+          {/* Estimated Earnings */}
           {poolStats && networkDifficulty > 0 && (
             <div className="modern-info-card">
               <EarningsCalculator
                 minerHashrate={miner.hashrate_1h || 0}
                 networkDifficulty={networkDifficulty}
-                blockReward={poolStats.blockReward || 6}
+                blockReward={poolStats.blockReward || (isMonero ? 0.6 : 6)}
                 poolFee={poolStats.poolFee || 0.01}
                 ergPriceUsd={poolStats.ergPriceUsd || 0}
                 ergPriceBtc={poolStats.ergPriceBtc || 0}
+                coin={coin}
+                symbol={symbol}
               />
             </div>
           )}
 
-          {/* Payments - garde tel quel */}
+          {/* Payments */}
           <div className="modern-info-card">
             <div className="modern-info-title">{t('miner.recent_payments')}</div>
             {miner.payments && miner.payments.length > 0 ? (
@@ -632,30 +661,33 @@ const MinerPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {miner.payments.map((p: any, i: number) => (
-                    <tr key={i}>
-                      <td style={{ color: "#fff", fontWeight: 600 }}>{p.amount_erg} ERG</td>
-                      <td style={{ fontFamily: "monospace", fontSize: 12 }}>
-                        {p.tx_hash ? (
-                          <a
-                            href={"https://explorer.ergoplatform.com/en/transactions/" + p.tx_hash}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            {p.tx_hash.slice(0, 16)}...
-                          </a>
-                        ) : "\u2014"}
-                      </td>
-                      <td>
-                        <span className={p.status === "sent" ? "badge badge-sent" : "badge badge-failed"}>
-                          {p.status}
-                        </span>
-                      </td>
-                      <td style={{ color: "var(--text-dim)" }}>
-                        {p.sent_at ? new Date(p.sent_at).toLocaleString() : new Date(p.created_at).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))}
+                  {miner.payments.map((p: any, i: number) => {
+                    const amount = isMonero ? (p.amount_xmr || "0") : (p.amount_erg || "0");
+                    return (
+                      <tr key={i}>
+                        <td style={{ color: "#fff", fontWeight: 600 }}>{amount} {symbol}</td>
+                        <td style={{ fontFamily: "monospace", fontSize: 12 }}>
+                          {p.tx_hash ? (
+                            <a
+                              href={txExplorerUrl + p.tx_hash}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {p.tx_hash.slice(0, 16)}...
+                            </a>
+                          ) : "\u2014"}
+                        </td>
+                        <td>
+                          <span className={p.status === "sent" ? "badge badge-sent" : "badge badge-failed"}>
+                            {p.status}
+                          </span>
+                        </td>
+                        <td style={{ color: "var(--text-dim)" }}>
+                          {p.sent_at ? new Date(p.sent_at).toLocaleString() : new Date(p.created_at).toLocaleString()}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             ) : (

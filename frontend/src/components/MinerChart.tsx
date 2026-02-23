@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { getChartMinerHashrate, getChartWorkerHashrate, ChartPoint } from "../api";
+import { getChartMinerHashrate, getChartWorkerHashrate, getXmrChartMinerHashrate, ChartPoint } from "../api";
+import type { CoinId } from "../hooks/useMiningMode";
 
 const PERIODS = [
   { key: "1h", label: "1H" },
@@ -81,9 +82,10 @@ interface MinerChartProps {
   worker?: string;
   hideTitle?: boolean;
   mode?: string;
+  coin?: CoinId;
 }
 
-const MinerChart: React.FC<MinerChartProps> = ({ address, worker, hideTitle = false, mode }) => {
+const MinerChart: React.FC<MinerChartProps> = ({ address, worker, hideTitle = false, mode, coin = 'ergo' }) => {
   const { t } = useTranslation();
   const [period, setPeriod] = useState("1d");
   const [rawData, setRawData] = useState<ChartPoint[]>([]);
@@ -106,10 +108,17 @@ const MinerChart: React.FC<MinerChartProps> = ({ address, worker, hideTitle = fa
   }, []);
 
   useEffect(() => {
+    const isXmr = coin === 'monero';
     const load = () => {
-      const fetcher = worker
-        ? getChartWorkerHashrate(address, worker, period, mode)
-        : getChartMinerHashrate(address, period, mode);
+      let fetcher;
+      if (isXmr) {
+        // XMR : pas de worker chart (endpoint absent), toujours miner global
+        fetcher = getXmrChartMinerHashrate(address, period);
+      } else {
+        fetcher = worker
+          ? getChartWorkerHashrate(address, worker, period, mode)
+          : getChartMinerHashrate(address, period, mode);
+      }
       fetcher
         .then((r) => setRawData(r.data))
         .catch(() => setRawData([]));
@@ -117,7 +126,7 @@ const MinerChart: React.FC<MinerChartProps> = ({ address, worker, hideTitle = fa
     load();
     const t = setInterval(load, 60_000);
     return () => clearInterval(t);
-  }, [address, worker, period, mode]);
+  }, [address, worker, period, mode, coin]);
 
   const data = useMemo(() => {
     return rawData.map((p) => ({

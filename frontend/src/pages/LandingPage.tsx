@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { coins, CoinConfig, CoinMode } from "../data/coins";
-import { getStats, PoolStats } from "../api";
+import { getStats, getXmrStats, PoolStats } from "../api";
 
 const formatHash = (h: number) => {
   if (!h || h <= 0) return "—";
@@ -16,7 +16,7 @@ const formatHash = (h: number) => {
 /* Logos des cryptos via CoinGecko CDN (images officielles) */
 const coinLogoUrls: Record<string, string> = {
   ergo: "https://assets.coingecko.com/coins/images/2484/standard/Ergo.png",
-  kaspa: "https://assets.coingecko.com/coins/images/25751/standard/kaspa-icon-exchanges.png",
+  monero: "https://assets.coingecko.com/coins/images/69/standard/monero_logo.png",
 };
 
 const CoinIcon: React.FC<{ coinId: string }> = ({ coinId }) => (
@@ -100,14 +100,17 @@ const LandingPage: React.FC = () => {
   const { t } = useTranslation();
   const [stats, setStats] = useState<PoolStats | null>(null);
   const [soloStats, setSoloStats] = useState<PoolStats | null>(null);
+  const [xmrStats, setXmrStats] = useState<PoolStats | null>(null);
   const [tab, setTab] = useState<TabMode>("pool");
 
   useEffect(() => {
     getStats().then(setStats).catch(() => {});
     getStats('solo').then(setSoloStats).catch(() => {});
+    getXmrStats().then(setXmrStats).catch(() => {});
     const interval = setInterval(() => {
       getStats().then(setStats).catch(() => {});
       getStats('solo').then(setSoloStats).catch(() => {});
+      getXmrStats().then(setXmrStats).catch(() => {});
     }, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -149,7 +152,12 @@ const LandingPage: React.FC = () => {
             key={`${coin.id}-${mode.id}`}
             coin={coin}
             mode={mode}
-            stats={coin.id === "ergo" && mode.active ? (mode.id === "solo" ? soloStats : stats) : null}
+            stats={
+              !mode.active ? null
+              : coin.id === "ergo" ? (mode.id === "solo" ? soloStats : stats)
+              : coin.id === "monero" ? xmrStats
+              : null
+            }
           />
         ))}
       </div>

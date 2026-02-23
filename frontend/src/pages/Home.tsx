@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n/i18n";
-import { getHealth, getStats, getBlocks, HealthData, PoolStats } from "../api";
+import { getHealth, getStats, getBlocks, getXmrStats, getXmrBlocks, HealthData, PoolStats } from "../api";
 import PoolChart from "../components/PoolChart";
-import { useMiningMode } from "../hooks/useMiningMode";
+import { useMiningMode, useCoin, CoinId } from "../hooks/useMiningMode";
 
 // ==================== HELPERS ====================
 
@@ -102,19 +102,36 @@ const BlocksTable: React.FC<{ blocks: any[] }> = ({ blocks }) => {
 
 // ==================== LAYOUT ====================
 
-const HomeLayout: React.FC<{ stats: PoolStats | null; health: HealthData | null; blocks: any[]; mode: string }> = ({ stats, health, blocks, mode }) => {
+interface HomeLayoutProps {
+  stats: PoolStats | null;
+  health: HealthData | null;
+  blocks: any[];
+  mode: string;
+  coin: CoinId;
+}
+
+const HomeLayout: React.FC<HomeLayoutProps> = ({ stats, health, blocks, mode, coin }) => {
   const { t } = useTranslation();
-  const networkDiff = health?.node?.difficulty || 0;
+  const isMonero = coin === 'monero';
+  const symbol = isMonero ? 'XMR' : 'ERG';
+  const networkDiff = isMonero
+    ? parseFloat(stats?.nodes?.[0]?.difficulty || "0")
+    : (health?.node?.difficulty || 0);
   const networkHr = parseInt(stats?.nodes?.[0]?.networkhashps || "0");
   const poolHr = stats?.hashrate || 0;
   const lastBlockTime = blocks.length > 0 ? timeAgo(blocks[0].created_at) : t('common.na');
+
+  const priceLabel = isMonero ? t('home.xmr_price', { defaultValue: 'XMR Price' }) : t('home.erg_price');
+  const defaultReward = isMonero ? 0.6 : 6;
+  const minPayout = isMonero ? '0.1 XMR' : '1 ERG';
+  const confirmations = isMonero ? '60' : t('home.confirmations_value');
 
   return (
     <div className="layout-modern">
       {/* Header */}
       <div className="modern-header">
-        <h1>{t('home.title')}</h1>
-        <p>{mode === 'solo' ? t('home.subtitle_solo') : t('home.subtitle_pplns')}</p>
+        <h1>{isMonero ? 'Monero Dashboard' : t('home.title')}</h1>
+        <p>{isMonero ? 'PPLNS · RandomX · 1% Fee' : (mode === 'solo' ? t('home.subtitle_solo') : t('home.subtitle_pplns'))}</p>
       </div>
 
       {/* Stats en grille 3 colonnes */}
@@ -137,7 +154,7 @@ const HomeLayout: React.FC<{ stats: PoolStats | null; health: HealthData | null;
 
       {/* Graphique */}
       <div className="modern-chart">
-        <PoolChart mode={mode} />
+        <PoolChart mode={mode} coin={coin} />
       </div>
 
       {/* 2 cards info cote a cote */}
@@ -153,12 +170,12 @@ const HomeLayout: React.FC<{ stats: PoolStats | null; health: HealthData | null;
             <span>{formatDiff(networkDiff)}</span>
           </div>
           <div className="modern-info-row">
-            <span>{t('home.erg_price')}</span>
-            <span>${stats?.ergPriceUsd?.toFixed(4) || "\u2014"}</span>
+            <span>{priceLabel}</span>
+            <span>${stats?.ergPriceUsd?.toFixed(isMonero ? 2 : 4) || "\u2014"}</span>
           </div>
           <div className="modern-info-row">
             <span>{t('home.block_reward')}</span>
-            <span>{stats?.blockReward || 6} ERG</span>
+            <span>{stats?.blockReward || defaultReward} {symbol}</span>
           </div>
           <div className="modern-info-row">
             <span>{t('home.block_height')}</span>
@@ -178,7 +195,7 @@ const HomeLayout: React.FC<{ stats: PoolStats | null; health: HealthData | null;
           </div>
           <div className="modern-info-row">
             <span>{t('home.min_payout')}</span>
-            <span>1 ERG</span>
+            <span>{minPayout}</span>
           </div>
           <div className="modern-info-row">
             <span>{t('home.mode')}</span>
@@ -186,7 +203,7 @@ const HomeLayout: React.FC<{ stats: PoolStats | null; health: HealthData | null;
           </div>
           <div className="modern-info-row">
             <span>{t('home.confirmations')}</span>
-            <span>{t('home.confirmations_value')}</span>
+            <span>{confirmations}</span>
           </div>
         </div>
       </div>
@@ -206,24 +223,31 @@ const HomeLayout: React.FC<{ stats: PoolStats | null; health: HealthData | null;
 
 const Home: React.FC = () => {
   const mode = useMiningMode();
+  const coin = useCoin();
+  const isMonero = coin === 'monero';
   const [health, setHealth] = useState<HealthData | null>(null);
   const [stats, setStats] = useState<PoolStats | null>(null);
   const [blocks, setBlocks] = useState<any[]>([]);
 
   useEffect(() => {
     const load = () => {
-      getHealth().then(setHealth).catch(() => {});
-      getStats(mode).then(setStats).catch(() => {});
-      getBlocks(mode).then(setBlocks).catch(() => {});
+      if (isMonero) {
+        getXmrStats().then(setStats).catch(() => {});
+        getXmrBlocks().then(setBlocks).catch(() => {});
+      } else {
+        getHealth().then(setHealth).catch(() => {});
+        getStats(mode).then(setStats).catch(() => {});
+        getBlocks(mode).then(setBlocks).catch(() => {});
+      }
     };
     load();
     const t = setInterval(load, 15000);
     return () => clearInterval(t);
-  }, [mode]);
+  }, [mode, isMonero]);
 
   return (
     <div className="home-page layout-modern-grid">
-      <HomeLayout stats={stats} health={health} blocks={blocks} mode={mode} />
+      <HomeLayout stats={stats} health={health} blocks={blocks} mode={isMonero ? 'pplns' : mode} coin={coin} />
     </div>
   );
 };

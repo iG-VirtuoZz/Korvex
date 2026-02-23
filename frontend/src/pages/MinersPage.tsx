@@ -2,8 +2,8 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n/i18n";
-import { getLeaderboard, getStats, LeaderboardMiner, PoolStats } from "../api";
-import { useMiningMode, useCoinBasePath } from "../hooks/useMiningMode";
+import { getLeaderboard, getStats, getXmrLeaderboard, getXmrStats, LeaderboardMiner, PoolStats } from "../api";
+import { useMiningMode, useCoinBasePath, useCoin } from "../hooks/useMiningMode";
 
 const formatHash = (h: number) => {
   if (!h || h <= 0) return "\u2014";
@@ -32,6 +32,8 @@ const MinersPage: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const mode = useMiningMode();
+  const coin = useCoin();
+  const isMonero = coin === 'monero';
   const basePath = useCoinBasePath();
   const [miners, setMiners] = useState<LeaderboardMiner[]>([]);
   const [stats, setStats] = useState<PoolStats | null>(null);
@@ -46,31 +48,29 @@ const MinersPage: React.FC = () => {
 
   const load = useCallback(() => {
     setLoading(true);
-    getLeaderboard({
-      limit: pageSize,
-      offset: page * pageSize,
-      sort,
-      order,
-      search: search || undefined,
-      mode,
-    })
+    const fetcher = isMonero
+      ? getXmrLeaderboard({ limit: pageSize, offset: page * pageSize, sort, order, search: search || undefined })
+      : getLeaderboard({ limit: pageSize, offset: page * pageSize, sort, order, search: search || undefined, mode });
+    fetcher
       .then((data) => {
         setMiners(data.miners);
         setTotal(data.total);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [pageSize, page, sort, order, search, mode]);
+  }, [pageSize, page, sort, order, search, mode, isMonero]);
 
   useEffect(() => {
     load();
-    getStats(mode).then(setStats).catch(() => {});
+    const statsFetcher = isMonero ? getXmrStats() : getStats(mode);
+    statsFetcher.then(setStats).catch(() => {});
     const timer = setInterval(() => {
       load();
-      getStats(mode).then(setStats).catch(() => {});
+      const sf = isMonero ? getXmrStats() : getStats(mode);
+      sf.then(setStats).catch(() => {});
     }, 30000);
     return () => clearInterval(timer);
-  }, [load, mode]);
+  }, [load, mode, isMonero]);
 
   useEffect(() => {
     setPage(0);
@@ -103,8 +103,8 @@ const MinersPage: React.FC = () => {
     <div className="layout-modern">
       {/* Header */}
       <div className="modern-header">
-        <h1>{mode === 'solo' ? t('miners.title_solo') : t('miners.title')}</h1>
-        <p>{mode === 'solo' ? t('miners.subtitle_solo') : t('miners.subtitle')}</p>
+        <h1>{isMonero ? 'Monero Miners' : (mode === 'solo' ? t('miners.title_solo') : t('miners.title'))}</h1>
+        <p>{isMonero ? 'PPLNS · RandomX · 1% Fee' : (mode === 'solo' ? t('miners.subtitle_solo') : t('miners.subtitle'))}</p>
       </div>
 
       {/* Stats en grille */}
@@ -183,7 +183,10 @@ const MinersPage: React.FC = () => {
             </thead>
             <tbody>
               {miners.map((m, i) => {
-                const isActive = m.last_share_at && (Date.now() - new Date(m.last_share_at).getTime()) < 900000;
+                // XMR API ne retourne pas last_share_at → fallback sur hashrate_15m > 0
+                const isActive = m.last_share_at
+                  ? (Date.now() - new Date(m.last_share_at).getTime()) < 900000
+                  : m.hashrate_15m > 0;
                 return (
                   <tr key={m.address} className={loading ? "miners-row-loading" : ""}>
                     <td className="miners-rank">{page * pageSize + i + 1}</td>
@@ -210,7 +213,9 @@ const MinersPage: React.FC = () => {
                     <td>{formatHash(m.hashrate_1h)}</td>
                     <td className="miners-hide-mobile">{m.workers_count}</td>
                     <td className="miners-hide-mobile">{m.blocks_found || "\u2014"}</td>
-                    <td style={{ color: "var(--text-dim)" }}>{timeAgo(m.last_share_at)}</td>
+                    <td style={{ color: "var(--text-dim)" }}>
+                      {m.last_share_at ? timeAgo(m.last_share_at) : (m.hashrate_15m > 0 ? "Active" : "\u2014")}
+                    </td>
                   </tr>
                 );
               })}

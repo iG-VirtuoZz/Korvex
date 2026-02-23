@@ -104,6 +104,74 @@ export const getLeaderboard = (params: {
   return fetchJson("miners/leaderboard?" + qs.toString());
 };
 
+// ========== XMR API ==========
+
+const XMR_API_BASE = "/api/xmr";
+
+async function fetchXmrJson(path: string) {
+  const res = await fetch(XMR_API_BASE + "/" + path);
+  if (!res.ok) throw new Error("API error: " + res.status);
+  return res.json();
+}
+
+// Mapper les stats XMR vers le format PoolStats (reutilise par tous les composants)
+export const getXmrStats = (): Promise<PoolStats> =>
+  fetchXmrJson("stats").then((d: any) => ({
+    ...d,
+    ergPriceUsd: d.xmrPriceUsd ?? 0,
+    ergPriceBtc: d.xmrPriceBtc ?? 0,
+  }));
+
+export const getXmrBlocks = (): Promise<any[]> => fetchXmrJson("blocks");
+
+export const getXmrMiner = (addr: string): Promise<any> =>
+  fetchXmrJson("miners/" + encodeURIComponent(addr)).then((d: any) => ({
+    ...d,
+    // Normaliser les champs pour que MinerPage puisse lire les memes noms
+    total_paid_nano: d.total_paid_pico ?? "0",
+    workers: (d.workers || []).map((w: any) => ({
+      ...w,
+      effort_percent: null,
+      blocks_found: null,
+    })),
+  }));
+
+export const getXmrLeaderboard = (params: {
+  limit?: number;
+  offset?: number;
+  sort?: string;
+  order?: string;
+  search?: string;
+}): Promise<LeaderboardResponse> => {
+  const qs = new URLSearchParams();
+  if (params.limit) qs.set("limit", String(params.limit));
+  if (params.offset) qs.set("offset", String(params.offset));
+  if (params.sort) qs.set("sort", params.sort);
+  if (params.order) qs.set("order", params.order);
+  if (params.search) qs.set("search", params.search);
+  return fetchXmrJson("miners/leaderboard?" + qs.toString()).then((d: any) => ({
+    ...d,
+    miners: (d.miners || []).map((m: any) => ({
+      ...m,
+      balance_nano: m.balance_pico ?? "0",
+      pending_balance_nano: m.pending_balance_pico ?? "0",
+      total_paid_nano: m.total_paid_pico ?? "0",
+      shares_1h: m.shares_1h ?? 0,
+      last_share_at: m.last_share_at ?? null,
+      blocks_found: m.blocks_found ?? 0,
+    })),
+  }));
+};
+
+export const getXmrChartPoolHashrate = (p: string): Promise<ChartData> =>
+  fetchXmrJson("chart/pool-hashrate?period=" + p);
+
+export const getXmrChartNetworkDifficulty = (p: string): Promise<ChartData> =>
+  fetchXmrJson("chart/network-difficulty?period=" + p);
+
+export const getXmrChartMinerHashrate = (address: string, p: string): Promise<ChartData> =>
+  fetchXmrJson("chart/miner-hashrate/" + encodeURIComponent(address) + "?period=" + p);
+
 // ========== ADMIN ==========
 
 const ADMIN_TOKEN_KEY = "korvex_admin_token";

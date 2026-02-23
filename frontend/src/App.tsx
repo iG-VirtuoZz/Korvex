@@ -19,6 +19,15 @@ const Footer: React.FC = () => {
   const location = useLocation();
   const isLanding = location.pathname === "/";
   const isSolo = location.pathname.includes("ergo-solo");
+  const isMonero = location.pathname.includes("/coin/monero");
+
+  const coinLabel = isMonero ? "Monero Pool" : t('footer.ergo_pool');
+  const modeLabel = isMonero ? "PPLNS" : (isSolo ? "SOLO" : "PPLNS");
+  const feeLabel = isMonero ? "1% Fee" : (isSolo ? "1.5% Fee" : "1% Fee");
+  const algoLabel = isMonero ? "RandomX" : "Autolykos2";
+  const dashPath = isMonero ? "/coin/monero" : "/coin/ergo";
+  const howToStartPath = isMonero ? "/coin/monero/how-to-start" : "/how-to-start";
+  const faqPath = isMonero ? "/coin/monero/faq" : "/faq";
 
   return (
     <footer className="footer-minimal">
@@ -28,22 +37,22 @@ const Footer: React.FC = () => {
           <span className="footer-sep">&middot;</span>
           {isLanding ? t('footer.multi_coin') : (
             <>
-              {t('footer.ergo_pool')}
+              {coinLabel}
               <span className="footer-sep">&middot;</span>
-              {isSolo ? "SOLO" : "PPLNS"}
+              {modeLabel}
               <span className="footer-sep">&middot;</span>
-              {isSolo ? "1.5% Fee" : "1% Fee"}
+              {feeLabel}
               <span className="footer-sep">&middot;</span>
-              Autolykos2
+              {algoLabel}
             </>
           )}
         </div>
         <div className="footer-links">
           <Link to="/">{t('footer.home')}</Link>
-          <Link to="/coin/ergo">{t('footer.dashboard')}</Link>
-          <Link to="/coin/ergo/miners">{t('footer.miners')}</Link>
-          <Link to="/how-to-start">{t('footer.how_to_start')}</Link>
-          <Link to="/faq">{t('footer.faq')}</Link>
+          <Link to={dashPath}>{t('footer.dashboard')}</Link>
+          <Link to={dashPath + "/miners"}>{t('footer.miners')}</Link>
+          <Link to={howToStartPath}>{t('footer.how_to_start')}</Link>
+          <Link to={faqPath}>{t('footer.faq')}</Link>
           <Link to="/legal">{t('footer.terms')}</Link>
         </div>
         <div className="footer-copy">&copy; 2026 KORVEX Pool</div>
@@ -76,6 +85,12 @@ const App: React.FC = () => (
         <Route path="/coin/ergo-solo" element={<Home />} />
         <Route path="/coin/ergo-solo/miners" element={<MinersPage />} />
         <Route path="/coin/ergo-solo/miner/:address" element={<MinerPage />} />
+        {/* Monero */}
+        <Route path="/coin/monero" element={<Home />} />
+        <Route path="/coin/monero/miners" element={<MinersPage />} />
+        <Route path="/coin/monero/miner/:address" element={<MinerPage />} />
+        <Route path="/coin/monero/how-to-start" element={<HowToStart />} />
+        <Route path="/coin/monero/faq" element={<FAQ />} />
         {/* Redirections anciennes URLs */}
         <Route path="/miners" element={<Navigate to="/coin/ergo/miners" replace />} />
         <Route path="/miner/:address" element={<RedirectMiner />} />
@@ -85,8 +100,7 @@ const App: React.FC = () => (
         <Route path="/how-to-start-solo" element={<HowToStart />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/discord" element={<DiscordPage />} />
-        <Route path="/admin" element={<Navigate to="/coin/ergo/admin" replace />} />
-        <Route path="/coin/ergo/admin" element={<AdminDashboard />} />
+        <Route path="/coin/ergo/kx-9f4d2a" element={<AdminDashboard />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </main>

@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { getChartPoolHashrate, getChartNetworkDifficulty, ChartPoint } from "../api";
+import { getChartPoolHashrate, getChartNetworkDifficulty, getXmrChartPoolHashrate, getXmrChartNetworkDifficulty, ChartPoint } from "../api";
+import type { CoinId } from "../hooks/useMiningMode";
 
 const PERIODS = [
   { key: "1d", label: "1D" },
@@ -83,9 +84,10 @@ interface ChartDataPoint {
 
 interface PoolChartProps {
   mode?: string;
+  coin?: CoinId;
 }
 
-const PoolChart: React.FC<PoolChartProps> = ({ mode }) => {
+const PoolChart: React.FC<PoolChartProps> = ({ mode, coin = 'ergo' }) => {
   const { t } = useTranslation();
   const [tab, setTab] = useState("hashrate");
   const [period, setPeriod] = useState("1d");
@@ -111,17 +113,20 @@ const PoolChart: React.FC<PoolChartProps> = ({ mode }) => {
   }, []);
 
   useEffect(() => {
+    const isXmr = coin === 'monero';
     const load = () => {
       if (tab === "hashrate") {
-        getChartPoolHashrate(period, mode).then((r) => setRawData(r.data)).catch(() => setRawData([]));
+        const fetcher = isXmr ? getXmrChartPoolHashrate(period) : getChartPoolHashrate(period, mode);
+        fetcher.then((r) => setRawData(r.data)).catch(() => setRawData([]));
       } else {
-        getChartNetworkDifficulty(period).then((r) => setRawData(r.data)).catch(() => setRawData([]));
+        const fetcher = isXmr ? getXmrChartNetworkDifficulty(period) : getChartNetworkDifficulty(period);
+        fetcher.then((r) => setRawData(r.data)).catch(() => setRawData([]));
       }
     };
     load();
     const t = setInterval(load, 5 * 60 * 1000);
     return () => clearInterval(t);
-  }, [tab, period, mode]);
+  }, [tab, period, mode, coin]);
 
   const data: ChartDataPoint[] = useMemo(() => {
     return rawData.map((p) => ({
