@@ -157,13 +157,14 @@ export function createXmrApi(
       const info = await daemon.getInfo();
       const stratum = getStratumInfo();
 
-      // Hashrate pool : SUM(diff) / duree_fenetre (pas de correction pour CPU)
+      // Hashrate pool : depuis les raw shares (fenetre 10min, standard industrie)
+      // Meme formule que node-cryptonote-pool, MoneroOcean, MiningCore
       const hrResult = await xmrDatabase.query(
-        `SELECT COALESCE(SUM(diff_sum), 0) * ${XMR_HASHRATE_CORRECTION} / 3600.0 as avg_hr
-        FROM xmr_pool_hashrate_1m
-        WHERE ts_minute > NOW() - INTERVAL '1 hour' AND mining_mode = 'pplns'`
+        `SELECT COALESCE(SUM(share_diff), 0) / 600.0 as hr
+         FROM xmr_shares
+         WHERE created_at > NOW() - INTERVAL '10 minutes' AND mining_mode = 'pplns'`
       );
-      const hashrate = Math.round(parseFloat(hrResult.rows[0].avg_hr));
+      const hashrate = Math.round(parseFloat(hrResult.rows[0].hr) || 0);
 
       // Blocs trouves
       const blocksResult = await xmrDatabase.query(
@@ -242,11 +243,10 @@ export function createXmrApi(
         miner_hr AS (
           SELECT
             address,
-            COALESCE(SUM(diff_sum) FILTER (WHERE ts_minute > NOW() - INTERVAL '15 minutes'), 0) * ${XMR_HASHRATE_CORRECTION} / 900.0 as hashrate_15m,
-            COALESCE(SUM(diff_sum) FILTER (WHERE ts_minute > NOW() - INTERVAL '1 hour'), 0) * ${XMR_HASHRATE_CORRECTION} / 3600.0 as hashrate_1h
-          FROM xmr_miner_hashrate_1m
+            COALESCE(SUM(share_diff), 0) / 600.0 as hashrate
+          FROM xmr_shares
           WHERE address IN (SELECT address FROM active_miners)
-            AND ts_minute > NOW() - INTERVAL '1 hour'
+            AND created_at > NOW() - INTERVAL '10 minutes'
             AND mining_mode = 'pplns'
           GROUP BY address
         ),
@@ -260,8 +260,7 @@ export function createXmrApi(
         )
         SELECT
           m.address,
-          ROUND(COALESCE(hr.hashrate_15m, 0))::bigint as hashrate_15m,
-          ROUND(COALESCE(hr.hashrate_1h, 0))::bigint as hashrate_1h,
+          ROUND(COALESCE(hr.hashrate, 0))::bigint as hashrate,
           COALESCE(w.workers_count, 0)::int as workers_count,
           COALESCE(bal.amount, 0)::bigint as balance_pico,
           mi.total_blocks as blocks_found
@@ -271,7 +270,7 @@ export function createXmrApi(
         LEFT JOIN miner_workers w ON w.address = am.address
         LEFT JOIN xmr_balances bal ON bal.address = am.address
         LEFT JOIN LATERAL (SELECT address FROM active_miners a2 WHERE a2.address = am.address) m ON true
-        ORDER BY hashrate_1h DESC NULLS LAST
+        ORDER BY hashrate DESC NULLS LAST
         LIMIT $1 OFFSET $2
       `;
 
@@ -288,8 +287,9 @@ export function createXmrApi(
       res.json({
         miners: dataResult.rows.map((r: any) => ({
           address: r.address,
-          hashrate_15m: parseInt(r.hashrate_15m) || 0,
-          hashrate_1h: parseInt(r.hashrate_1h) || 0,
+          hashrate: parseInt(r.hashrate) || 0,
+          hashrate_15m: parseInt(r.hashrate) || 0,
+          hashrate_1h: parseInt(r.hashrate) || 0,
           workers_count: r.workers_count || 0,
           balance_pico: (r.balance_pico || "0").toString(),
           blocks_found: r.blocks_found || 0,
@@ -325,14 +325,14 @@ export function createXmrApi(
         return res.status(404).json({ error: "Mineur non trouve" });
       }
 
+      // Hashrate depuis les raw shares (10min, standard industrie)
       const hrResult = await xmrDatabase.query(
-        `SELECT
-          COALESCE(SUM(diff_sum) FILTER (WHERE ts_minute > NOW() - INTERVAL '15 minutes'), 0) * ${XMR_HASHRATE_CORRECTION} / 900.0 as total_15m,
-          COALESCE(SUM(diff_sum) FILTER (WHERE ts_minute > NOW() - INTERVAL '1 hour'), 0) * ${XMR_HASHRATE_CORRECTION} / 3600.0 as total_1h
-        FROM xmr_miner_hashrate_1m
-        WHERE address = $1 AND ts_minute > NOW() - INTERVAL '1 hour' AND mining_mode = 'pplns'`,
+        `SELECT COALESCE(SUM(share_diff), 0) / 600.0 as hashrate
+         FROM xmr_shares
+         WHERE address = $1 AND created_at > NOW() - INTERVAL '10 minutes' AND mining_mode = 'pplns'`,
         [address]
       );
+      const minerHashrate = Math.round(parseFloat(hrResult.rows[0].hashrate) || 0);
 
       const payments = await xmrDatabase.query(
         "SELECT amount_pico, tx_hash, status, sent_at, created_at FROM xmr_payments WHERE address=$1 AND status = 'sent' ORDER BY created_at DESC LIMIT 20",
@@ -346,23 +346,17 @@ export function createXmrApi(
         [address]
       );
 
-      // Hashrate par worker
-      const workerHr = await xmrDatabase.query(
-        `SELECT
-          worker,
-          COALESCE(SUM(diff_sum) FILTER (WHERE ts_minute > NOW() - INTERVAL '15 minutes'), 0) * ${XMR_HASHRATE_CORRECTION} / 900.0 as hashrate_15m,
-          COALESCE(SUM(diff_sum) FILTER (WHERE ts_minute > NOW() - INTERVAL '1 hour'), 0) * ${XMR_HASHRATE_CORRECTION} / 3600.0 as hashrate_1h
-        FROM xmr_worker_hashrate_1m
-        WHERE address = $1 AND ts_minute > NOW() - INTERVAL '1 hour' AND mining_mode = 'pplns'
-        GROUP BY worker`,
+      // Hashrate par worker depuis les raw shares (10min, standard industrie)
+      const workerHrResult = await xmrDatabase.query(
+        `SELECT worker, COALESCE(SUM(share_diff), 0) / 600.0 as hashrate
+         FROM xmr_shares
+         WHERE address = $1 AND created_at > NOW() - INTERVAL '10 minutes' AND mining_mode = 'pplns'
+         GROUP BY worker`,
         [address]
       );
-      const workerHrMap: Record<string, { hashrate_15m: number; hashrate_1h: number }> = {};
-      for (const row of workerHr.rows) {
-        workerHrMap[row.worker] = {
-          hashrate_15m: Math.round(parseFloat(row.hashrate_15m) || 0),
-          hashrate_1h: Math.round(parseFloat(row.hashrate_1h) || 0),
-        };
+      const workerHrMap: Record<string, number> = {};
+      for (const row of workerHrResult.rows) {
+        workerHrMap[row.worker] = Math.round(parseFloat(row.hashrate) || 0);
       }
 
       const balance = await xmrDatabase.getBalance(address);
@@ -381,8 +375,9 @@ export function createXmrApi(
 
       res.json({
         ...miner.rows[0],
-        hashrate_15m: Math.round(parseFloat(hrResult.rows[0].total_15m) || 0),
-        hashrate_1h: Math.round(parseFloat(hrResult.rows[0].total_1h) || 0),
+        hashrate: minerHashrate,
+        hashrate_15m: minerHashrate,
+        hashrate_1h: minerHashrate,
         balance: balance.toString(),
         pending_balance: pendingBalance.toString(),
         total_paid_pico: totalPaidPico.toString(),
@@ -395,13 +390,13 @@ export function createXmrApi(
           created_at: p.created_at,
         })),
         workers: workers.rows.map((w: any) => {
-          const hr = workerHrMap[w.worker] || { hashrate_15m: 0, hashrate_1h: 0 };
           return {
             worker: w.worker,
             shares: parseInt(w.shares) || 0,
             last_share: w.last_share,
-            hashrate_15m: hr.hashrate_15m,
-            hashrate_1h: hr.hashrate_1h,
+            hashrate: workerHrMap[w.worker] || 0,
+            hashrate_15m: workerHrMap[w.worker] || 0,
+            hashrate_1h: workerHrMap[w.worker] || 0,
           };
         }),
       });

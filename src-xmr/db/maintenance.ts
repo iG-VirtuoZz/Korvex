@@ -27,14 +27,21 @@ class XmrMaintenance {
 
   private async aggregate(): Promise<void> {
     try {
+      // Fenetre de 5 minutes pour re-agreger les shares en retard
+      // ON CONFLICT DO UPDATE corrige les valeurs precedentes si de nouveaux shares arrivent
+      const minutesWindow =
+        "  SELECT date_trunc('minute', NOW()) as ts_min " +
+        "  UNION ALL SELECT date_trunc('minute', NOW()) - INTERVAL '1 minute' " +
+        "  UNION ALL SELECT date_trunc('minute', NOW()) - INTERVAL '2 minutes' " +
+        "  UNION ALL SELECT date_trunc('minute', NOW()) - INTERVAL '3 minutes' " +
+        "  UNION ALL SELECT date_trunc('minute', NOW()) - INTERVAL '4 minutes'";
+
       // Pool hashrate
       await xmrDatabase.query(
         "INSERT INTO xmr_pool_hashrate_1m (ts_minute, mining_mode, diff_sum, share_count) " +
         "SELECT ts_min, 'pplns'::varchar, COALESCE(SUM(s.share_diff), 0), COUNT(s.*) " +
         "FROM ( " +
-        "  SELECT date_trunc('minute', NOW()) as ts_min " +
-        "  UNION ALL " +
-        "  SELECT date_trunc('minute', NOW()) - INTERVAL '1 minute' " +
+        minutesWindow +
         ") minutes " +
         "LEFT JOIN xmr_shares s ON s.created_at >= ts_min AND s.created_at < ts_min + INTERVAL '1 minute' AND s.mining_mode = 'pplns' " +
         "GROUP BY ts_min " +
@@ -47,9 +54,7 @@ class XmrMaintenance {
         "INSERT INTO xmr_miner_hashrate_1m (ts_minute, address, mining_mode, diff_sum, share_count) " +
         "SELECT ts_min, s.address, 'pplns'::varchar, COALESCE(SUM(s.share_diff), 0), COUNT(*) " +
         "FROM ( " +
-        "  SELECT date_trunc('minute', NOW()) as ts_min " +
-        "  UNION ALL " +
-        "  SELECT date_trunc('minute', NOW()) - INTERVAL '1 minute' " +
+        minutesWindow +
         ") minutes " +
         "INNER JOIN xmr_shares s ON s.created_at >= ts_min AND s.created_at < ts_min + INTERVAL '1 minute' AND s.mining_mode = 'pplns' " +
         "GROUP BY ts_min, s.address " +
@@ -62,9 +67,7 @@ class XmrMaintenance {
         "INSERT INTO xmr_worker_hashrate_1m (ts_minute, address, worker, mining_mode, diff_sum, share_count) " +
         "SELECT ts_min, s.address, s.worker, 'pplns'::varchar, COALESCE(SUM(s.share_diff), 0), COUNT(*) " +
         "FROM ( " +
-        "  SELECT date_trunc('minute', NOW()) as ts_min " +
-        "  UNION ALL " +
-        "  SELECT date_trunc('minute', NOW()) - INTERVAL '1 minute' " +
+        minutesWindow +
         ") minutes " +
         "INNER JOIN xmr_shares s ON s.created_at >= ts_min AND s.created_at < ts_min + INTERVAL '1 minute' AND s.mining_mode = 'pplns' " +
         "GROUP BY ts_min, s.address, s.worker " +

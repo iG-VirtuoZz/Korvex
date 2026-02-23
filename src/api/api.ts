@@ -873,7 +873,12 @@ export function createApi(
         ),
         filled AS (
           SELECT ts,
-            COALESCE(raw_value, (SELECT j2.raw_value FROM joined j2 WHERE j2.ts < joined.ts AND j2.raw_value IS NOT NULL ORDER BY j2.ts DESC LIMIT 1)) as filled_value
+            COALESCE(raw_value,
+              (SELECT j2.raw_value FROM joined j2
+               WHERE j2.ts < joined.ts AND j2.raw_value IS NOT NULL
+                 AND joined.ts - j2.ts <= INTERVAL '${bucketSeconds * 2} seconds'
+               ORDER BY j2.ts DESC LIMIT 1)
+            ) as filled_value
           FROM joined
         ),
         cap_threshold AS (
@@ -953,7 +958,12 @@ export function createApi(
         ),
         filled AS (
           SELECT ts,
-            COALESCE(raw_value, (SELECT j2.raw_value FROM joined j2 WHERE j2.ts < joined.ts AND j2.raw_value IS NOT NULL ORDER BY j2.ts DESC LIMIT 1)) as filled_value
+            COALESCE(raw_value,
+              (SELECT j2.raw_value FROM joined j2
+               WHERE j2.ts < joined.ts AND j2.raw_value IS NOT NULL
+                 AND joined.ts - j2.ts <= INTERVAL '${bucketSeconds * 2} seconds'
+               ORDER BY j2.ts DESC LIMIT 1)
+            ) as filled_value
           FROM joined
         ),
         cap_threshold AS (
@@ -969,7 +979,7 @@ export function createApi(
         SELECT ts,
           AVG(capped_value) OVER (ORDER BY ts ROWS BETWEEN ${smoothingWindow} PRECEDING AND ${smoothingWindow} FOLLOWING) as value
         FROM capped
-        Order by ts
+        ORDER BY ts
       `, [address, worker, mode]);
 
       res.json({ period, data: result.rows });
